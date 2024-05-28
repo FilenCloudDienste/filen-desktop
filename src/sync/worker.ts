@@ -61,7 +61,7 @@ export class SyncWorker {
 }
 
 // Only start the worker if it is actually invoked.
-if (process.argv.slice(2).includes("--worker") && IS_NODE) {
+if (process.argv.slice(2).includes("--filen-desktop-worker") && IS_NODE) {
 	// TODO: Proper init
 	const syncWorker = new SyncWorker({
 		dbPath: "",

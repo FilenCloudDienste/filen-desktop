@@ -155,7 +155,8 @@ export class FUSEWorker {
 	}
 }
 
-if (IS_NODE) {
+// Only start the worker if it is actually invoked.
+if (process.argv.slice(2).includes("--filen-desktop-worker") && IS_NODE) {
 	// TODO: Remove
 
 	const baseTmpPath = pathModule.join(os.tmpdir(), "filen-desktop")

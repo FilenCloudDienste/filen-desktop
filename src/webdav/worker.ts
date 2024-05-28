@@ -11,6 +11,7 @@ export type WebDAVUser = {
 	name: string
 	password: string
 	isAdmin: boolean
+	rights?: WebDAV.BasicPrivilege[] | string[]
 }
 
 /**
@@ -64,7 +65,7 @@ export class WebDAVWorker {
 		for (const user of users) {
 			const usr = userManager.addUser(user.name, user.password, user.isAdmin)
 
-			privilegeManager.setRights(usr, "/", ["all"])
+			privilegeManager.setRights(usr, "/", user.rights ? user.rights : ["all"])
 		}
 
 		this.webdavServer = new WebDAV.WebDAVServer({
@@ -104,7 +105,7 @@ export class WebDAVWorker {
 }
 
 // Only start the worker if it is actually invoked.
-if (process.argv.slice(2).includes("--worker") && IS_NODE) {
+if (process.argv.slice(2).includes("--filen-desktop-worker") && IS_NODE) {
 	const webdavWorker = new WebDAVWorker({
 		users: [
 			{
