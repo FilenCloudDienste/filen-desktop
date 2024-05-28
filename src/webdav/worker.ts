@@ -1,18 +1,6 @@
-import SDK, { type FilenSDKConfig } from "@filen/sdk"
-import * as WebDAV from "@filen/webdav-server"
-import FileSystem from "./filesystem"
+import { type FilenSDKConfig } from "@filen/sdk"
 import { IS_NODE } from "../constants"
-
-if (IS_NODE) {
-	process.removeAllListeners("warning")
-}
-
-export type WebDAVUser = {
-	name: string
-	password: string
-	isAdmin: boolean
-	rights?: WebDAV.BasicPrivilege[] | string[]
-}
+import WebDAVServer, { type WebDAVUser } from "@filen/webdav"
 
 /**
  * WebDAVWorker
@@ -23,8 +11,7 @@ export type WebDAVUser = {
  * @typedef {WebDAVWorker}
  */
 export class WebDAVWorker {
-	private readonly sdk: SDK
-	private readonly webdavServer: WebDAV.WebDAVServer
+	private readonly server: WebDAVServer
 
 	/**
 	 * Creates an instance of WebDAVWorker.
@@ -57,26 +44,12 @@ export class WebDAVWorker {
 		sdkConfig: FilenSDKConfig
 		tmpDir?: string
 	}) {
-		this.sdk = new SDK(sdkConfig)
-
-		const userManager = new WebDAV.SimpleUserManager()
-		const privilegeManager = new WebDAV.SimplePathPrivilegeManager()
-
-		for (const user of users) {
-			const usr = userManager.addUser(user.name, user.password, user.isAdmin)
-
-			privilegeManager.setRights(usr, "/", user.rights ? user.rights : ["all"])
-		}
-
-		this.webdavServer = new WebDAV.WebDAVServer({
+		this.server = new WebDAVServer({
+			users,
 			hostname,
-			privilegeManager,
-			httpAuthentication: new WebDAV.HTTPDigestAuthentication(userManager, "Default realm"),
-			port: port ? port : 1901,
-			rootFileSystem: new FileSystem({
-				sdk: this.sdk,
-				tmpDir
-			})
+			port,
+			sdkConfig,
+			tmpDir
 		})
 
 		if (process.env.NODE_ENV === "development") {
@@ -96,11 +69,7 @@ export class WebDAVWorker {
 	 * @returns {Promise<void>}
 	 */
 	public async initialize(): Promise<void> {
-		await new Promise<void>(resolve => {
-			this.webdavServer.start(() => {
-				resolve()
-			})
-		})
+		await this.server.initialize()
 	}
 }
 
