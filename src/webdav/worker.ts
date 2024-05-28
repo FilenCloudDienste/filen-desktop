@@ -1,6 +1,7 @@
 import SDK, { type FilenSDKConfig } from "@filen/sdk"
 import * as WebDAV from "@filen/webdav-server"
 import FileSystem from "./filesystem"
+import { IS_NODE } from "../constants"
 
 export type WebDAVUser = {
 	name: string
@@ -101,7 +102,7 @@ export class WebDAVWorker {
 }
 
 // Only start the worker if it is actually invoked.
-if (process.argv.slice(2).includes("--worker")) {
+if (process.argv.slice(2).includes("--worker") && IS_NODE) {
 	const webdavWorker = new WebDAVWorker({
 		users: [
 			{
