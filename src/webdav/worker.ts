@@ -25,22 +25,31 @@ export class WebDAVWorker {
 	 *
 	 * @constructor
 	 * @public
-	 * @param {{users: WebDAVUser[], hostname?: string, port?: number, sdkConfig: FilenSDKConfig}} param0
+	 * @param {{
+	 * 		users: WebDAVUser[]
+	 * 		hostname?: string
+	 * 		port?: number
+	 * 		sdkConfig: FilenSDKConfig
+	 * 		tmpDir?: string
+	 * 	}} param0
 	 * @param {{}} param0.users
 	 * @param {string} param0.hostname
 	 * @param {number} param0.port
 	 * @param {FilenSDKConfig} param0.sdkConfig
+	 * @param {string} param0.tmpDir
 	 */
 	public constructor({
 		users,
 		hostname,
 		port,
-		sdkConfig
+		sdkConfig,
+		tmpDir
 	}: {
 		users: WebDAVUser[]
 		hostname?: string
 		port?: number
 		sdkConfig: FilenSDKConfig
+		tmpDir?: string
 	}) {
 		this.sdk = new SDK(sdkConfig)
 
@@ -58,7 +67,10 @@ export class WebDAVWorker {
 			privilegeManager,
 			httpAuthentication: new WebDAV.HTTPDigestAuthentication(userManager, "Default realm"),
 			port: port ? port : 1901,
-			rootFileSystem: new FileSystem({ sdk: this.sdk })
+			rootFileSystem: new FileSystem({
+				sdk: this.sdk,
+				tmpDir
+			})
 		})
 
 		if (process.env.NODE_ENV === "development") {

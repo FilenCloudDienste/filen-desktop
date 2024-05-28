@@ -1,5 +1,6 @@
 import type { SyncPair } from "./types"
 import Sync from "./lib/sync"
+import { type FilenSDKConfig } from "@filen/sdk"
 
 /**
  * SyncWorker
@@ -13,20 +14,22 @@ export class SyncWorker {
 	private readonly syncPairs: SyncPair[]
 	private readonly syncs: Record<string, Sync> = {}
 	private readonly dbPath: string
+	private readonly sdkConfig: FilenSDKConfig
 
 	/**
 	 * Creates an instance of SyncWorker.
-	 * @date 3/4/2024 - 11:39:47 PM
 	 *
 	 * @constructor
 	 * @public
-	 * @param {{ syncPairs: SyncPair[], dbPath: string }} param0
+	 * @param {{ syncPairs: SyncPair[]; dbPath: string; sdkConfig: FilenSDKConfig }} param0
 	 * @param {{}} param0.syncPairs
 	 * @param {string} param0.dbPath
+	 * @param {FilenSDKConfig} param0.sdkConfig
 	 */
-	public constructor({ syncPairs, dbPath }: { syncPairs: SyncPair[]; dbPath: string }) {
+	public constructor({ syncPairs, dbPath, sdkConfig }: { syncPairs: SyncPair[]; dbPath: string; sdkConfig: FilenSDKConfig }) {
 		this.syncPairs = syncPairs
 		this.dbPath = dbPath
+		this.sdkConfig = sdkConfig
 	}
 
 	/**
@@ -42,7 +45,11 @@ export class SyncWorker {
 
 		for (const pair of this.syncPairs) {
 			if (!this.syncs[pair.uuid]) {
-				this.syncs[pair.uuid] = new Sync({ syncPair: pair, dbPath: this.dbPath, sdkConfig: {} })
+				this.syncs[pair.uuid] = new Sync({
+					syncPair: pair,
+					dbPath: this.dbPath,
+					sdkConfig: this.sdkConfig
+				})
 
 				promises.push(this.syncs[pair.uuid]!.initialize())
 			}
@@ -57,7 +64,8 @@ if (process.argv.slice(2).includes("--worker")) {
 	// TODO: Proper init
 	const syncWorker = new SyncWorker({
 		dbPath: "",
-		syncPairs: []
+		syncPairs: [],
+		sdkConfig: {}
 	})
 
 	syncWorker
@@ -75,3 +83,5 @@ if (process.argv.slice(2).includes("--worker")) {
 			process.exit(1)
 		})
 }
+
+export default SyncWorker

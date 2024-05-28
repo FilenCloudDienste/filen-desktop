@@ -20,6 +20,7 @@ import Delete from "./ops/delete"
 import Create from "./ops/create"
 import OpenWriteStream from "./ops/openWriteStream"
 import OpenReadStream from "./ops/openReadStream"
+import os from "os"
 
 export class FileSystem extends WebDAV.FileSystem {
 	public readonly sdk: SDK
@@ -44,10 +45,12 @@ export class FileSystem extends WebDAV.FileSystem {
 	private readonly __create: Create
 	private readonly __openWriteStream: OpenWriteStream
 	private readonly __openReadStream: OpenReadStream
+	public readonly tmpDir: string
 
-	public constructor({ sdk }: { sdk: SDK }) {
+	public constructor({ sdk, tmpDir }: { sdk: SDK; tmpDir?: string }) {
 		super(new Serializer({ sdk }))
 
+		this.tmpDir = tmpDir ? tmpDir : os.tmpdir()
 		this.sdk = sdk
 		this.__propertyManager = new PropertyManager({ fileSystem: this })
 		this.__lockManager = new LockManager({ fileSystem: this })
@@ -134,13 +137,10 @@ export class FileSystem extends WebDAV.FileSystem {
 	}
 
 	protected _create(path: WebDAV.Path, ctx: WebDAV.CreateInfo, callback: WebDAV.SimpleCallback): void {
-		console.log(ctx.type)
 		this.__create.run(path, ctx, callback)
 	}
 
 	protected _openWriteStream(path: WebDAV.Path, _ctx: WebDAV.OpenWriteStreamInfo, callback: WebDAV.ReturnCallback<Writable>): void {
-		console.log(_ctx.mode)
-
 		this.__openWriteStream.run(path, callback)
 	}
 

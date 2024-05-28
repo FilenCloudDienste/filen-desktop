@@ -210,12 +210,10 @@ export class Ops implements Fuse.OPERATIONS {
 	}
 
 	public write(path: string, _fd: number, buffer: Buffer, length: number, position: number, callback: FuseReadWriteCallback): void {
-		console.log("write", path)
 		this._write.run(path, buffer, length, position, callback)
 	}
 
 	public release(path: string, _fd: number, callback: FuseErrorCallbackSimple): void {
-		console.log("release", path)
 		this._release.run(path, callback)
 	}
 

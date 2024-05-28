@@ -2,7 +2,6 @@ import * as WebDAV from "@filen/webdav-server"
 import type FileSystem from ".."
 import pathModule from "path"
 import { Readable } from "stream"
-import os from "os"
 import fs from "fs-extra"
 import { pathToHash } from "../../../fuse/utils"
 import { type ReadableStream } from "stream/web"
@@ -21,7 +20,7 @@ export class OpenReadStream {
 
 		try {
 			const pathHash = pathToHash(path.toString())
-			const tempPath = pathModule.join(os.tmpdir(), "filen-webdav", "downloadCache", pathHash)
+			const tempPath = pathModule.join(this.fileSystem.tmpDir, "filen-webdav", "downloadCache", pathHash)
 
 			if (await fs.exists(tempPath)) {
 				return fs.createReadStream(tempPath)
