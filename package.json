@@ -1,6 +1,6 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.9",
+	"version": "0.1.10",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -45,6 +45,7 @@
 		"@typescript-eslint/eslint-plugin": "^6.20.0",
 		"@typescript-eslint/parser": "^6.20.0",
 		"cross-env": "^7.0.3",
+		"electron": "^30.0.8",
 		"eslint": "^8.56.0",
 		"jest": "^29.7.0",
 		"rimraf": "^5.0.5",
@@ -59,7 +60,6 @@
 		"@gcas/fuse": "^2.4.2",
 		"@parcel/watcher": "^2.4.1",
 		"bindings": "^1.5.0",
-		"electron": "^30.0.8",
 		"fs-extra": "^11.2.0",
 		"lodash": "^4.17.21",
 		"mime-types": "^2.1.35",
