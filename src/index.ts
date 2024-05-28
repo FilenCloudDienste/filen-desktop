@@ -106,7 +106,6 @@ export class FilenDesktop {
 
 		//await Promise.all([this.startFuseThread(), this.startWebDAVThread(), this.startSyncThread()])
 
-		await this.startFuseThread()
 		await this.createDriveWindow()
 
 		if (process.env.NODE_ENV === "development") {

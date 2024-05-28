@@ -1,6 +1,6 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.11",
+	"version": "0.1.12",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -55,7 +55,7 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/sdk": "^0.1.90",
+		"@filen/sdk": "^0.1.91",
 		"@filen/webdav-server": "^1.0.0",
 		"@gcas/fuse": "^2.4.2",
 		"@parcel/watcher": "^2.4.1",
