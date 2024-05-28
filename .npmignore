@@ -6,3 +6,4 @@ docs/**/*
 .vscode/**/*
 dev/*
 dev
+bin
