@@ -1,7 +1,6 @@
 import * as WebDAV from "@filen/webdav-server"
 import type FileSystem from ".."
 import pathModule from "path"
-import { Semaphore } from "../../../semaphore"
 
 export class Rename {
 	private readonly fileSystem: FileSystem
@@ -16,12 +15,6 @@ export class Rename {
 
 			return true
 		}
-
-		if (!this.fileSystem.readWriteMutex[pathFrom.toString()]) {
-			this.fileSystem.readWriteMutex[pathFrom.toString()] = new Semaphore(1)
-		}
-
-		await this.fileSystem.readWriteMutex[pathFrom.toString()]!.acquire()
 
 		try {
 			const newPath = pathModule.posix.join(pathFrom.toString(), "..", newName)
@@ -39,8 +32,6 @@ export class Rename {
 			}
 
 			throw WebDAV.Errors.InvalidOperation
-		} finally {
-			this.fileSystem.readWriteMutex[pathFrom.toString()]!.release()
 		}
 	}
 

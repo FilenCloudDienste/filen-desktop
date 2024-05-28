@@ -1,6 +1,5 @@
 import * as WebDAV from "@filen/webdav-server"
 import type FileSystem from ".."
-import { Semaphore } from "../../../semaphore"
 
 export class Delete {
 	private readonly fileSystem: FileSystem
@@ -16,12 +15,6 @@ export class Delete {
 			return
 		}
 
-		if (!this.fileSystem.readWriteMutex[path.toString()]) {
-			this.fileSystem.readWriteMutex[path.toString()] = new Semaphore(1)
-		}
-
-		await this.fileSystem.readWriteMutex[path.toString()]!.acquire()
-
 		try {
 			await this.fileSystem.sdk.fs().stat({ path: path.toString() })
 			await this.fileSystem.sdk.fs().unlink({ path: path.toString(), permanent: true })
@@ -35,8 +28,6 @@ export class Delete {
 			}
 
 			throw WebDAV.Errors.InvalidOperation
-		} finally {
-			this.fileSystem.readWriteMutex[path.toString()]!.release()
 		}
 	}
 

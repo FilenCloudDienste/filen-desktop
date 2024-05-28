@@ -5,7 +5,6 @@ import { Readable } from "stream"
 import fs from "fs-extra"
 import { pathToHash } from "../../../fuse/utils"
 import { type ReadableStream } from "stream/web"
-import { Semaphore } from "../../../semaphore"
 
 export class OpenReadStream {
 	private readonly fileSystem: FileSystem
@@ -17,24 +16,6 @@ export class OpenReadStream {
 	private async execute(path: WebDAV.Path): Promise<Readable> {
 		if (this.fileSystem.virtualFiles[path.toString()]) {
 			return Readable.from([])
-		}
-
-		if (!this.fileSystem.readWriteMutex[path.toString()]) {
-			this.fileSystem.readWriteMutex[path.toString()] = new Semaphore(1)
-		}
-
-		await this.fileSystem.readWriteMutex[path.toString()]!.acquire()
-
-		let didReleaseMutex = false
-
-		const releaseMutex = () => {
-			if (didReleaseMutex) {
-				return
-			}
-
-			didReleaseMutex = true
-
-			this.fileSystem.readWriteMutex[path.toString()]!
 		}
 
 		try {
@@ -61,15 +42,8 @@ export class OpenReadStream {
 				size: stat.size
 			})) as unknown as ReadableStream<Buffer>
 
-			const nodeStream = Readable.fromWeb(stream)
-
-			nodeStream.once("close", () => releaseMutex)
-			nodeStream.once("error", () => releaseMutex)
-
-			return nodeStream
+			return Readable.fromWeb(stream)
 		} catch (e) {
-			releaseMutex()
-
 			console.error(e) // TODO: Proper debugger
 
 			const err = e as unknown as { code?: string }

@@ -1,6 +1,5 @@
 import * as WebDAV from "@filen/webdav-server"
 import type FileSystem from ".."
-import { Semaphore } from "../../../semaphore"
 
 export class Move {
 	private readonly fileSystem: FileSystem
@@ -18,19 +17,6 @@ export class Move {
 			return true
 		}
 
-		if (!this.fileSystem.readWriteMutex[pathFrom.toString()]) {
-			this.fileSystem.readWriteMutex[pathFrom.toString()] = new Semaphore(1)
-		}
-
-		if (!this.fileSystem.readWriteMutex[pathTo.toString()]) {
-			this.fileSystem.readWriteMutex[pathTo.toString()] = new Semaphore(1)
-		}
-
-		await Promise.all([
-			this.fileSystem.readWriteMutex[pathFrom.toString()]!.acquire(),
-			this.fileSystem.readWriteMutex[pathTo.toString()]!.acquire()
-		])
-
 		try {
 			await this.fileSystem.sdk.fs().rename({ from: pathFrom.toString(), to: pathTo.toString() })
 
@@ -45,9 +31,6 @@ export class Move {
 			}
 
 			throw WebDAV.Errors.InvalidOperation
-		} finally {
-			this.fileSystem.readWriteMutex[pathFrom.toString()]!.release()
-			this.fileSystem.readWriteMutex[pathTo.toString()]!.release()
 		}
 	}
 

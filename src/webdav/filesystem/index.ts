@@ -21,12 +21,11 @@ import Create from "./ops/create"
 import OpenWriteStream from "./ops/openWriteStream"
 import OpenReadStream from "./ops/openReadStream"
 import os from "os"
-import { ISemaphore } from "../../semaphore"
 
 export class FileSystem extends WebDAV.FileSystem {
 	public readonly sdk: SDK
-	public readonly propertyManagers: Record<string, WebDAV.IPropertyManager> = {}
-	public readonly lockManagers: Record<string, WebDAV.ILockManager> = {}
+	public readonly propertyManagers: Record<string, WebDAV.LocalPropertyManager> = {}
+	public readonly lockManagers: Record<string, WebDAV.LocalLockManager> = {}
 	public readonly virtualFiles: Record<string, FSStats> = {}
 	private readonly __propertyManager: PropertyManager
 	private readonly __lockManager: LockManager
@@ -47,7 +46,6 @@ export class FileSystem extends WebDAV.FileSystem {
 	private readonly __openWriteStream: OpenWriteStream
 	private readonly __openReadStream: OpenReadStream
 	public readonly tmpDir: string
-	public readonly readWriteMutex: Record<string, ISemaphore> = {}
 
 	public constructor({ sdk, tmpDir }: { sdk: SDK; tmpDir?: string }) {
 		super(new Serializer({ sdk }))
