@@ -42,7 +42,7 @@
 		"@types/lodash": "^4.14.202",
 		"@types/mime-types": "^2.1.4",
 		"@types/uuid": "^9.0.8",
-		"@typescript-eslint/eslint-plugin": "^6.20.0",
+		"@typescript-eslint/eslint-plugin": "^7.0.0",
 		"@typescript-eslint/parser": "^6.20.0",
 		"cross-env": "^7.0.3",
 		"electron": "^30.0.8",
