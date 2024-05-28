@@ -3,6 +3,7 @@ import type FileSystem from ".."
 import pathModule from "path"
 import { v4 as uuidv4 } from "uuid"
 import mimeTypes from "mime-types"
+import { Semaphore } from "../../../semaphore"
 
 export class Create {
 	private readonly fileSystem: FileSystem
@@ -12,6 +13,12 @@ export class Create {
 	}
 
 	private async execute(path: WebDAV.Path, ctx: WebDAV.CreateInfo): Promise<void> {
+		if (!this.fileSystem.readWriteMutex[path.toString()]) {
+			this.fileSystem.readWriteMutex[path.toString()] = new Semaphore(1)
+		}
+
+		await this.fileSystem.readWriteMutex[path.toString()]!.acquire()
+
 		if (ctx.type === WebDAV.ResourceType.Directory) {
 			try {
 				await this.fileSystem.sdk.fs().mkdir({ path: path.toString() })
@@ -27,6 +34,8 @@ export class Create {
 				console.error(e) // TODO: Proper debugger
 
 				throw WebDAV.Errors.InvalidOperation
+			} finally {
+				this.fileSystem.readWriteMutex[path.toString()]!.release()
 			}
 		}
 
@@ -44,6 +53,8 @@ export class Create {
 
 				throw WebDAV.Errors.InvalidOperation
 			}
+		} finally {
+			this.fileSystem.readWriteMutex[path.toString()]!.release()
 		}
 
 		const name = pathModule.basename(path.toString())

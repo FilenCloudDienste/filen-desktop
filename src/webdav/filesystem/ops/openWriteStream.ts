@@ -5,6 +5,7 @@ import { Writable } from "stream"
 import { v4 as uuidv4 } from "uuid"
 import { ChunkedUploadWriter } from "../streams"
 import { FSItem, BUFFER_SIZE } from "@filen/sdk"
+import { Semaphore } from "../../../semaphore"
 
 export class OpenWriteStream {
 	private readonly fileSystem: FileSystem
@@ -14,6 +15,24 @@ export class OpenWriteStream {
 	}
 
 	private async execute(path: WebDAV.Path): Promise<Writable> {
+		if (!this.fileSystem.readWriteMutex[path.toString()]) {
+			this.fileSystem.readWriteMutex[path.toString()] = new Semaphore(1)
+		}
+
+		await this.fileSystem.readWriteMutex[path.toString()]!.acquire()
+
+		let didReleaseMutex = false
+
+		const releaseMutex = () => {
+			if (didReleaseMutex) {
+				return
+			}
+
+			didReleaseMutex = true
+
+			this.fileSystem.readWriteMutex[path.toString()]!
+		}
+
 		try {
 			const parentPath = pathModule.dirname(path.toString())
 			const parentStat = await this.fileSystem.sdk.fs().stat({ path: parentPath })
@@ -43,13 +62,18 @@ export class OpenWriteStream {
 					item
 				})
 
+				releaseMutex()
+
 				delete this.fileSystem.virtualFiles[path.toString()]
 			})
 
-			stream.on("error", console.error) // TODO: Proper debugger
+			stream.once("close", releaseMutex)
+			stream.once("error", releaseMutex) // TODO: Proper debugger
 
 			return stream
 		} catch (e) {
+			releaseMutex()
+
 			delete this.fileSystem.virtualFiles[path.toString()]
 
 			console.error(e) // TODO: Proper debugger

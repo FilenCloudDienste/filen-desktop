@@ -21,6 +21,7 @@ import Create from "./ops/create"
 import OpenWriteStream from "./ops/openWriteStream"
 import OpenReadStream from "./ops/openReadStream"
 import os from "os"
+import { ISemaphore } from "../../semaphore"
 
 export class FileSystem extends WebDAV.FileSystem {
 	public readonly sdk: SDK
@@ -46,6 +47,7 @@ export class FileSystem extends WebDAV.FileSystem {
 	private readonly __openWriteStream: OpenWriteStream
 	private readonly __openReadStream: OpenReadStream
 	public readonly tmpDir: string
+	public readonly readWriteMutex: Record<string, ISemaphore> = {}
 
 	public constructor({ sdk, tmpDir }: { sdk: SDK; tmpDir?: string }) {
 		super(new Serializer({ sdk }))
