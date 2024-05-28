@@ -9,10 +9,13 @@ import FilenSDK from "@filen/sdk"
 import { waitForSDKConfig } from "./config"
 import Cloud from "./lib/cloud"
 import FS from "./lib/fs"
+import { IS_ELECTRON } from "./constants"
 
-// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
-// Ref: https://github.com/electron/electron/issues/28422
-app.commandLine.appendSwitch("enable-experimental-web-platform-features")
+if (IS_ELECTRON) {
+	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
+	// Ref: https://github.com/electron/electron/issues/28422
+	app.commandLine.appendSwitch("enable-experimental-web-platform-features")
+}
 
 /**
  * FilenDesktop
@@ -30,7 +33,10 @@ export class FilenDesktop {
 	public readonly ipc: IPC
 	public readonly sdk: FilenSDK
 	public sdkInitialized: boolean = false
-	public readonly lib: { cloud: Cloud; fs: FS }
+	public readonly lib: {
+		cloud: Cloud
+		fs: FS
+	}
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -159,6 +165,13 @@ export class FilenDesktop {
 	}
 }
 
-new FilenDesktop().initialize().catch(console.error)
+if (IS_ELECTRON) {
+	new FilenDesktop().initialize().catch(console.error)
+}
 
+export default FilenDesktop
 export { DesktopAPI } from "./preload"
+export { WebDAVWorker as WebDAVServer } from "./webdav/worker"
+export { SyncWorker as Sync } from "./sync/worker"
+export * from "./utils"
+export * from "./constants"

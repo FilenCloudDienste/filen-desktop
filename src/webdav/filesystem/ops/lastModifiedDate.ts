@@ -16,6 +16,10 @@ export class LastModifiedDate {
 		try {
 			const stat = await this.fileSystem.sdk.fs().stat({ path: path.toString() })
 
+			if (stat.isDirectory()) {
+				return stat.birthtimeMs
+			}
+
 			return stat.mtimeMs
 		} catch (e) {
 			console.error(e) // TODO: Proper debugger
