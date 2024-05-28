@@ -1,0 +1,68 @@
+{
+	"name": "@filen/desktop",
+	"version": "0.1.1",
+	"description": "Filen Desktop Client",
+	"main": "dist/index.js",
+	"types": "dist/types/index.d.ts",
+	"private": false,
+	"scripts": {
+		"test": "jest --forceExit ./__tests__",
+		"lint": "eslint src/**/* --ext .js,.jsx,.ts,.tsx",
+		"emitTypes": "tsc --emitDeclarationOnly",
+		"tsc": "tsc --build",
+		"clear": "rimraf ./dist",
+		"build": "npm run clear && npm run lint && npm run tsc",
+		"dev": "tsc ./src/preload.ts --outDir ./dist && cross-env NODE_ENV=development electron ./src/index.dev.js",
+		"dev:fuse": "cross-env NODE_ENV=development node ./src/fuse/worker.dev.js",
+		"dev:webdav": "cross-env NODE_ENV=development node ./src/webdav/worker.dev.js",
+		"dev:sync": "cross-env NODE_ENV=development node ./src/sync/worker.dev.js",
+		"dev:dev": "ts-node ./dev/index.ts",
+		"dev:yalc": "npm run yalc && cross-env NODE_ENV=development electron ./src/index.dev.js",
+		"yalc": "npm run build && yalc push"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/FilenCloudDienste/filen-desktop.git"
+	},
+	"keywords": [
+		"filen"
+	],
+	"engines": {
+		"node": ">=18"
+	},
+	"author": "Filen",
+	"license": "AGPLv3",
+	"bugs": {
+		"url": "https://github.com/FilenCloudDienste/filen-desktop/issues"
+	},
+	"homepage": "https://filen.io",
+	"devDependencies": {
+		"@jest/globals": "^29.7.0",
+		"@types/fs-extra": "^11.0.4",
+		"@types/lodash": "^4.14.202",
+		"@types/mime-types": "^2.1.4",
+		"@types/uuid": "^9.0.8",
+		"@typescript-eslint/eslint-plugin": "^6.20.0",
+		"@typescript-eslint/parser": "^6.20.0",
+		"cross-env": "^7.0.3",
+		"electron": "^29.0.1",
+		"eslint": "^8.56.0",
+		"jest": "^29.7.0",
+		"rimraf": "^5.0.5",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.3.3",
+		"wait-on": "^7.2.0"
+	},
+	"dependencies": {
+		"@filen/sdk": "^0.1.90",
+		"@filen/webdav-server": "^1.0.0",
+		"@gcas/fuse": "^2.4.2",
+		"@parcel/watcher": "^2.4.1",
+		"bindings": "^1.5.0",
+		"fs-extra": "^11.2.0",
+		"lodash": "^4.17.21",
+		"mime-types": "^2.1.35",
+		"msgpackr": "^1.10.1",
+		"uuid": "^9.0.1"
+	}
+}
