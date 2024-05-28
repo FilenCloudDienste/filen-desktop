@@ -3,6 +3,10 @@ import * as WebDAV from "@filen/webdav-server"
 import FileSystem from "./filesystem"
 import { IS_NODE } from "../constants"
 
+if (IS_NODE) {
+	process.removeAllListeners("warning")
+}
+
 export type WebDAVUser = {
 	name: string
 	password: string
@@ -93,8 +97,6 @@ export class WebDAVWorker {
 	public async initialize(): Promise<void> {
 		await new Promise<void>(resolve => {
 			this.webdavServer.start(() => {
-				console.log("WebDAV server started")
-
 				resolve()
 			})
 		})

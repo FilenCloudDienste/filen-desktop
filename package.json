@@ -1,9 +1,9 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.7",
+	"version": "0.1.8",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
-	"types": "dist/types/index.d.ts",
+	"types": "dist/index.d.ts",
 	"private": false,
 	"scripts": {
 		"test": "jest --forceExit ./__tests__",
