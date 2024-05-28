@@ -6,3 +6,4 @@ dev/dev.config.json
 dev/**/*
 dev/*
 dev
+dist
