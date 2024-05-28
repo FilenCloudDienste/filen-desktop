@@ -4,3 +4,5 @@ dev/**/*
 docs/**/*
 .github/**/*
 .vscode/**/*
+dev/*
+dev
