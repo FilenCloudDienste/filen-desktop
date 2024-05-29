@@ -170,7 +170,5 @@ if (IS_ELECTRON) {
 
 export default FilenDesktop
 export { DesktopAPI } from "./preload"
-export { WebDAVWorker as WebDAVServer } from "./webdav/worker"
-export { SyncWorker as Sync } from "./sync/worker"
 export * from "./utils"
 export * from "./constants"
