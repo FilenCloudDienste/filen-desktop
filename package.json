@@ -57,6 +57,7 @@
 	"dependencies": {
 		"@filen/sdk": "^0.1.91",
 		"@filen/sync": "^0.1.1",
+		"@filen/virtual-drive": "^0.1.16",
 		"@filen/webdav": "^0.1.1",
 		"@gcas/fuse": "^2.4.2",
 		"@parcel/watcher": "^2.4.1",
