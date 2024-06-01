@@ -99,6 +99,7 @@ export class Cloud {
 			version,
 			pauseSignal,
 			abortSignal,
+			size,
 			onQueued: () => {
 				if (dontEmitEvents) {
 					return
@@ -522,6 +523,7 @@ export class Cloud {
 								to: filePath,
 								pauseSignal,
 								abortSignal,
+								size: item.size,
 								onQueued: () => {
 									if (dontEmitEvents) {
 										return
