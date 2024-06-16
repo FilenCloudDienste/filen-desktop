@@ -55,7 +55,7 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/sdk": "^0.1.92",
+		"@filen/sdk": "^0.1.117",
 		"@filen/sync": "^0.1.1",
 		"@filen/virtual-drive": "^0.1.16",
 		"@filen/webdav": "^0.1.1",
