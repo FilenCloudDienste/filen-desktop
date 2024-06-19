@@ -100,13 +100,13 @@ export class FilenDesktop {
 
 		app.on("activate", () => {
 			if (BrowserWindow.getAllWindows().length === 0) {
-				this.createDriveWindow().catch(console.error)
+				this.createMainWindow().catch(console.error)
 			}
 		})
 
 		//await Promise.all([this.startFuseThread(), this.startWebDAVThread(), this.startSyncThread()])
 
-		await this.createDriveWindow()
+		await this.createMainWindow()
 
 		if (process.env.NODE_ENV === "development") {
 			setInterval(() => {
@@ -116,7 +116,7 @@ export class FilenDesktop {
 		}
 	}
 
-	private async createDriveWindow(): Promise<void> {
+	private async createMainWindow(): Promise<void> {
 		if (this.driveWindow) {
 			return
 		}
@@ -127,6 +127,10 @@ export class FilenDesktop {
 			frame: false,
 			title: "Filen",
 			webPreferences: {
+				backgroundThrottling: false,
+				autoplayPolicy: "no-user-gesture-required",
+				contextIsolation: true,
+				experimentalFeatures: true,
 				preload:
 					process.env.NODE_ENV === "development"
 						? pathModule.join(__dirname, "..", "dist", "preload.js")

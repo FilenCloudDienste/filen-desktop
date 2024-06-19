@@ -1,6 +1,6 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.16",
+	"version": "0.1.17",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -16,6 +16,7 @@
 		"dev:fuse": "cross-env NODE_ENV=development node ./src/fuse/worker.dev.js",
 		"dev:webdav": "cross-env NODE_ENV=development node ./src/webdav/worker.dev.js",
 		"dev:sync": "cross-env NODE_ENV=development node ./src/sync/worker.dev.js",
+		"dev:s3": "cross-env NODE_ENV=development node ./src/s3/worker.dev.js",
 		"dev:dev": "tsx ./dev/index.ts",
 		"dev:yalc": "npm run yalc && cross-env NODE_ENV=development electron ./src/index.dev.js",
 		"yalc": "npm run build && yalc push"
@@ -55,10 +56,11 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/sdk": "^0.1.117",
+		"@filen/s3": "^0.2.2",
+		"@filen/sdk": "^0.1.119",
 		"@filen/sync": "^0.1.1",
 		"@filen/virtual-drive": "^0.1.16",
-		"@filen/webdav": "^0.1.1",
+		"@filen/webdav": "^0.2.8",
 		"@gcas/fuse": "^2.4.2",
 		"@parcel/watcher": "^2.4.1",
 		"bindings": "^1.5.0",
