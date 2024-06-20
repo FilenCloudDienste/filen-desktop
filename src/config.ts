@@ -1,29 +1,29 @@
-import { type FilenSDKConfig } from "@filen/sdk"
+import { type FilenDesktopConfig } from "./types"
 
-export let SDK_CONFIG: FilenSDKConfig | null = null
+export let CONFIG: FilenDesktopConfig | null = null
 
-export function setSDKConfig(config: FilenSDKConfig): void {
-	SDK_CONFIG = config
+export function setConfig(config: FilenDesktopConfig): void {
+	CONFIG = config
 
-	console.log("SDK config set")
+	console.log("Desktop config set")
 }
 
-export function waitForSDKConfig(): Promise<FilenSDKConfig> {
-	return new Promise<FilenSDKConfig>(resolve => {
-		if (SDK_CONFIG) {
-			resolve(SDK_CONFIG)
+export function waitForConfig(): Promise<FilenDesktopConfig> {
+	return new Promise<FilenDesktopConfig>(resolve => {
+		if (CONFIG) {
+			resolve(CONFIG)
 
 			return
 		}
 
 		const wait = setInterval(() => {
-			if (SDK_CONFIG) {
+			if (CONFIG) {
 				clearInterval(wait)
 
-				resolve(SDK_CONFIG)
+				resolve(CONFIG)
 			}
 		}, 100)
 	})
 }
 
-export default SDK_CONFIG
+export default CONFIG

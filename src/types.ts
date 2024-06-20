@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { type CloudItem, type CloudItemShared } from "@filen/sdk"
+import { type CloudItem, type CloudItemShared, type FilenSDKConfig } from "@filen/sdk"
 
 export type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never
 
@@ -17,3 +17,27 @@ export type DriveCloudItem = Prettify<
 >
 
 export type DriveCloudItemWithPath = Prettify<DriveCloudItem & { path: string }>
+
+export type FilenDesktopConfig = {
+	sdkConfig: FilenSDKConfig
+	webdavConfig: {
+		username: string
+		password: string
+		hostname: string
+		port: number
+		proxyMode: boolean
+		https: boolean
+		authMode: "basic" | "digest"
+	}
+	s3Config: {
+		accessKeyId: string
+		secretKeyId: string
+		hostname: string
+		port: number
+		https: boolean
+	}
+	fuseConfig: {
+		mountPoint: string
+		localDirPath: string
+	}
+}

@@ -6,7 +6,7 @@ import { setState } from "../state"
 import { type ChildProcess } from "child_process"
 import { isPortInUse } from "../utils"
 
-export type WebDAVWorkerMessage =
+export type S3WorkerMessage =
 	| {
 			type: "started"
 	  }
@@ -19,16 +19,8 @@ export type WebDAVWorkerMessage =
 			error: SerializedError
 	  }
 
-/**
- * WebDAV
- * @date 2/23/2024 - 5:49:48 AM
- *
- * @export
- * @class WebDAV
- * @typedef {WebDAV}
- */
-export class WebDAV {
-	private readonly worker = new Worker<WebDAVWorkerMessage>({
+export class S3 {
+	private readonly worker = new Worker<S3WorkerMessage>({
 		path: pathModule.join(__dirname, process.env.NODE_ENV === "production" ? "worker.js" : "worker.dev.js"),
 		memory: 8 * 1024
 	})
@@ -56,13 +48,11 @@ export class WebDAV {
 		await new Promise<void>((resolve, reject) => {
 			waitForConfig()
 				.then(config => {
-					isPortInUse(config.webdavConfig.port)
+					isPortInUse(config.s3Config.port)
 						.then(portInUse => {
 							if (portInUse) {
 								reject(
-									new Error(
-										`Cannot start WebDAV server on ${config.webdavConfig.hostname}:${config.webdavConfig.port}: Port in use.`
-									)
+									new Error(`Cannot start S3 server on ${config.s3Config.hostname}:${config.s3Config.port}: Port in use.`)
 								)
 
 								return
@@ -75,7 +65,7 @@ export class WebDAV {
 										if (message.type === "started") {
 											setState(prev => ({
 												...prev,
-												webdavStarted: true
+												s3Started: true
 											}))
 
 											resolve()
@@ -84,7 +74,7 @@ export class WebDAV {
 
 											setState(prev => ({
 												...prev,
-												webdavStarted: false
+												s3Started: false
 											}))
 
 											reject(deserializeError(message.error))
@@ -94,7 +84,7 @@ export class WebDAV {
 									this.worker.on("exit", () => {
 										setState(prev => ({
 											...prev,
-											webdavStarted: false
+											s3Started: false
 										}))
 									})
 
@@ -112,4 +102,4 @@ export class WebDAV {
 	}
 }
 
-export default WebDAV
+export default S3

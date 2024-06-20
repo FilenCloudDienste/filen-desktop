@@ -1,12 +1,12 @@
-import WebDAVServer from "@filen/webdav"
-import { type WebDAVWorkerMessage } from "."
+import S3Server from "@filen/s3"
+import { type S3WorkerMessage } from "."
 import { type FilenDesktopConfig } from "../types"
 import { serializeError } from "../lib/worker"
 import { isPortInUse } from "../utils"
 
 let config: FilenDesktopConfig | null = null
 
-process.on("message", (message: WebDAVWorkerMessage) => {
+process.on("message", (message: S3WorkerMessage) => {
 	if (message.type === "config") {
 		config = message.config
 	}
@@ -37,22 +37,19 @@ export async function main(): Promise<void> {
 
 	const config = await waitForConfig()
 
-	if (await isPortInUse(config.webdavConfig.port)) {
-		throw new Error(`Cannot start WebDAV server on ${config.webdavConfig.hostname}:${config.webdavConfig.port}: Port in use.`)
+	if (await isPortInUse(config.s3Config.port)) {
+		throw new Error(`Cannot start S3 server on ${config.s3Config.hostname}:${config.s3Config.port}: Port in use.`)
 	}
 
-	const server = new WebDAVServer({
-		port: config.webdavConfig.port,
-		hostname: config.webdavConfig.hostname,
-		user: !config.webdavConfig.proxyMode
-			? {
-					username: config.webdavConfig.username,
-					password: config.webdavConfig.password,
-					sdkConfig: config.sdkConfig
-			  }
-			: undefined,
-		https: config.webdavConfig.https,
-		authMode: config.webdavConfig.proxyMode ? "basic" : config.webdavConfig.authMode
+	const server = new S3Server({
+		port: config.s3Config.port,
+		hostname: config.s3Config.hostname,
+		user: {
+			accessKeyId: config.s3Config.accessKeyId,
+			secretKeyId: config.s3Config.secretKeyId,
+			sdkConfig: config.sdkConfig
+		},
+		https: config.s3Config.https
 	})
 
 	await server.start()
@@ -60,7 +57,7 @@ export async function main(): Promise<void> {
 	if (process.send) {
 		process.send({
 			type: "started"
-		} satisfies WebDAVWorkerMessage)
+		} satisfies S3WorkerMessage)
 	}
 }
 
@@ -69,6 +66,6 @@ main().catch(err => {
 		process.send({
 			type: "error",
 			error: serializeError(err)
-		} satisfies WebDAVWorkerMessage)
+		} satisfies S3WorkerMessage)
 	}
 })

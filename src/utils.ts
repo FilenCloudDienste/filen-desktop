@@ -1,3 +1,6 @@
+import fs from "fs-extra"
+import net from "net"
+
 /**
  * "Sleep" for N milliseconds.
  * @date 3/1/2024 - 10:04:06 PM
@@ -64,4 +67,56 @@ export async function promiseAllSettledChunked<T>(promises: Promise<T>[], chunkS
 	}
 
 	return results
+}
+
+export async function getExistingDrives(): Promise<string[]> {
+	const drives: string[] = []
+
+	const driveChecks = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map(async letter => {
+		const drivePath = `${letter}:\\`
+
+		try {
+			await fs.access(drivePath)
+
+			drives.push(letter)
+		} catch {
+			// Noop
+		}
+	})
+
+	await Promise.all(driveChecks)
+
+	return drives
+}
+
+export async function getAvailableDriveLetters(): Promise<string[]> {
+	const driveLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")
+	const existingDrives = await getExistingDrives()
+	const availableDrives = driveLetters.filter(letter => !existingDrives.includes(letter)).map(letter => `${letter}:`)
+
+	return availableDrives
+}
+
+export async function isPortInUse(port: number): Promise<boolean> {
+	return new Promise((resolve, reject) => {
+		const server = net.createServer()
+
+		server.once("error", (err: NodeJS.ErrnoException) => {
+			if (err.code === "EADDRINUSE") {
+				resolve(true)
+
+				return
+			}
+
+			reject(err)
+		})
+
+		server.once("listening", () => {
+			server.close(() => {
+				resolve(false)
+			})
+		})
+
+		server.listen(port)
+	})
 }

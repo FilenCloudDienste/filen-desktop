@@ -1,64 +1,92 @@
-import os from "os"
-import pathModule from "path"
+import FUSE from "@filen/virtual-drive"
+import { type FUSEWorkerMessage } from "."
+import { type FilenDesktopConfig } from "../types"
 import fs from "fs-extra"
-import { waitForSDKConfig } from "../config"
-import { IS_NODE } from "../constants"
-import FUSEWorker from "@filen/virtual-drive"
+import pathModule from "path"
+import { serializeError } from "../lib/worker"
+import { getAvailableDriveLetters } from "../utils"
 
-// Only start the worker if it is actually invoked.
-if (process.argv.slice(2).includes("--filen-desktop-worker") && IS_NODE) {
-	// TODO: Remove
+let config: FilenDesktopConfig | null = null
 
-	const baseTmpPath = pathModule.join(os.tmpdir(), "filen-desktop")
-	const fullDownloadsTmpPath = pathModule.join(baseTmpPath, "fullDownloads")
-	const uploadsTmpPath = pathModule.join(baseTmpPath, "uploads")
-	const encryptedChunksTmpPath = pathModule.join(baseTmpPath, "encryptedChunks")
-	const decryptedChunksTmpPath = pathModule.join(baseTmpPath, "decryptedChunks")
-	const xattrPath = pathModule.join(baseTmpPath, "xattr")
-	const writeTmpPath = pathModule.join(baseTmpPath, "write")
+process.on("message", (message: FUSEWorkerMessage) => {
+	if (message.type === "config") {
+		config = message.config
+	}
+})
 
-	fs.ensureDirSync(baseTmpPath)
-	fs.ensureDirSync(fullDownloadsTmpPath)
-	fs.ensureDirSync(uploadsTmpPath)
-	fs.ensureDirSync(encryptedChunksTmpPath)
-	fs.ensureDirSync(decryptedChunksTmpPath)
-	fs.ensureDirSync(xattrPath)
-	fs.ensureDirSync(writeTmpPath)
+export function waitForConfig(): Promise<FilenDesktopConfig> {
+	return new Promise<FilenDesktopConfig>(resolve => {
+		if (config) {
+			resolve(config)
 
-	process.stdout.write(
-		JSON.stringify({
-			type: "ready"
-		})
-	)
+			return
+		}
 
-	waitForSDKConfig()
-		.then(sdkConfig => {
-			const fuseWorker = new FUSEWorker({
-				mountPoint: "M:",
-				baseTmpPath,
-				fullDownloadsTmpPath,
-				uploadsTmpPath,
-				encryptedChunksTmpPath,
-				decryptedChunksTmpPath,
-				xattrPath,
-				writeTmpPath,
-				sdkConfig
-			})
+		const wait = setInterval(() => {
+			if (config) {
+				clearInterval(wait)
 
-			fuseWorker
-				.initialize()
-				.then(() => {
-					//
-				})
-				.catch(err => {
-					console.error(err)
-
-					process.exit(1)
-				})
-		})
-		.catch(err => {
-			console.error(err)
-
-			process.exit(1)
-		})
+				resolve(config)
+			}
+		}, 100)
+	})
 }
+
+export async function main(): Promise<void> {
+	if (!process.argv.slice(2).includes("--filen-desktop-worker")) {
+		return
+	}
+
+	const config = await waitForConfig()
+	const availableDriveLetters = await getAvailableDriveLetters()
+
+	if (!availableDriveLetters.includes(config.fuseConfig.mountPoint)) {
+		throw new Error(`Cannot mount virtual drive at ${config.fuseConfig.mountPoint}: Drive letter exists.`)
+	}
+
+	const fullDownloadsTmpPath = pathModule.join(config.fuseConfig.localDirPath, "fullDownloads")
+	const uploadsTmpPath = pathModule.join(config.fuseConfig.localDirPath, "uploads")
+	const encryptedChunksTmpPath = pathModule.join(config.fuseConfig.localDirPath, "encryptedChunks")
+	const decryptedChunksTmpPath = pathModule.join(config.fuseConfig.localDirPath, "decryptedChunks")
+	const xattrPath = pathModule.join(config.fuseConfig.localDirPath, "xattr")
+	const writeTmpPath = pathModule.join(config.fuseConfig.localDirPath, "write")
+
+	await Promise.all([
+		fs.ensureDir(config.fuseConfig.localDirPath),
+		fs.ensureDir(fullDownloadsTmpPath),
+		fs.ensureDir(uploadsTmpPath),
+		fs.ensureDir(encryptedChunksTmpPath),
+		fs.ensureDir(decryptedChunksTmpPath),
+		fs.ensureDir(xattrPath),
+		fs.ensureDir(writeTmpPath)
+	])
+
+	const fuse = new FUSE({
+		mountPoint: config.fuseConfig.mountPoint,
+		baseTmpPath: config.fuseConfig.localDirPath,
+		fullDownloadsTmpPath,
+		uploadsTmpPath,
+		encryptedChunksTmpPath,
+		decryptedChunksTmpPath,
+		xattrPath,
+		writeTmpPath,
+		sdkConfig: config.sdkConfig
+	})
+
+	await fuse.initialize()
+
+	if (process.send) {
+		process.send({
+			type: "started"
+		} satisfies FUSEWorkerMessage)
+	}
+}
+
+main().catch(err => {
+	if (process.send) {
+		process.send({
+			type: "error",
+			error: serializeError(err)
+		} satisfies FUSEWorkerMessage)
+	}
+})

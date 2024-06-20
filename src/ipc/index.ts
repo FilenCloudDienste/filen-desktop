@@ -1,12 +1,14 @@
-import { ipcMain, app, dialog } from "electron"
+import { ipcMain, app, dialog, shell } from "electron"
 import { type FilenDesktop } from ".."
-import { type FilenSDKConfig, PauseSignal } from "@filen/sdk"
-import { setSDKConfig } from "../config"
-import { type DriveCloudItem } from "../types"
+import { PauseSignal } from "@filen/sdk"
+import { setConfig, waitForConfig } from "../config"
+import { type DriveCloudItem, type FilenDesktopConfig } from "../types"
 import { type DirDownloadType } from "@filen/sdk/dist/types/api/v3/dir/download"
 import pathModule from "path"
 import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
+import { getState, type State, setState } from "../state"
+import { getExistingDrives, isPortInUse, getAvailableDriveLetters } from "../utils"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -130,6 +132,10 @@ export class IPC {
 		this.general()
 		this.window()
 		this.cloud()
+		this.webdav()
+		this.state()
+		this.s3()
+		this.fuse()
 	}
 
 	/**
@@ -212,8 +218,8 @@ export class IPC {
 			app.relaunch()
 		})
 
-		ipcMain.handle("initSDK", (_, config: FilenSDKConfig): void => {
-			setSDKConfig(config)
+		ipcMain.handle("setConfig", (_, config: FilenDesktopConfig): void => {
+			setConfig(config)
 		})
 
 		ipcMain.handle("showSaveDialog", async (_, params?: IPCShowSaveDialogResultParams): Promise<IPCShowSaveDialogResult> => {
@@ -246,6 +252,26 @@ export class IPC {
 				cancelled: false,
 				path: filePath,
 				name
+			}
+		})
+
+		ipcMain.handle("getExistingDrives", async () => {
+			return await getExistingDrives()
+		})
+
+		ipcMain.handle("getAvailableDrives", async () => {
+			return await getAvailableDriveLetters()
+		})
+
+		ipcMain.handle("isPortInUse", async (_, port) => {
+			return await isPortInUse(port)
+		})
+
+		ipcMain.handle("openLocalPath", async (_, path) => {
+			const open = await shell.openPath(pathModule.normalize(path))
+
+			if (open.length > 0) {
+				throw new Error(open)
 			}
 		})
 	}
@@ -288,6 +314,8 @@ export class IPC {
 				throw new Error("Invalid file type.")
 			}
 
+			await waitForConfig()
+
 			if (!this.pauseSignals[item.uuid]) {
 				this.pauseSignals[item.uuid] = new PauseSignal()
 			}
@@ -329,6 +357,8 @@ export class IPC {
 				_,
 				{ uuid, name, to, type, linkUUID, linkHasPassword, linkPassword, linkSalt }: IPCDownloadDirectoryParams
 			): Promise<string> => {
+				await waitForConfig()
+
 				if (!this.pauseSignals[uuid]) {
 					this.pauseSignals[uuid] = new PauseSignal()
 				}
@@ -369,6 +399,8 @@ export class IPC {
 				_,
 				{ items, to, type, linkUUID, linkHasPassword, linkPassword, linkSalt, name }: IPCDownloadMultipleFilesAndDirectoriesParams
 			): Promise<string> => {
+				await waitForConfig()
+
 				const directoryId = uuidv4()
 
 				if (!this.pauseSignals[directoryId]) {
@@ -435,6 +467,124 @@ export class IPC {
 
 		ipcMain.handle("hideWindow", (): void => {
 			this.desktop.driveWindow?.hide()
+		})
+	}
+
+	/**
+	 * Handle all WebDAV related invocations.
+	 *
+	 * @private
+	 */
+	private webdav(): void {
+		ipcMain.handle("startWebDAVServer", async () => {
+			await waitForConfig()
+
+			await this.desktop.webdav.start()
+		})
+
+		ipcMain.handle("stopWebDAVServer", async () => {
+			await waitForConfig()
+
+			await this.desktop.webdav.stop()
+		})
+
+		ipcMain.handle("restartWebDAVServer", async () => {
+			await waitForConfig()
+
+			await this.desktop.webdav.restart()
+		})
+
+		ipcMain.handle("isWebDAVActive", async () => {
+			return this.desktop.webdav.instance() !== null
+		})
+	}
+
+	/**
+	 * Handle all state related invocations.
+	 *
+	 * @private
+	 */
+	private state(): void {
+		ipcMain.handle("setState", async (_, state: State) => {
+			setState(state)
+		})
+
+		ipcMain.handle("getState", async () => {
+			return getState()
+		})
+	}
+
+	/**
+	 * Handle all S3 related invocations.
+	 *
+	 * @private
+	 */
+	private s3(): void {
+		ipcMain.handle("startS3Server", async () => {
+			await waitForConfig()
+
+			await this.desktop.s3.start()
+		})
+
+		ipcMain.handle("stopS3Server", async () => {
+			await waitForConfig()
+
+			await this.desktop.s3.stop()
+		})
+
+		ipcMain.handle("restartS3Server", async () => {
+			await waitForConfig()
+
+			await this.desktop.s3.restart()
+		})
+
+		ipcMain.handle("isS3Active", async () => {
+			return this.desktop.s3.instance() !== null
+		})
+	}
+
+	/**
+	 * Handle all FUSE related invocations.
+	 *
+	 * @private
+	 */
+	private fuse(): void {
+		ipcMain.handle("startFUSE", async () => {
+			if (!this.desktop.fuse) {
+				return
+			}
+
+			await waitForConfig()
+
+			await this.desktop.fuse.start()
+		})
+
+		ipcMain.handle("stopFUSE", async () => {
+			if (!this.desktop.fuse) {
+				return
+			}
+
+			await waitForConfig()
+
+			await this.desktop.fuse.stop()
+		})
+
+		ipcMain.handle("restartFUSE", async () => {
+			if (!this.desktop.fuse) {
+				return
+			}
+
+			await waitForConfig()
+
+			await this.desktop.fuse.restart()
+		})
+
+		ipcMain.handle("isFUSEActive", async () => {
+			if (!this.desktop.fuse) {
+				return false
+			}
+
+			return this.desktop.fuse.instance() !== null
 		})
 	}
 }

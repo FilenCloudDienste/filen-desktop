@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from "electron"
+import { app, BrowserWindow, shell, protocol } from "electron"
 import WebDAV from "./webdav"
 import FUSE from "./fuse"
 import Sync from "./sync"
@@ -6,10 +6,12 @@ import os from "os"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
-import { waitForSDKConfig } from "./config"
+import { waitForConfig } from "./config"
 import Cloud from "./lib/cloud"
 import FS from "./lib/fs"
 import { IS_ELECTRON } from "./constants"
+import S3 from "./s3"
+import url from "url"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -32,6 +34,7 @@ export class FilenDesktop {
 	public readonly sync: Sync
 	public readonly ipc: IPC
 	public readonly sdk: FilenSDK
+	public readonly s3: S3
 	public sdkInitialized: boolean = false
 	public readonly lib: {
 		cloud: Cloud
@@ -54,6 +57,7 @@ export class FilenDesktop {
 		}
 
 		this.webdav = new WebDAV()
+		this.s3 = new S3()
 
 		if (os.platform() === "win32") {
 			this.fuse = new FUSE()
@@ -71,12 +75,12 @@ export class FilenDesktop {
 	 * @returns {Promise<void>}
 	 */
 	private async initializeSDK(): Promise<void> {
-		const config = await waitForSDKConfig()
+		const config = await waitForConfig()
 
-		this.sdk.init(config)
+		this.sdk.init(config.sdkConfig)
 		this.sdkInitialized = true
 
-		console.log("[MAIN] SDK initialized")
+		console.log("SDK initialized")
 	}
 
 	/**
@@ -98,22 +102,21 @@ export class FilenDesktop {
 
 		await app.whenReady()
 
+		protocol.interceptFileProtocol("file", (req, callback) => {
+			const url = req.url.slice(7)
+
+			callback({
+				path: pathModule.join(__dirname, "..", "node_modules", "@filen/web", "dist", url)
+			})
+		})
+
 		app.on("activate", () => {
 			if (BrowserWindow.getAllWindows().length === 0) {
 				this.createMainWindow().catch(console.error)
 			}
 		})
 
-		//await Promise.all([this.startFuseThread(), this.startWebDAVThread(), this.startSyncThread()])
-
 		await this.createMainWindow()
-
-		if (process.env.NODE_ENV === "development") {
-			setInterval(() => {
-				console.log("[MAIN.MEM.USED]", `${(process.memoryUsage().heapUsed / 1000 / 1000).toFixed(2)} MB`)
-				console.log("[MAIN.MEM.TOTAL]", `${(process.memoryUsage().heapTotal / 1000 / 1000).toFixed(2)} MB`)
-			}, 5000)
-		}
 	}
 
 	private async createMainWindow(): Promise<void> {
@@ -126,6 +129,8 @@ export class FilenDesktop {
 			height: 720,
 			frame: false,
 			title: "Filen",
+			minWidth: 1280,
+			minHeight: 720,
 			webPreferences: {
 				backgroundThrottling: false,
 				autoplayPolicy: "no-user-gesture-required",
@@ -142,29 +147,23 @@ export class FilenDesktop {
 			this.driveWindow = null
 		})
 
-		await this.driveWindow.loadURL("http://localhost:5173")
-	}
+		this.driveWindow.webContents.setWindowOpenHandler(({ url }) => {
+			shell.openExternal(url)
 
-	private async startSyncThread(): Promise<void> {
-		console.log("Starting sync thread")
+			return {
+				action: "deny"
+			}
+		})
 
-		//await this._sync.initialize()
-	}
-
-	private async startFuseThread(): Promise<void> {
-		if (os.platform() !== "win32" || os.arch() !== "x64" || !this.fuse) {
-			return
-		}
-
-		console.log("Starting fuse thread")
-
-		await this.fuse.initialize()
-	}
-
-	private async startWebDAVThread(): Promise<void> {
-		console.log("Starting WebDAV thread")
-
-		await this.webdav.initialize()
+		await this.driveWindow.loadURL(
+			process.env.NODE_ENV !== "development"
+				? url.format({
+						pathname: "index.html",
+						protocol: "file",
+						slashes: true
+				  })
+				: "http://localhost:5173"
+		)
 	}
 }
 

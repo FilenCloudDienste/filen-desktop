@@ -1,193 +1,113 @@
-import { spawn, ChildProcess } from "child_process"
 import pathModule from "path"
-import os from "os"
-import fs from "fs-extra"
+import { Worker, deserializeError, type SerializedError } from "../lib/worker"
+import { waitForConfig } from "../config"
+import { type FilenDesktopConfig } from "../types"
+import { setState } from "../state"
+import { type ChildProcess } from "child_process"
 import { app } from "electron"
+import fs from "fs-extra"
+import { getAvailableDriveLetters } from "../utils"
 
-export type FUSEWorkerMessage = {
-	type: "ready"
-}
+export type FUSEWorkerMessage =
+	| {
+			type: "started"
+	  }
+	| {
+			type: "config"
+			config: FilenDesktopConfig
+	  }
+	| {
+			type: "error"
+			error: SerializedError
+	  }
 
-const processEvents = ["exit", "SIGINT", "SIGTERM", "SIGKILL", "SIGABRT"]
-const appEvents = ["quit", "before-quit"]
-
-/**
- * FUSE
- * @date 2/23/2024 - 5:49:48 AM
- *
- * @export
- * @class FUSE
- * @typedef {FUSE}
- */
 export class FUSE {
-	private worker: ChildProcess | null = null
-	private workerReady = false
-	private sentReady = false
+	private readonly worker = new Worker<FUSEWorkerMessage>({
+		path: pathModule.join(__dirname, process.env.NODE_ENV === "production" ? "worker.js" : "worker.dev.js"),
+		memory: 8 * 1024
+	})
 
-	/**
-	 * Creates an instance of FUSE.
-	 * @date 2/26/2024 - 7:12:10 AM
-	 *
-	 * @constructor
-	 * @public
-	 */
-	public constructor() {
-		for (const event of processEvents) {
-			process.on(event, () => {
-				if (this.worker) {
-					this.deinitialize().catch(console.error)
-				}
-			})
-		}
-
-		for (const event of appEvents) {
-			app.on(event as unknown as "quit", () => {
-				if (this.worker) {
-					this.deinitialize().catch(console.error)
-				}
-			})
-		}
-	}
-
-	/**
-	 * Initialize the FUSE worker.
-	 * @date 2/23/2024 - 5:49:31 AM
-	 *
-	 * @public
-	 * @async
-	 * @returns {Promise<void>}
-	 */
-	public async initialize(): Promise<void> {
-		if (this.worker) {
-			return
-		}
-
-		const nodeBinPath = pathModule.join(
-			__dirname,
-			"..",
-			"..",
-			"bin",
-			"node",
-			`${os.platform()}_${os.arch()}${os.platform() === "win32" ? ".exe" : ""}`
-		)
-
-		if (!(await fs.exists(nodeBinPath))) {
-			throw new Error("Node binary not found.")
-		}
-
-		await new Promise<void>(resolve => {
-			this.worker = spawn(nodeBinPath, [
-				pathModule.join(__dirname, process.env.NODE_ENV === "production" ? "worker.js" : "worker.dev.js"),
-				"--max-old-space-size=8192"
-			])
-
-			this.worker.stderr?.on("data", console.error)
-			this.worker.stderr?.on("error", console.error)
-
-			this.worker.on("exit", () => {
-				this.worker = null
-				this.workerReady = false
-
-				console.log("FUSE worker died, respawning..")
-
-				setTimeout(() => {
-					this.initialize().catch(console.error)
-				}, 1000)
-			})
-
-			this.worker.on("close", () => {
-				this.worker = null
-				this.workerReady = false
-
-				console.log("FUSE worker died, respawning..")
-
-				setTimeout(() => {
-					this.initialize().catch(console.error)
-				}, 1000)
-			})
-
-			this.worker.stdout?.on("data", (data?: Buffer | string) => {
-				try {
-					if (!data) {
-						return
-					}
-
-					const stringified = typeof data === "string" ? data : data.toString("utf-8")
-
-					if (!(stringified.includes("{") && stringified.includes("}"))) {
-						process.stdout.write(stringified)
-
-						return
-					}
-
-					const payload: FUSEWorkerMessage = JSON.parse(stringified)
-
-					if (payload.type === "ready") {
-						this.workerReady = true
-
-						if (!this.sentReady) {
-							this.sentReady = true
-
-							resolve()
-						}
-					}
-
-					console.log("FUSE worker message:", payload)
-				} catch (e) {
-					console.error(e)
-				}
-			})
-
-			this.worker.stdout?.on("error", console.error)
-		})
-	}
-
-	/**
-	 * Deinitialize the worker.
-	 * @date 3/1/2024 - 8:45:04 PM
-	 *
-	 * @public
-	 * @async
-	 * @returns {Promise<void>}
-	 */
-	public async deinitialize(): Promise<void> {
-		if (!this.worker) {
-			return
-		}
-
-		await this.waitForReady()
-
+	public async restart(): Promise<void> {
 		this.worker.removeAllListeners()
 
-		if (!this.worker.kill(0)) {
-			throw new Error("Could not kill FUSE worker.")
-		}
-
-		this.worker = null
-		this.workerReady = false
+		await this.worker.stop()
+		await this.start()
 	}
 
-	/**
-	 * Wait for the worker to be ready.
-	 * @date 2/23/2024 - 5:49:17 AM
-	 *
-	 * @public
-	 * @async
-	 * @returns {Promise<void>}
-	 */
-	public async waitForReady(): Promise<void> {
-		if (this.workerReady) {
-			return
-		}
+	public async stop(): Promise<void> {
+		this.worker.removeAllListeners()
 
-		await new Promise<void>(resolve => {
-			const wait = setInterval(() => {
-				if (this.workerReady) {
-					clearInterval(wait)
+		await this.worker.stop()
+	}
 
-					resolve()
-				}
-			}, 100)
+	public instance(): ChildProcess | null {
+		return this.worker.instance()
+	}
+
+	public async start(): Promise<void> {
+		await this.stop()
+
+		const localDirPath = pathModule.join(app.getPath("userData"), "fuse")
+
+		await fs.ensureDir(localDirPath)
+
+		await new Promise<void>((resolve, reject) => {
+			waitForConfig()
+				.then(config => {
+					getAvailableDriveLetters()
+						.then(availableDriveLetters => {
+							if (!availableDriveLetters.includes(config.fuseConfig.mountPoint)) {
+								reject(new Error(`Cannot mount virtual drive at ${config.fuseConfig.mountPoint}: Drive letter exists.`))
+
+								return
+							}
+
+							this.worker
+								.start()
+								.then(() => {
+									this.worker.on("message", message => {
+										if (message.type === "started") {
+											setState(prev => ({
+												...prev,
+												fuseStarted: true
+											}))
+
+											resolve()
+										} else if (message.type === "error") {
+											this.stop().catch(console.error)
+
+											setState(prev => ({
+												...prev,
+												fuseStarted: false
+											}))
+
+											reject(deserializeError(message.error))
+										}
+									})
+
+									this.worker.on("exit", () => {
+										setState(prev => ({
+											...prev,
+											fuseStarted: false
+										}))
+									})
+
+									this.worker.sendMessage({
+										type: "config",
+										config: {
+											...config,
+											fuseConfig: {
+												...config.fuseConfig,
+												localDirPath
+											}
+										}
+									})
+								})
+								.catch(reject)
+						})
+						.catch(reject)
+				})
+				.catch(reject)
 		})
 	}
 }
