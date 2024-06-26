@@ -1,6 +1,6 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.18",
+	"version": "0.1.19",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -13,7 +13,7 @@
 		"clear": "rimraf ./dist",
 		"build": "npm run clear && npm run lint && npm run tsc",
 		"dev": "tsc ./src/preload.ts --outDir ./dist && cross-env NODE_ENV=development electron ./src/index.dev.js",
-		"dev:fuse": "cross-env NODE_ENV=development node ./src/fuse/worker.dev.js",
+		"dev:virtualDrive": "cross-env NODE_ENV=development node ./src/virtualDrive/worker.dev.js",
 		"dev:webdav": "cross-env NODE_ENV=development node ./src/webdav/worker.dev.js",
 		"dev:sync": "cross-env NODE_ENV=development node ./src/sync/worker.dev.js",
 		"dev:s3": "cross-env NODE_ENV=development node ./src/s3/worker.dev.js",
