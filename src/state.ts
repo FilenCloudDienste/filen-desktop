@@ -1,13 +1,13 @@
 export type State = {
 	webdavStarted: boolean
-	fuseStarted: boolean
+	virtualDriveStarted: boolean
 	s3Started: boolean
 	syncStarted: boolean
 }
 
 export let STATE: State = {
 	webdavStarted: false,
-	fuseStarted: false,
+	virtualDriveStarted: false,
 	s3Started: false,
 	syncStarted: false
 }

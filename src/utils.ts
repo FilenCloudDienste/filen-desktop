@@ -1,5 +1,6 @@
 import fs from "fs-extra"
 import net from "net"
+import crypto from "crypto"
 
 /**
  * "Sleep" for N milliseconds.
@@ -119,4 +120,19 @@ export async function isPortInUse(port: number): Promise<boolean> {
 
 		server.listen(port)
 	})
+}
+
+export function generateRandomString(length: number): string {
+	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	const randomBytes = crypto.randomBytes(length + 2)
+	const result = new Array(length)
+	let cursor = 0
+
+	for (let i = 0; i < length; i++) {
+		cursor += randomBytes[i]!
+		result[i] = chars[cursor % chars.length]
+	}
+
+	return result.join("")
 }

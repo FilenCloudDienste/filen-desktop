@@ -135,7 +135,7 @@ export class IPC {
 		this.webdav()
 		this.state()
 		this.s3()
-		this.fuse()
+		this.virtualDrive()
 	}
 
 	/**
@@ -544,47 +544,76 @@ export class IPC {
 	}
 
 	/**
-	 * Handle all FUSE related invocations.
+	 * Handle all Virtual Drive related invocations.
 	 *
 	 * @private
 	 */
-	private fuse(): void {
-		ipcMain.handle("startFUSE", async () => {
-			if (!this.desktop.fuse) {
+	private virtualDrive(): void {
+		ipcMain.handle("startVirtualDrive", async () => {
+			if (!this.desktop.virtualDrive) {
 				return
 			}
 
 			await waitForConfig()
-
-			await this.desktop.fuse.start()
+			await this.desktop.virtualDrive.start()
 		})
 
-		ipcMain.handle("stopFUSE", async () => {
-			if (!this.desktop.fuse) {
+		ipcMain.handle("stopVirtualDrive", async () => {
+			if (!this.desktop.virtualDrive) {
 				return
 			}
 
 			await waitForConfig()
-
-			await this.desktop.fuse.stop()
+			await this.desktop.virtualDrive.stop()
 		})
 
-		ipcMain.handle("restartFUSE", async () => {
-			if (!this.desktop.fuse) {
+		ipcMain.handle("restartVirtualDrive", async () => {
+			if (!this.desktop.virtualDrive) {
 				return
 			}
 
 			await waitForConfig()
-
-			await this.desktop.fuse.restart()
+			await this.desktop.virtualDrive.restart()
 		})
 
-		ipcMain.handle("isFUSEActive", async () => {
-			if (!this.desktop.fuse) {
+		ipcMain.handle("isVirtualDriveMounted", async () => {
+			if (!this.desktop.virtualDrive) {
 				return false
 			}
 
-			return this.desktop.fuse.instance() !== null
+			return this.desktop.virtualDrive.isMounted()
+		})
+
+		ipcMain.handle("virtualDriveAvailableCache", async () => {
+			if (!this.desktop.virtualDrive) {
+				return 0
+			}
+
+			return await this.desktop.virtualDrive.availableCacheSize()
+		})
+
+		ipcMain.handle("virtualDriveCacheSize", async () => {
+			if (!this.desktop.virtualDrive) {
+				return 0
+			}
+
+			return await this.desktop.virtualDrive.cacheSize()
+		})
+
+		ipcMain.handle("virtualDriveCleanupCache", async () => {
+			if (!this.desktop.virtualDrive) {
+				return
+			}
+
+			await this.desktop.virtualDrive.cleanupCache()
+		})
+
+		ipcMain.handle("virtualDriveCleanupLocalDir", async () => {
+			if (!this.desktop.virtualDrive) {
+				return
+			}
+
+			await this.desktop.virtualDrive.cleanupLocalDir()
 		})
 	}
 }

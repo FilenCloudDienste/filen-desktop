@@ -36,8 +36,9 @@ export type FilenDesktopConfig = {
 		port: number
 		https: boolean
 	}
-	fuseConfig: {
+	virtualDriveConfig: {
 		mountPoint: string
 		localDirPath: string
+		cacheSizeInGi: number
 	}
 }

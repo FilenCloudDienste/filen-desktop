@@ -3,7 +3,7 @@ import { Worker, deserializeError, type SerializedError } from "../lib/worker"
 import { waitForConfig } from "../config"
 import { type FilenDesktopConfig } from "../types"
 import { setState } from "../state"
-import { type ChildProcess } from "child_process"
+import { type Worker as WorkerThread } from "worker_threads"
 import { isPortInUse } from "../utils"
 
 export type S3WorkerMessage =
@@ -26,19 +26,15 @@ export class S3 {
 	})
 
 	public async restart(): Promise<void> {
-		this.worker.removeAllListeners()
-
 		await this.worker.stop()
 		await this.start()
 	}
 
 	public async stop(): Promise<void> {
-		this.worker.removeAllListeners()
-
 		await this.worker.stop()
 	}
 
-	public instance(): ChildProcess | null {
+	public instance(): WorkerThread | null {
 		return this.worker.instance()
 	}
 

@@ -51,14 +51,18 @@ export type DesktopAPI = {
 	stopS3Server: () => Promise<void>
 	restartS3Server: () => Promise<void>
 	isS3Active: () => Promise<boolean>
-	startFUSE: () => Promise<void>
-	stopFUSE: () => Promise<void>
-	restartFUSE: () => Promise<void>
-	isFUSEActive: () => Promise<boolean>
+	startVirtualDrive: () => Promise<void>
+	stopVirtualDrive: () => Promise<void>
+	restartVirtualDrive: () => Promise<void>
+	isVirtualDriveMounted: () => Promise<boolean>
 	getExistingDrives: () => Promise<string[]>
 	isPortInUse: (port: number) => Promise<boolean>
 	getAvailableDrives: () => Promise<string[]>
 	openLocalPath: (path: string) => Promise<void>
+	virtualDriveAvailableCache: () => Promise<number>
+	virtualDriveCacheSize: () => Promise<number>
+	virtualDriveCleanupCache: () => Promise<void>
+	virtualDriveCleanupLocalDir: () => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -101,13 +105,17 @@ if (env.isBrowser || env.isElectron) {
 		stopS3Server: () => ipcRenderer.invoke("stopS3Server"),
 		restartS3Server: () => ipcRenderer.invoke("restartS3Server"),
 		isS3Active: () => ipcRenderer.invoke("isS3Active"),
-		startFUSE: () => ipcRenderer.invoke("startFUSE"),
-		stopFUSE: () => ipcRenderer.invoke("stopFUSE"),
-		restartFUSE: () => ipcRenderer.invoke("restartFUSE"),
-		isFUSEActive: () => ipcRenderer.invoke("isFUSEActive"),
+		startVirtualDrive: () => ipcRenderer.invoke("startVirtualDrive"),
+		stopVirtualDrive: () => ipcRenderer.invoke("stopVirtualDrive"),
+		restartVirtualDrive: () => ipcRenderer.invoke("restartVirtualDrive"),
+		isVirtualDriveMounted: () => ipcRenderer.invoke("isVirtualDriveMounted"),
 		getExistingDrives: () => ipcRenderer.invoke("getExistingDrives"),
 		isPortInUse: port => ipcRenderer.invoke("isPortInUse", port),
 		getAvailableDrives: () => ipcRenderer.invoke("getAvailableDrives"),
-		openLocalPath: path => ipcRenderer.invoke("openLocalPath", path)
+		openLocalPath: path => ipcRenderer.invoke("openLocalPath", path),
+		virtualDriveAvailableCache: () => ipcRenderer.invoke("virtualDriveAvailableCache"),
+		virtualDriveCacheSize: () => ipcRenderer.invoke("virtualDriveCacheSize"),
+		virtualDriveCleanupCache: () => ipcRenderer.invoke("virtualDriveCleanupCache"),
+		virtualDriveCleanupLocalDir: () => ipcRenderer.invoke("virtualDriveCleanupLocalDir")
 	} satisfies DesktopAPI)
 }

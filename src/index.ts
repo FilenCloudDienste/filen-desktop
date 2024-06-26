@@ -1,6 +1,6 @@
 import { app, BrowserWindow, shell, protocol } from "electron"
 import WebDAV from "./webdav"
-import FUSE from "./fuse"
+import VirtualDrive from "./virtualDrive"
 import Sync from "./sync"
 import os from "os"
 import pathModule from "path"
@@ -9,14 +9,14 @@ import FilenSDK from "@filen/sdk"
 import { waitForConfig } from "./config"
 import Cloud from "./lib/cloud"
 import FS from "./lib/fs"
-import { IS_ELECTRON } from "./constants"
 import S3 from "./s3"
 import url from "url"
+import { IS_ELECTRON } from "./constants"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
 	// Ref: https://github.com/electron/electron/issues/28422
-	app.commandLine.appendSwitch("enable-experimental-web-platform-features")
+	app?.commandLine.appendSwitch("enable-experimental-web-platform-features")
 }
 
 /**
@@ -30,7 +30,7 @@ if (IS_ELECTRON) {
 export class FilenDesktop {
 	public driveWindow: BrowserWindow | null = null
 	public readonly webdav: WebDAV
-	public readonly fuse: FUSE | null = null
+	public readonly virtualDrive: VirtualDrive | null = null
 	public readonly sync: Sync
 	public readonly ipc: IPC
 	public readonly sdk: FilenSDK
@@ -50,21 +50,19 @@ export class FilenDesktop {
 	 */
 	public constructor() {
 		this.sdk = new FilenSDK()
-
+		this.ipc = new IPC({ desktop: this })
 		this.lib = {
 			cloud: new Cloud({ desktop: this }),
 			fs: new FS({ desktop: this })
 		}
-
 		this.webdav = new WebDAV()
 		this.s3 = new S3()
 
 		if (os.platform() === "win32") {
-			this.fuse = new FUSE()
+			this.virtualDrive = new VirtualDrive()
 		}
 
 		this.sync = new Sync()
-		this.ipc = new IPC({ desktop: this })
 	}
 
 	/**
