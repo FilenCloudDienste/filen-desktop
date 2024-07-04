@@ -6,10 +6,13 @@ import {
 	type MainToWindowMessage,
 	type IPCDownloadMultipleFilesAndDirectoriesParams,
 	type IPCShowSaveDialogResultParams,
-	type IPCPauseResumeAbortSignalParams
+	type IPCPauseResumeAbortSignalParams,
+	type IPCCanStartServerOnIPAndPort,
+	type IPCSelectDirectoryResult
 } from "./ipc"
 import { type FilenDesktopConfig } from "./types"
 import { type State } from "./state"
+import { type SyncMessage } from "@filen/sync/dist/types"
 
 const env = {
 	isBrowser:
@@ -63,6 +66,21 @@ export type DesktopAPI = {
 	virtualDriveCacheSize: () => Promise<number>
 	virtualDriveCleanupCache: () => Promise<void>
 	virtualDriveCleanupLocalDir: () => Promise<void>
+	isWebDAVOnline: () => Promise<boolean>
+	isS3Online: () => Promise<boolean>
+	isVirtualDriveActive: () => Promise<boolean>
+	canStartServerOnIPAndPort: (params: IPCCanStartServerOnIPAndPort) => Promise<boolean>
+	platform: () => typeof process.platform
+	arch: () => typeof process.arch
+	selectDirectory: (multiple?: boolean) => Promise<IPCSelectDirectoryResult>
+	verifyUnixMountPath: (path: string) => Promise<boolean>
+	startSync: () => Promise<void>
+	stopSync: () => Promise<void>
+	restartSync: () => Promise<void>
+	isSyncActive: () => Promise<boolean>
+	forwardSyncMessage: (message: SyncMessage) => Promise<void>
+	isPathWritable: (path: string) => Promise<boolean>
+	isPathReadable: (path: string) => Promise<boolean>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -116,6 +134,21 @@ if (env.isBrowser || env.isElectron) {
 		virtualDriveAvailableCache: () => ipcRenderer.invoke("virtualDriveAvailableCache"),
 		virtualDriveCacheSize: () => ipcRenderer.invoke("virtualDriveCacheSize"),
 		virtualDriveCleanupCache: () => ipcRenderer.invoke("virtualDriveCleanupCache"),
-		virtualDriveCleanupLocalDir: () => ipcRenderer.invoke("virtualDriveCleanupLocalDir")
+		virtualDriveCleanupLocalDir: () => ipcRenderer.invoke("virtualDriveCleanupLocalDir"),
+		isWebDAVOnline: () => ipcRenderer.invoke("isWebDAVOnline"),
+		isS3Online: () => ipcRenderer.invoke("isS3Online"),
+		isVirtualDriveActive: () => ipcRenderer.invoke("isVirtualDriveActive"),
+		canStartServerOnIPAndPort: params => ipcRenderer.invoke("canStartServerOnIPAndPort", params),
+		platform: () => process.platform,
+		arch: () => process.arch,
+		selectDirectory: multiple => ipcRenderer.invoke("selectDirectory", multiple),
+		verifyUnixMountPath: path => ipcRenderer.invoke("verifyUnixMountPath", path),
+		startSync: () => ipcRenderer.invoke("startSync"),
+		stopSync: () => ipcRenderer.invoke("stopSync"),
+		restartSync: () => ipcRenderer.invoke("restartSync"),
+		isSyncActive: () => ipcRenderer.invoke("isSyncActive"),
+		forwardSyncMessage: message => ipcRenderer.invoke("forwardSyncMessage", message),
+		isPathWritable: path => ipcRenderer.invoke("isPathWritable", path),
+		isPathReadable: path => ipcRenderer.invoke("isPathReadable", path)
 	} satisfies DesktopAPI)
 }

@@ -16,16 +16,7 @@ import pathModule from "path"
 export class Cloud {
 	private readonly desktop: FilenDesktop
 
-	/**
-	 * Creates an instance of Cloud.
-	 * @date 3/13/2024 - 8:03:20 PM
-	 *
-	 * @constructor
-	 * @public
-	 * @param {{ desktop: FilenDesktop }} param0
-	 * @param {FilenDesktop} param0.desktop
-	 */
-	public constructor({ desktop }: { desktop: FilenDesktop }) {
+	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
 	}
 
@@ -89,6 +80,12 @@ export class Cloud {
 		pauseSignal?: PauseSignal
 		abortSignal?: AbortSignal
 	}): Promise<string> {
+		const dirnameWritable = await this.desktop.lib.fs.isPathWritable(pathModule.dirname(to))
+
+		if (!dirnameWritable) {
+			throw new Error(`${to} is not writable.`)
+		}
+
 		return await this.desktop.sdk.cloud().downloadFileToLocal({
 			uuid,
 			bucket,
@@ -238,6 +235,12 @@ export class Cloud {
 		pauseSignal?: PauseSignal
 		abortSignal?: AbortSignal
 	}): Promise<string> {
+		const dirnameWritable = await this.desktop.lib.fs.isPathWritable(pathModule.dirname(to))
+
+		if (!dirnameWritable) {
+			throw new Error(`${to} is not writable.`)
+		}
+
 		let size = 0
 
 		if (!dontEmitEvents) {
@@ -384,9 +387,10 @@ export class Cloud {
 	 * 		dontEmitEvents?: boolean
 	 * 		to: string
 	 * 		name: string
-	 * 		directoryId: string,
-	 * 		pauseSignal?: PauseSignal,
-	 * 		abortSignal?: AbortSignal
+	 * 		directoryId: string
+	 * 		pauseSignal?: PauseSignal
+	 * 		abortSignal?: AbortSignal,
+	 * 		dontEmitQueuedEvent?: boolean
 	 * 	}} param0
 	 * @param {{}} param0.items
 	 * @param {DirDownloadType} param0.type
@@ -400,6 +404,7 @@ export class Cloud {
 	 * @param {string} param0.directoryId
 	 * @param {PauseSignal} param0.pauseSignal
 	 * @param {AbortSignal} param0.abortSignal
+	 * @param {boolean} param0.dontEmitQueuedEvent
 	 * @returns {Promise<string>}
 	 */
 	public async downloadMultipleFilesAndDirectories({
@@ -414,7 +419,8 @@ export class Cloud {
 		name,
 		directoryId,
 		pauseSignal,
-		abortSignal
+		abortSignal,
+		dontEmitQueuedEvent
 	}: {
 		items: DriveCloudItemWithPath[]
 		type?: DirDownloadType
@@ -428,11 +434,18 @@ export class Cloud {
 		directoryId: string
 		pauseSignal?: PauseSignal
 		abortSignal?: AbortSignal
+		dontEmitQueuedEvent?: boolean
 	}): Promise<string> {
+		const dirnameWritable = await this.desktop.lib.fs.isPathWritable(pathModule.dirname(to))
+
+		if (!dirnameWritable) {
+			throw new Error(`${to} is not writable.`)
+		}
+
 		const itemsWithPath: DriveCloudItemWithPath[] = []
 		const treePromises: Promise<void>[] = []
 		let directorySize = 0
-		let didQueue = false
+		let didQueue = typeof dontEmitQueuedEvent === "boolean" ? dontEmitQueuedEvent : false
 		let didStart = false
 		let didError = false
 

@@ -136,3 +136,23 @@ export function generateRandomString(length: number): string {
 
 	return result.join("")
 }
+
+export function canStartServerOnIPAndPort(ip: string, port: number): Promise<boolean> {
+	return new Promise(resolve => {
+		const server = net.createServer()
+
+		server.once("error", () => {
+			server.close()
+
+			resolve(false)
+		})
+
+		server.once("listening", () => {
+			server.close()
+
+			resolve(true)
+		})
+
+		server.listen(port, ip)
+	})
+}

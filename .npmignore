@@ -8,3 +8,5 @@ dev/*
 dev
 bin
 src
+.yalc
+yalc.lock

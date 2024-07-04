@@ -1,18 +1,15 @@
 import pathModule from "path"
 import { Worker, deserializeError, type SerializedError } from "../lib/worker"
 import { waitForConfig } from "../config"
-import { type FilenDesktopConfig } from "../types"
 import { setState } from "../state"
 import { type Worker as WorkerThread } from "worker_threads"
 import { isPortInUse } from "../utils"
+import http from "http"
+import https from "https"
 
 export type S3WorkerMessage =
 	| {
 			type: "started"
-	  }
-	| {
-			type: "config"
-			config: FilenDesktopConfig
 	  }
 	| {
 			type: "error"
@@ -38,60 +35,109 @@ export class S3 {
 		return this.worker.instance()
 	}
 
-	public async start(): Promise<void> {
-		await this.stop()
+	public async isOnline(): Promise<boolean> {
+		const config = await waitForConfig()
 
-		await new Promise<void>((resolve, reject) => {
-			waitForConfig()
-				.then(config => {
-					isPortInUse(config.s3Config.port)
-						.then(portInUse => {
-							if (portInUse) {
-								reject(
-									new Error(`Cannot start S3 server on ${config.s3Config.hostname}:${config.s3Config.port}: Port in use.`)
-								)
+		return await new Promise<boolean>(resolve => {
+			const request = config.s3Config.https
+				? https.request(
+						{
+							hostname: "127.0.0.1",
+							port: config.s3Config.port,
+							path: "/",
+							method: "HEAD",
+							timeout: 15000,
+							rejectUnauthorized: false,
+							agent: false
+						},
+						res => {
+							if (res.statusCode !== 400) {
+								resolve(false)
 
 								return
 							}
 
-							this.worker
-								.start()
-								.then(() => {
-									this.worker.on("message", message => {
-										if (message.type === "started") {
-											setState(prev => ({
-												...prev,
-												s3Started: true
-											}))
+							resolve(true)
+						}
+				  )
+				: http.request(
+						{
+							hostname: "127.0.0.1",
+							port: config.s3Config.port,
+							path: "/",
+							method: "HEAD",
+							timeout: 15000,
+							agent: false
+						},
+						res => {
+							if (res.statusCode !== 400) {
+								resolve(false)
 
-											resolve()
-										} else if (message.type === "error") {
-											this.stop().catch(console.error)
+								return
+							}
 
-											setState(prev => ({
-												...prev,
-												s3Started: false
-											}))
+							resolve(true)
+						}
+				  )
 
-											reject(deserializeError(message.error))
-										}
-									})
+			request.once("error", () => {
+				resolve(false)
+			})
 
-									this.worker.on("exit", () => {
-										setState(prev => ({
-											...prev,
-											s3Started: false
-										}))
-									})
+			request.end()
+		})
+	}
 
-									this.worker.sendMessage({
-										type: "config",
-										config
-									})
-								})
-								.catch(reject)
-						})
-						.catch(reject)
+	public async start(): Promise<void> {
+		await this.stop()
+
+		const config = await waitForConfig()
+		const portInUse = await isPortInUse(config.s3Config.port)
+
+		if (portInUse) {
+			throw new Error(`Cannot start S3 server on ${config.s3Config.hostname}:${config.s3Config.port}: Port in use.`)
+		}
+
+		await new Promise<void>((resolve, reject) => {
+			this.worker
+				.start({
+					environmentData: {
+						s3Config: config
+					}
+				})
+				.then(() => {
+					this.worker.removeAllListeners()
+
+					this.worker.on("message", message => {
+						if (message.type === "started") {
+							setState(prev => ({
+								...prev,
+								s3Started: true
+							}))
+
+							resolve()
+						} else if (message.type === "error") {
+							this.stop().catch(console.error)
+
+							setState(prev => ({
+								...prev,
+								s3Started: false
+							}))
+
+							reject(deserializeError(message.error))
+						}
+					})
+
+					this.worker.on("exit", () => {
+						this.stop().catch(console.error)
+
+						setState(prev => ({
+							...prev,
+							s3Started: false
+						}))
+
+						reject(new Error("Could not start worker."))
+					})
 				})
 				.catch(reject)
 		})

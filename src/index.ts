@@ -2,7 +2,6 @@ import { app, BrowserWindow, shell, protocol } from "electron"
 import WebDAV from "./webdav"
 import VirtualDrive from "./virtualDrive"
 import Sync from "./sync"
-import os from "os"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
@@ -17,6 +16,7 @@ if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
 	// Ref: https://github.com/electron/electron/issues/28422
 	app?.commandLine.appendSwitch("enable-experimental-web-platform-features")
+	app?.commandLine.appendSwitch("disable-renderer-backgrounding")
 }
 
 /**
@@ -30,7 +30,7 @@ if (IS_ELECTRON) {
 export class FilenDesktop {
 	public driveWindow: BrowserWindow | null = null
 	public readonly webdav: WebDAV
-	public readonly virtualDrive: VirtualDrive | null = null
+	public readonly virtualDrive: VirtualDrive
 	public readonly sync: Sync
 	public readonly ipc: IPC
 	public readonly sdk: FilenSDK
@@ -50,19 +50,15 @@ export class FilenDesktop {
 	 */
 	public constructor() {
 		this.sdk = new FilenSDK()
-		this.ipc = new IPC({ desktop: this })
+		this.ipc = new IPC(this)
 		this.lib = {
-			cloud: new Cloud({ desktop: this }),
-			fs: new FS({ desktop: this })
+			cloud: new Cloud(this),
+			fs: new FS(this)
 		}
 		this.webdav = new WebDAV()
 		this.s3 = new S3()
-
-		if (os.platform() === "win32") {
-			this.virtualDrive = new VirtualDrive()
-		}
-
-		this.sync = new Sync()
+		this.virtualDrive = new VirtualDrive()
+		this.sync = new Sync(this)
 	}
 
 	/**
@@ -169,6 +165,7 @@ if (IS_ELECTRON) {
 	new FilenDesktop().initialize().catch(console.error)
 }
 
+export { deserializeError, serializeError } from "@filen/sync"
 export default FilenDesktop
 export { DesktopAPI } from "./preload"
 export * from "./utils"

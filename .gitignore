@@ -7,3 +7,5 @@ dev/**/*
 dev/*
 dev
 dist
+.yalc
+yalc.lock

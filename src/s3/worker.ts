@@ -3,39 +3,20 @@ import { type S3WorkerMessage } from "."
 import { type FilenDesktopConfig } from "../types"
 import { serializeError } from "../lib/worker"
 import { isPortInUse } from "../utils"
+import { parentPort, getEnvironmentData, isMainThread } from "worker_threads"
 
-let config: FilenDesktopConfig | null = null
-
-process.on("message", (message: S3WorkerMessage) => {
-	if (message.type === "config") {
-		config = message.config
+parentPort?.on("message", message => {
+	if (message === "exit") {
+		process.exit(0)
 	}
 })
 
-export function waitForConfig(): Promise<FilenDesktopConfig> {
-	return new Promise<FilenDesktopConfig>(resolve => {
-		if (config) {
-			resolve(config)
-
-			return
-		}
-
-		const wait = setInterval(() => {
-			if (config) {
-				clearInterval(wait)
-
-				resolve(config)
-			}
-		}, 100)
-	})
-}
-
 export async function main(): Promise<void> {
-	if (!process.argv.slice(2).includes("--filen-desktop-worker")) {
-		return
+	if (isMainThread || !parentPort) {
+		throw new Error("Not running inside a worker thread.")
 	}
 
-	const config = await waitForConfig()
+	const config = getEnvironmentData("s3Config") as FilenDesktopConfig
 
 	if (await isPortInUse(config.s3Config.port)) {
 		throw new Error(`Cannot start S3 server on ${config.s3Config.hostname}:${config.s3Config.port}: Port in use.`)
@@ -54,18 +35,14 @@ export async function main(): Promise<void> {
 
 	await server.start()
 
-	if (process.send) {
-		process.send({
-			type: "started"
-		} satisfies S3WorkerMessage)
-	}
+	parentPort?.postMessage({
+		type: "started"
+	} satisfies S3WorkerMessage)
 }
 
 main().catch(err => {
-	if (process.send) {
-		process.send({
-			type: "error",
-			error: serializeError(err)
-		} satisfies S3WorkerMessage)
-	}
+	parentPort?.postMessage({
+		type: "error",
+		error: serializeError(err)
+	} satisfies S3WorkerMessage)
 })

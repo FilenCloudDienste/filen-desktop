@@ -1,195 +1,109 @@
-import { spawn, ChildProcess } from "child_process"
 import pathModule from "path"
-import os from "os"
-import fs from "fs-extra"
+import { deserializeError as deserializeWorkerError, type SerializedError as SerializedWorkerError, Worker } from "../lib/worker"
+import { waitForConfig } from "../config"
+import { setState } from "../state"
+import { type Worker as WorkerThread } from "worker_threads"
+import { type SyncMessage } from "@filen/sync/dist/types"
+import { type Prettify, type FilenDesktopConfig } from "../types"
+import type FilenDesktop from ".."
 import { app } from "electron"
+import fs from "fs-extra"
 
-export type SyncWorkerMessage = {
-	type: "ready"
-}
+export type SyncWorkerMessage = Prettify<
+	| {
+			type: "workerStarted"
+	  }
+	| {
+			type: "workerError"
+			error: SerializedWorkerError
+	  }
+	| SyncMessage
+>
 
-const processEvents = ["exit", "SIGINT", "SIGTERM", "SIGKILL", "SIGABRT"]
-const appEvents = ["quit", "before-quit"]
-
-/**
- * Sync
- * @date 2/23/2024 - 5:49:48 AM
- *
- * @export
- * @class Sync
- * @typedef {Sync}
- */
 export class Sync {
-	private worker: ChildProcess | null = null
-	private workerReady = false
-	private sentReady = false
+	private readonly worker = new Worker<SyncWorkerMessage>({
+		path: pathModule.join(__dirname, process.env.NODE_ENV === "production" ? "worker.js" : "worker.dev.js"),
+		memory: 8 * 1024
+	})
+	private readonly desktop: FilenDesktop
+	public readonly dbPath = pathModule.join(app.getPath("userData"), "sync")
 
-	/**
-	 * Creates an instance of Sync.
-	 * @date 2/26/2024 - 7:12:10 AM
-	 *
-	 * @constructor
-	 * @public
-	 */
-	public constructor() {
-		for (const event of processEvents) {
-			process.on(event, () => {
-				if (this.worker) {
-					this.worker.removeAllListeners()
-					this.worker.kill(0)
-				}
-			})
-		}
-
-		for (const event of appEvents) {
-			app.on(event as unknown as "quit", () => {
-				if (this.worker) {
-					this.worker.removeAllListeners()
-					this.worker.kill(0)
-				}
-			})
-		}
+	public constructor(desktop: FilenDesktop) {
+		this.desktop = desktop
 	}
 
-	/**
-	 * Initialize the Sync worker.
-	 * @date 2/23/2024 - 5:49:31 AM
-	 *
-	 * @public
-	 * @async
-	 * @returns {Promise<void>}
-	 */
-	public async initialize(): Promise<void> {
-		const nodeBinPath = pathModule.join(
-			__dirname,
-			"..",
-			"..",
-			"bin",
-			"node",
-			`${os.platform()}_${os.arch()}${os.platform() === "win32" ? ".exe" : ""}`
-		)
+	public async restart(): Promise<void> {
+		await this.worker.stop()
+		await this.start()
+	}
 
-		if (!(await fs.exists(nodeBinPath))) {
-			throw new Error("Node binary not found.")
-		}
+	public async stop(): Promise<void> {
+		await this.worker.stop()
+	}
 
-		if (this.worker) {
-			this.worker.removeAllListeners()
-			this.worker.kill(0)
-		}
+	public instance(): WorkerThread | null {
+		return this.worker.instance()
+	}
 
-		this.worker = null
-		this.workerReady = false
+	public async start(): Promise<void> {
+		await this.stop()
+		await fs.ensureDir(this.dbPath)
 
-		await new Promise<void>(resolve => {
-			this.worker = spawn(nodeBinPath, [
-				pathModule.join(__dirname, process.env.NODE_ENV === "production" ? "worker.js" : "worker.dev.js"),
-				"--max-old-space-size=8192"
-			])
+		const config = await waitForConfig()
 
-			this.worker.stderr?.on("data", console.error)
-			this.worker.stderr?.on("error", console.error)
-
-			this.worker.on("exit", () => {
-				this.worker = null
-				this.workerReady = false
-
-				console.log("Sync worker died, respawning..")
-
-				setTimeout(() => {
-					this.initialize().catch(console.error)
-				}, 1000)
-			})
-
-			this.worker.on("close", () => {
-				this.worker = null
-				this.workerReady = false
-
-				console.log("Sync worker died, respawning..")
-
-				setTimeout(() => {
-					this.initialize().catch(console.error)
-				}, 1000)
-			})
-
-			this.worker.stdout?.on("data", (data?: Buffer | string) => {
-				try {
-					if (!data) {
-						return
+		await new Promise<void>((resolve, reject) => {
+			this.worker
+				.start({
+					environmentData: {
+						syncConfig: {
+							...config,
+							syncConfig: {
+								...config.syncConfig,
+								dbPath: this.dbPath
+							}
+						} satisfies FilenDesktopConfig
 					}
+				})
+				.then(() => {
+					this.worker.removeAllListeners()
 
-					const stringified = typeof data === "string" ? data : data.toString("utf-8")
-
-					if (!(stringified.includes("{") && stringified.includes("}"))) {
-						process.stdout.write(stringified)
-
-						return
-					}
-
-					const payload: SyncWorkerMessage = JSON.parse(stringified)
-
-					if (payload.type === "ready") {
-						this.workerReady = true
-
-						if (!this.sentReady) {
-							this.sentReady = true
+					this.worker.on("message", message => {
+						if (message.type === "workerStarted") {
+							setState(prev => ({
+								...prev,
+								webdavStarted: true
+							}))
 
 							resolve()
+						} else if (message.type === "workerError") {
+							this.stop().catch(console.error)
+
+							setState(prev => ({
+								...prev,
+								webdavStarted: false
+							}))
+
+							reject(deserializeWorkerError(message.error))
+						} else {
+							this.desktop.ipc.postMainToWindowMessage({
+								type: "sync",
+								message
+							})
 						}
-					}
+					})
 
-					console.log("Sync worker message:", payload)
-				} catch (e) {
-					console.error(e)
-				}
-			})
+					this.worker.on("exit", () => {
+						this.stop().catch(console.error)
 
-			this.worker.stdout?.on("error", console.error)
-		})
-	}
+						setState(prev => ({
+							...prev,
+							webdavStarted: false
+						}))
 
-	/**
-	 * Deinitialize the worker.
-	 * @date 3/1/2024 - 8:45:04 PM
-	 *
-	 * @public
-	 * @async
-	 * @returns {Promise<void>}
-	 */
-	public async deinitialize(): Promise<void> {
-		if (!this.worker) {
-			return
-		}
-
-		await this.waitForReady()
-
-		this.worker.removeAllListeners()
-		this.worker.kill(0)
-		this.worker = null
-		this.workerReady = false
-	}
-
-	/**
-	 * Wait for the worker to be ready.
-	 * @date 2/23/2024 - 5:49:17 AM
-	 *
-	 * @public
-	 * @async
-	 * @returns {Promise<void>}
-	 */
-	public async waitForReady(): Promise<void> {
-		if (this.workerReady) {
-			return
-		}
-
-		await new Promise<void>(resolve => {
-			const wait = setInterval(() => {
-				if (this.workerReady) {
-					clearInterval(wait)
-
-					resolve()
-				}
-			}, 100)
+						reject(new Error("Could not start worker."))
+					})
+				})
+				.catch(reject)
 		})
 	}
 }

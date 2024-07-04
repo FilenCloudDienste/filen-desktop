@@ -1,7 +1,6 @@
 import { Worker as WorkerThread, type Serializable, type TransferListItem, setEnvironmentData } from "worker_threads"
 import fs from "fs-extra"
 import { EventEmitter } from "events"
-import { Semaphore } from "../semaphore"
 import TypedEmitter from "typed-emitter"
 import { app } from "electron"
 import { v4 as uuidv4 } from "uuid"
@@ -47,7 +46,6 @@ export class Worker<T> extends (EventEmitter as unknown as { new <T>(): TypedEmi
 	private readonly path: string
 	private readonly memory: number | undefined
 	private readonly id = uuidv4()
-	private readonly mutex = new Semaphore(1)
 
 	public constructor({ path, memory }: { path: string; memory?: number }) {
 		super()
@@ -78,77 +76,72 @@ export class Worker<T> extends (EventEmitter as unknown as { new <T>(): TypedEmi
 		}
 
 		await this.stop()
-		await this.mutex.acquire()
 
-		try {
-			await new Promise<void>((resolve, reject) => {
-				if (options && options.environmentData) {
-					for (const key in options.environmentData) {
-						setEnvironmentData(key, options.environmentData[key]!)
-					}
+		await new Promise<void>((resolve, reject) => {
+			if (options && options.environmentData) {
+				for (const key in options.environmentData) {
+					setEnvironmentData(key, options.environmentData[key]!)
 				}
+			}
 
-				let didReject = false
+			let didReject = false
 
-				this.worker = new WorkerThread(this.path, {
-					resourceLimits: {
-						maxOldGenerationSizeMb: this.memory
-					}
-				})
-
-				workers[this.id] = this.worker
-
-				if (process.env.NODE_ENV === "development") {
-					this.worker.stdout?.on("data", data => {
-						console.log("Worker stdout", data instanceof Buffer ? data.toString("utf-8") : data)
-					})
-
-					this.worker.stderr?.on("data", err => {
-						console.log("Worker stderr", err instanceof Buffer ? err.toString("utf-8") : err)
-					})
-
-					this.worker.on("messageerror", err => {
-						console.log("Worker messageerror", err)
-					})
+			this.worker = new WorkerThread(this.path, {
+				resourceLimits: {
+					maxOldGenerationSizeMb: this.memory
 				}
-
-				this.worker.on("message", message => {
-					this.emit("message", message as T)
-				})
-
-				this.worker.on("error", err => {
-					didReject = true
-
-					delete workers[this.id]
-
-					reject(err)
-				})
-
-				this.worker.on("exit", () => {
-					didReject = true
-
-					delete workers[this.id]
-
-					this.worker = null
-
-					this.emit("exit", null)
-
-					reject(new Error("Could not start worker thread (exit)."))
-				})
-
-				this.worker.on("online", () => {
-					setTimeout(() => {
-						if (didReject) {
-							return
-						}
-
-						resolve()
-					}, 2500)
-				})
 			})
-		} finally {
-			this.mutex.release()
-		}
+
+			workers[this.id] = this.worker
+
+			if (process.env.NODE_ENV === "development") {
+				this.worker.stdout?.on("data", data => {
+					console.log("Worker stdout", data instanceof Buffer ? data.toString("utf-8") : data)
+				})
+
+				this.worker.stderr?.on("data", err => {
+					console.log("Worker stderr", err instanceof Buffer ? err.toString("utf-8") : err)
+				})
+
+				this.worker.on("messageerror", err => {
+					console.log("Worker messageerror", err)
+				})
+			}
+
+			this.worker.on("message", message => {
+				this.emit("message", message as T)
+			})
+
+			this.worker.on("error", err => {
+				didReject = true
+
+				delete workers[this.id]
+
+				reject(err)
+			})
+
+			this.worker.on("exit", () => {
+				didReject = true
+
+				delete workers[this.id]
+
+				this.worker = null
+
+				this.emit("exit", null)
+
+				reject(new Error("Could not start worker thread (exit)."))
+			})
+
+			this.worker.on("online", () => {
+				setTimeout(() => {
+					if (didReject) {
+						return
+					}
+
+					resolve()
+				}, 1000)
+			})
+		})
 	}
 
 	public async stop(): Promise<void> {
@@ -156,26 +149,20 @@ export class Worker<T> extends (EventEmitter as unknown as { new <T>(): TypedEmi
 			return
 		}
 
-		await this.mutex.acquire()
+		await new Promise<void>(resolve => {
+			this.worker
+				?.removeAllListeners()
+				.on("exit", () => {
+					delete workers[this.id]
 
-		try {
-			await new Promise<void>(resolve => {
-				this.worker
-					?.removeAllListeners()
-					.on("exit", () => {
-						delete workers[this.id]
+					this.worker = null
 
-						this.worker = null
+					this.emit("exit", null)
 
-						this.emit("exit", null)
-
-						resolve()
-					})
-					.postMessage("exit")
-			})
-		} finally {
-			this.mutex.release()
-		}
+					resolve()
+				})
+				.postMessage("exit")
+		})
 	}
 }
 

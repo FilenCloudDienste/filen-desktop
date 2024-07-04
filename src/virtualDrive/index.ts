@@ -8,6 +8,7 @@ import fs from "fs-extra"
 import os from "os"
 import diskusage from "diskusage-ng"
 import { promiseAllChunked } from "../utils"
+import { type FilenDesktopConfig } from "../types"
 
 export type VirtualDriveWorkerMessage =
 	| {
@@ -65,13 +66,13 @@ export class VirtualDrive {
 			this.worker
 				.start({
 					environmentData: {
-						config: {
+						virtualDriveConfig: {
 							...config,
 							virtualDriveConfig: {
 								...config.virtualDriveConfig,
 								localDirPath: this.localDirPath
 							}
-						}
+						} satisfies FilenDesktopConfig
 					}
 				})
 				.then(() => {
@@ -98,10 +99,14 @@ export class VirtualDrive {
 					})
 
 					this.worker.on("exit", () => {
+						this.stop().catch(console.error)
+
 						setState(prev => ({
 							...prev,
 							virtualDriveStarted: false
 						}))
+
+						reject(new Error("Could not start worker."))
 					})
 				})
 				.catch(reject)

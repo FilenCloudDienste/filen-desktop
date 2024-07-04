@@ -1,4 +1,5 @@
 import { type FilenDesktop } from ".."
+import fs from "fs-extra"
 
 /**
  * FS
@@ -20,8 +21,28 @@ export class FS {
 	 * @param {{ desktop: FilenDesktop }} param0
 	 * @param {FilenDesktop} param0.desktop
 	 */
-	public constructor({ desktop }: { desktop: FilenDesktop }) {
+	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
+	}
+
+	public async isPathWritable(path: string): Promise<boolean> {
+		try {
+			await fs.access(path, fs.constants.W_OK | fs.constants.R_OK)
+
+			return true
+		} catch {
+			return false
+		}
+	}
+
+	public async isPathReadable(path: string): Promise<boolean> {
+		try {
+			await fs.access(path, fs.constants.R_OK)
+
+			return true
+		} catch {
+			return false
+		}
 	}
 }
 

@@ -26,6 +26,14 @@ export type VirtualDriveOptions = {
 
 export const rcloneBinaryName = `filen_rclone_${os.platform()}_${os.arch()}${os.platform() === "win32" ? ".exe" : ""}`
 
+let didSetupExitHandler = false
+
+parentPort?.on("message", message => {
+	if (message === "exit" && !didSetupExitHandler) {
+		process.exit(0)
+	}
+})
+
 export class VirtualDrive {
 	private readonly webdavServer: WebDAVServer
 	private readonly options: VirtualDriveOptions
@@ -47,6 +55,8 @@ export class VirtualDrive {
 				this.cleaupAndExit()
 			}
 		})
+
+		didSetupExitHandler = true
 
 		this.options = {
 			...options,
@@ -139,7 +149,8 @@ export class VirtualDrive {
 							port: this.options.port,
 							path: "/",
 							method: "HEAD",
-							timeout: 15000
+							timeout: 15000,
+							agent: false
 						},
 						res => {
 							if (res.statusCode !== 401) {
@@ -151,6 +162,10 @@ export class VirtualDrive {
 							resolve()
 						}
 					)
+
+					request.once("error", err => {
+						reject(err)
+					})
 
 					request.end()
 				})
@@ -328,7 +343,7 @@ export async function main(): Promise<void> {
 
 	await killProcessByName(rcloneBinaryName).catch(() => {})
 
-	const config = getEnvironmentData("config") as FilenDesktopConfig
+	const config = getEnvironmentData("virtualDriveConfig") as FilenDesktopConfig
 	const availableDriveLetters = await getAvailableDriveLetters()
 
 	if (!availableDriveLetters.includes(config.virtualDriveConfig.mountPoint)) {

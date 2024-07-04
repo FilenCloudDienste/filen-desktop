@@ -8,7 +8,8 @@ import pathModule from "path"
 import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
 import { getState, type State, setState } from "../state"
-import { getExistingDrives, isPortInUse, getAvailableDriveLetters } from "../utils"
+import { getExistingDrives, isPortInUse, getAvailableDriveLetters, canStartServerOnIPAndPort } from "../utils"
+import { type SyncMessage } from "@filen/sync/dist/types"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -39,6 +40,7 @@ export type IPCDownloadMultipleFilesAndDirectoriesParams = {
 	dontEmitEvents?: boolean
 	to: string
 	name: string
+	dontEmitQueuedEvent?: boolean
 }
 
 export type IPCShowSaveDialogResult =
@@ -49,6 +51,15 @@ export type IPCShowSaveDialogResult =
 			cancelled: false
 			path: string
 			name: string
+	  }
+
+export type IPCSelectDirectoryResult =
+	| {
+			cancelled: true
+	  }
+	| {
+			cancelled: false
+			paths: string[]
 	  }
 
 export type IPCShowSaveDialogResultParams = {
@@ -97,9 +108,18 @@ export type MainToWindowMessage =
 			total: number
 			requestUUID: string
 	  }
+	| {
+			type: "sync"
+			message: SyncMessage
+	  }
 
 export type IPCPauseResumeAbortSignalParams = {
 	id: string
+}
+
+export type IPCCanStartServerOnIPAndPort = {
+	ip: string
+	port: number
 }
 
 /**
@@ -117,16 +137,7 @@ export class IPC {
 	private readonly pauseSignals: Record<string, PauseSignal> = {}
 	private readonly abortControllers: Record<string, AbortController> = {}
 
-	/**
-	 * Creates an instance of IPC.
-	 * @date 3/13/2024 - 8:03:20 PM
-	 *
-	 * @constructor
-	 * @public
-	 * @param {{ desktop: FilenDesktop }} param0
-	 * @param {FilenDesktop} param0.desktop
-	 */
-	public constructor({ desktop }: { desktop: FilenDesktop }) {
+	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
 
 		this.general()
@@ -136,6 +147,7 @@ export class IPC {
 		this.state()
 		this.s3()
 		this.virtualDrive()
+		this.sync()
 	}
 
 	/**
@@ -255,24 +267,76 @@ export class IPC {
 			}
 		})
 
-		ipcMain.handle("getExistingDrives", async () => {
+		ipcMain.handle("selectDirectory", async (_, multiple: boolean = false): Promise<IPCSelectDirectoryResult> => {
+			if (!this.desktop.driveWindow) {
+				throw new Error("Drive window missing.")
+			}
+
+			const { canceled, filePaths } = await dialog.showOpenDialog(this.desktop.driveWindow, {
+				properties: multiple ? ["createDirectory", "openDirectory", "multiSelections"] : ["createDirectory", "openDirectory"]
+			})
+
+			if (canceled || filePaths.length === 0) {
+				return {
+					cancelled: true
+				}
+			}
+
+			return {
+				cancelled: false,
+				paths: filePaths
+			}
+		})
+
+		ipcMain.handle("getExistingDrives", async (): Promise<string[]> => {
 			return await getExistingDrives()
 		})
 
-		ipcMain.handle("getAvailableDrives", async () => {
+		ipcMain.handle("getAvailableDrives", async (): Promise<string[]> => {
 			return await getAvailableDriveLetters()
 		})
 
-		ipcMain.handle("isPortInUse", async (_, port) => {
+		ipcMain.handle("isPortInUse", async (_, port): Promise<boolean> => {
 			return await isPortInUse(port)
 		})
 
-		ipcMain.handle("openLocalPath", async (_, path) => {
+		ipcMain.handle("canStartServerOnIPAndPort", async (_, { ip, port }: IPCCanStartServerOnIPAndPort): Promise<boolean> => {
+			return await canStartServerOnIPAndPort(ip, port)
+		})
+
+		ipcMain.handle("openLocalPath", async (_, path): Promise<void> => {
 			const open = await shell.openPath(pathModule.normalize(path))
 
 			if (open.length > 0) {
 				throw new Error(open)
 			}
+		})
+
+		ipcMain.handle("verifyUnixMountPath", async (_, path): Promise<boolean> => {
+			try {
+				await fs.access(path)
+
+				const stat = await fs.stat(path)
+
+				return (
+					stat.isDirectory() &&
+					!stat.isSymbolicLink() &&
+					!stat.isBlockDevice() &&
+					!stat.isCharacterDevice() &&
+					!stat.isFIFO() &&
+					!stat.isSocket()
+				)
+			} catch {
+				return false
+			}
+		})
+
+		ipcMain.handle("isPathWritable", async (_, path: string) => {
+			return await this.desktop.lib.fs.isPathWritable(path)
+		})
+
+		ipcMain.handle("isPathReadable", async (_, path: string) => {
+			return await this.desktop.lib.fs.isPathReadable(path)
 		})
 	}
 
@@ -478,24 +542,25 @@ export class IPC {
 	private webdav(): void {
 		ipcMain.handle("startWebDAVServer", async () => {
 			await waitForConfig()
-
 			await this.desktop.webdav.start()
 		})
 
 		ipcMain.handle("stopWebDAVServer", async () => {
 			await waitForConfig()
-
 			await this.desktop.webdav.stop()
 		})
 
 		ipcMain.handle("restartWebDAVServer", async () => {
 			await waitForConfig()
-
 			await this.desktop.webdav.restart()
 		})
 
 		ipcMain.handle("isWebDAVActive", async () => {
 			return this.desktop.webdav.instance() !== null
+		})
+
+		ipcMain.handle("isWebDAVOnline", async () => {
+			return await this.desktop.webdav.isOnline()
 		})
 	}
 
@@ -522,24 +587,25 @@ export class IPC {
 	private s3(): void {
 		ipcMain.handle("startS3Server", async () => {
 			await waitForConfig()
-
 			await this.desktop.s3.start()
 		})
 
 		ipcMain.handle("stopS3Server", async () => {
 			await waitForConfig()
-
 			await this.desktop.s3.stop()
 		})
 
 		ipcMain.handle("restartS3Server", async () => {
 			await waitForConfig()
-
 			await this.desktop.s3.restart()
 		})
 
 		ipcMain.handle("isS3Active", async () => {
 			return this.desktop.s3.instance() !== null
+		})
+
+		ipcMain.handle("isS3Online", async () => {
+			return await this.desktop.s3.isOnline()
 		})
 	}
 
@@ -550,70 +616,72 @@ export class IPC {
 	 */
 	private virtualDrive(): void {
 		ipcMain.handle("startVirtualDrive", async () => {
-			if (!this.desktop.virtualDrive) {
-				return
-			}
-
 			await waitForConfig()
 			await this.desktop.virtualDrive.start()
 		})
 
 		ipcMain.handle("stopVirtualDrive", async () => {
-			if (!this.desktop.virtualDrive) {
-				return
-			}
-
 			await waitForConfig()
 			await this.desktop.virtualDrive.stop()
 		})
 
 		ipcMain.handle("restartVirtualDrive", async () => {
-			if (!this.desktop.virtualDrive) {
-				return
-			}
-
 			await waitForConfig()
 			await this.desktop.virtualDrive.restart()
 		})
 
 		ipcMain.handle("isVirtualDriveMounted", async () => {
-			if (!this.desktop.virtualDrive) {
-				return false
-			}
-
 			return this.desktop.virtualDrive.isMounted()
 		})
 
 		ipcMain.handle("virtualDriveAvailableCache", async () => {
-			if (!this.desktop.virtualDrive) {
-				return 0
-			}
-
 			return await this.desktop.virtualDrive.availableCacheSize()
 		})
 
 		ipcMain.handle("virtualDriveCacheSize", async () => {
-			if (!this.desktop.virtualDrive) {
-				return 0
-			}
-
 			return await this.desktop.virtualDrive.cacheSize()
 		})
 
 		ipcMain.handle("virtualDriveCleanupCache", async () => {
-			if (!this.desktop.virtualDrive) {
-				return
-			}
-
 			await this.desktop.virtualDrive.cleanupCache()
 		})
 
 		ipcMain.handle("virtualDriveCleanupLocalDir", async () => {
-			if (!this.desktop.virtualDrive) {
-				return
-			}
-
 			await this.desktop.virtualDrive.cleanupLocalDir()
+		})
+
+		ipcMain.handle("isVirtualDriveActive", async () => {
+			return this.desktop.virtualDrive.instance() !== null
+		})
+	}
+
+	/**
+	 * Handle all Sync related invocations.
+	 *
+	 * @private
+	 */
+	private sync(): void {
+		ipcMain.handle("startSync", async () => {
+			await waitForConfig()
+			await this.desktop.sync.start()
+		})
+
+		ipcMain.handle("stopSync", async () => {
+			await waitForConfig()
+			await this.desktop.sync.stop()
+		})
+
+		ipcMain.handle("restartSync", async () => {
+			await waitForConfig()
+			await this.desktop.sync.restart()
+		})
+
+		ipcMain.handle("isSyncActive", async () => {
+			return this.desktop.sync.instance() !== null
+		})
+
+		ipcMain.handle("forwardSyncMessage", async (_, message: SyncMessage) => {
+			this.desktop.sync.instance()?.postMessage(message)
 		})
 	}
 }

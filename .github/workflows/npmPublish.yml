@@ -1,0 +1,39 @@
+name: Publish to npm
+
+on:
+    release:
+        types: [published]
+
+# Allow one concurrent deployment
+concurrency:
+    group: "npm"
+    cancel-in-progress: true
+
+env:
+    # 7 GiB by default on GitHub, setting to 6 GiB
+    # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners#supported-runners-and-hardware-resources
+    NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+                  cache: "npm"
+            - name: Install dependencies
+              run: npm install --package-lock-only && npm ci
+            - name: Build
+              run: npm run build
+            - name: Configure npm for publishing
+              run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_PUBLISH_TOKEN }}" > ~/.npmrc
+            - name: Publish
+              run: npm publish --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+            - name: Cleanup
+              run: rm -rf ~/.npmrc
