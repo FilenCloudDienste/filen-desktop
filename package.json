@@ -1,6 +1,6 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.20",
+	"version": "0.1.22",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -58,7 +58,7 @@
 	"dependencies": {
 		"@filen/s3": "^0.2.12",
 		"@filen/sdk": "^0.1.134",
-		"@filen/sync": "^0.1.1",
+		"@filen/sync": "^0.1.4",
 		"@filen/web": "^0.1.2",
 		"@filen/webdav": "^0.2.19",
 		"diskusage-ng": "^1.0.4",
