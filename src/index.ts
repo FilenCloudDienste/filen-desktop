@@ -125,6 +125,7 @@ export class FilenDesktop {
 			title: "Filen",
 			minWidth: 1280,
 			minHeight: 720,
+			titleBarStyle: "hidden",
 			webPreferences: {
 				backgroundThrottling: false,
 				autoplayPolicy: "no-user-gesture-required",
