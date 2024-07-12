@@ -126,6 +126,10 @@ export class FilenDesktop {
 			minWidth: 1280,
 			minHeight: 720,
 			titleBarStyle: "hidden",
+			trafficLightPosition: {
+				x: 10,
+				y: 10
+			},
 			webPreferences: {
 				backgroundThrottling: false,
 				autoplayPolicy: "no-user-gesture-required",
