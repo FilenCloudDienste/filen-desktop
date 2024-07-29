@@ -1,6 +1,10 @@
 import fs from "fs-extra"
 import net from "net"
 import crypto from "crypto"
+import axios from "axios"
+import os from "os"
+import https from "https"
+import { exec } from "child_process"
 
 /**
  * "Sleep" for N milliseconds.
@@ -155,4 +159,73 @@ export function canStartServerOnIPAndPort(ip: string, port: number): Promise<boo
 
 		server.listen(port, ip)
 	})
+}
+
+export const httpsAgent = new https.Agent({
+	rejectUnauthorized: false
+})
+
+export async function httpHealthCheck({
+	url,
+	method = "GET",
+	expectedStatusCode = 200,
+	timeout = 5000
+}: {
+	url: string
+	expectedStatusCode?: number
+	method?: "GET" | "POST" | "HEAD"
+	timeout?: number
+}): Promise<boolean> {
+	const abortController = new AbortController()
+
+	const timeouter = setTimeout(() => {
+		abortController.abort()
+	}, timeout)
+
+	try {
+		const response = await axios({
+			url,
+			timeout,
+			method,
+			signal: abortController.signal,
+			validateStatus: () => true,
+			httpsAgent
+		})
+
+		clearTimeout(timeouter)
+
+		return response.status === expectedStatusCode
+	} catch (e) {
+		clearTimeout(timeouter)
+
+		return false
+	}
+}
+
+export async function checkIfMountExists(mountPoint: string): Promise<boolean> {
+	try {
+		await fs.access(os.platform() === "win32" ? `${mountPoint}\\\\` : mountPoint, fs.constants.R_OK | fs.constants.W_OK)
+
+		return true
+	} catch {
+		return false
+	}
+}
+
+export async function execCommand(command: string, trimStdOut: boolean = true): Promise<string> {
+	return new Promise((resolve, reject) => {
+		exec(command, (err, stdout, stderr) => {
+			if (err || stderr) {
+				reject(err ? err : new Error(stderr))
+
+				return
+			}
+
+			resolve(trimStdOut ? stdout.trim() : stdout)
+		})
+	})
+}
+
+export async function killProcessByName(processName: string): Promise<void> {
+	await execCommand(os.platform() === "win32" ? `taskkill /F /T /IM ${processName}` : `pkill -TERM -P $(pgrep -d',' -f ${processName})`)
 }

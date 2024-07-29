@@ -1,16 +1,14 @@
-import { app, BrowserWindow, shell, protocol } from "electron"
-import WebDAV from "./webdav"
-import VirtualDrive from "./virtualDrive"
-import Sync from "./sync"
+import { app, BrowserWindow, shell, protocol, Tray, nativeTheme } from "electron"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
 import { waitForConfig } from "./config"
 import Cloud from "./lib/cloud"
 import FS from "./lib/fs"
-import S3 from "./s3"
 import url from "url"
 import { IS_ELECTRON } from "./constants"
+import Worker from "./worker"
+import { getAppIcon, getTrayIcon } from "./assets"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -29,17 +27,16 @@ if (IS_ELECTRON) {
  */
 export class FilenDesktop {
 	public driveWindow: BrowserWindow | null = null
-	public readonly webdav: WebDAV
-	public readonly virtualDrive: VirtualDrive
-	public readonly sync: Sync
 	public readonly ipc: IPC
 	public readonly sdk: FilenSDK
-	public readonly s3: S3
+	public readonly worker: Worker
 	public sdkInitialized: boolean = false
 	public readonly lib: {
 		cloud: Cloud
 		fs: FS
 	}
+	public notificationCount = 0
+	public tray: Tray | null = null
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -55,10 +52,7 @@ export class FilenDesktop {
 			cloud: new Cloud(this),
 			fs: new FS(this)
 		}
-		this.webdav = new WebDAV()
-		this.s3 = new S3()
-		this.virtualDrive = new VirtualDrive()
-		this.sync = new Sync(this)
+		this.worker = new Worker(this)
 	}
 
 	/**
@@ -96,6 +90,7 @@ export class FilenDesktop {
 
 		await app.whenReady()
 
+		// Handle frontend bundle loading in production via file://
 		protocol.interceptFileProtocol("file", (req, callback) => {
 			const url = req.url.slice(7)
 
@@ -110,7 +105,12 @@ export class FilenDesktop {
 			}
 		})
 
+		app.setUserTasks([])
+		app.setName("Filen")
+
+		await this.worker.start()
 		await this.createMainWindow()
+		await this.worker.invoke("restartSync")
 	}
 
 	private async createMainWindow(): Promise<void> {
@@ -126,10 +126,14 @@ export class FilenDesktop {
 			minWidth: 1280,
 			minHeight: 720,
 			titleBarStyle: "hidden",
+			icon: getAppIcon(this.notificationCount),
 			trafficLightPosition: {
 				x: 10,
 				y: 10
 			},
+			backgroundColor: "rgba(0, 0, 0, 0)",
+			hasShadow: true,
+			show: false,
 			webPreferences: {
 				backgroundThrottling: false,
 				autoplayPolicy: "no-user-gesture-required",
@@ -142,10 +146,28 @@ export class FilenDesktop {
 			}
 		})
 
+		this.tray = new Tray(getTrayIcon(this.notificationCount))
+		this.tray.setTitle("Filen")
+		this.tray.setContextMenu(null)
+		this.tray.setToolTip("Filen")
+
+		this.tray.on("click", () => {
+			this.driveWindow?.show()
+		})
+
+		this.driveWindow.setThumbarButtons([])
+
 		this.driveWindow.on("closed", () => {
 			this.driveWindow = null
 		})
 
+		// Handle different icons based on the user's theme (dark/light)
+		nativeTheme.on("updated", () => {
+			this.driveWindow?.setIcon(getAppIcon(this.notificationCount))
+			this.tray?.setImage(getTrayIcon(this.notificationCount))
+		})
+
+		// Open links in default external browser
 		this.driveWindow.webContents.setWindowOpenHandler(({ url }) => {
 			shell.openExternal(url)
 
@@ -163,6 +185,10 @@ export class FilenDesktop {
 				  })
 				: "http://localhost:5173"
 		)
+
+		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden")) {
+			this.driveWindow.show()
+		}
 	}
 }
 
@@ -171,7 +197,8 @@ if (IS_ELECTRON) {
 }
 
 export { deserializeError, serializeError } from "@filen/sync"
-export default FilenDesktop
 export { DesktopAPI } from "./preload"
 export * from "./utils"
 export * from "./constants"
+
+export default FilenDesktop

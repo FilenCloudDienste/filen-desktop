@@ -4,6 +4,7 @@ import { type DriveCloudItemWithPath } from "../types"
 import { type FileEncryptionVersion, type CloudItemTree, type PauseSignal } from "@filen/sdk"
 import { promiseAllChunked } from "../utils"
 import pathModule from "path"
+import fs from "fs-extra"
 
 /**
  * Cloud
@@ -85,6 +86,13 @@ export class Cloud {
 		if (!dirnameWritable) {
 			throw new Error(`${to} is not writable.`)
 		}
+
+		await fs.rm(to, {
+			force: true,
+			maxRetries: 60 * 10,
+			recursive: true,
+			retryDelay: 100
+		})
 
 		return await this.desktop.sdk.cloud().downloadFileToLocal({
 			uuid,
@@ -255,6 +263,13 @@ export class Cloud {
 		}
 
 		try {
+			await fs.rm(to, {
+				force: true,
+				maxRetries: 60 * 10,
+				recursive: true,
+				retryDelay: 100
+			})
+
 			const tree = await this.getDirectoryTree({
 				uuid,
 				type,
@@ -441,6 +456,13 @@ export class Cloud {
 		if (!dirnameWritable) {
 			throw new Error(`${to} is not writable.`)
 		}
+
+		await fs.rm(to, {
+			force: true,
+			maxRetries: 60 * 10,
+			recursive: true,
+			retryDelay: 100
+		})
 
 		const itemsWithPath: DriveCloudItemWithPath[] = []
 		const treePromises: Promise<void>[] = []

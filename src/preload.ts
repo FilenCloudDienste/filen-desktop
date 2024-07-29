@@ -11,8 +11,7 @@ import {
 	type IPCSelectDirectoryResult
 } from "./ipc"
 import { type FilenDesktopConfig } from "./types"
-import { type State } from "./state"
-import { type SyncMessage } from "@filen/sync/dist/types"
+import { type SyncMode } from "@filen/sync/dist/types"
 
 const env = {
 	isBrowser:
@@ -32,6 +31,8 @@ export type DesktopAPI = {
 	ping: () => Promise<string>
 	minimizeWindow: () => Promise<void>
 	maximizeWindow: () => Promise<void>
+	unmaximizeWindow: () => Promise<void>
+	isWindowMaximized: () => Promise<boolean>
 	closeWindow: () => Promise<void>
 	restart: () => Promise<void>
 	setConfig: (config: FilenDesktopConfig) => Promise<void>
@@ -47,17 +48,12 @@ export type DesktopAPI = {
 	startWebDAVServer: () => Promise<void>
 	stopWebDAVServer: () => Promise<void>
 	restartWebDAVServer: () => Promise<void>
-	isWebDAVActive: () => Promise<boolean>
-	setState: (params: State) => Promise<void>
-	getState: () => Promise<State>
 	startS3Server: () => Promise<void>
 	stopS3Server: () => Promise<void>
 	restartS3Server: () => Promise<void>
-	isS3Active: () => Promise<boolean>
 	startVirtualDrive: () => Promise<void>
 	stopVirtualDrive: () => Promise<void>
 	restartVirtualDrive: () => Promise<void>
-	isVirtualDriveMounted: () => Promise<boolean>
 	getExistingDrives: () => Promise<string[]>
 	isPortInUse: (port: number) => Promise<boolean>
 	getAvailableDrives: () => Promise<string[]>
@@ -66,9 +62,6 @@ export type DesktopAPI = {
 	virtualDriveCacheSize: () => Promise<number>
 	virtualDriveCleanupCache: () => Promise<void>
 	virtualDriveCleanupLocalDir: () => Promise<void>
-	isWebDAVOnline: () => Promise<boolean>
-	isS3Online: () => Promise<boolean>
-	isVirtualDriveActive: () => Promise<boolean>
 	canStartServerOnIPAndPort: (params: IPCCanStartServerOnIPAndPort) => Promise<boolean>
 	platform: () => typeof process.platform
 	arch: () => typeof process.arch
@@ -77,10 +70,28 @@ export type DesktopAPI = {
 	startSync: () => Promise<void>
 	stopSync: () => Promise<void>
 	restartSync: () => Promise<void>
-	isSyncActive: () => Promise<boolean>
-	forwardSyncMessage: (message: SyncMessage) => Promise<void>
 	isPathWritable: (path: string) => Promise<boolean>
 	isPathReadable: (path: string) => Promise<boolean>
+	isWebDAVOnline: () => Promise<boolean>
+	isS3Online: () => Promise<boolean>
+	isVirtualDriveMounted: () => Promise<boolean>
+	isVirtualDriveActive: () => Promise<boolean>
+	isWebDAVActive: () => Promise<boolean>
+	isS3Active: () => Promise<boolean>
+	isSyncActive: () => Promise<boolean>
+	isWorkerActive: () => Promise<boolean>
+	syncUpdateExcludeDotFiles: (params: { uuid: string; excludeDotFiles: boolean }) => Promise<void>
+	syncUpdateMode: (params: { uuid: string; mode: SyncMode }) => Promise<void>
+	syncUpdatePaused: (params: { uuid: string; paused: boolean }) => Promise<void>
+	syncUpdateRemoved: (params: { uuid: string; removed: boolean }) => Promise<void>
+	syncResetCache: (params: { uuid: string }) => Promise<void>
+	syncStopTransfer: (params: { uuid: string; type: "upload" | "download"; relativePath: string }) => Promise<void>
+	syncPauseTransfer: (params: { uuid: string; type: "upload" | "download"; relativePath: string }) => Promise<void>
+	syncResumeTransfer: (params: { uuid: string; type: "upload" | "download"; relativePath: string }) => Promise<void>
+	syncFetchIgnorerContent: (params: { uuid: string }) => Promise<string>
+	syncUpdateIgnorerContent: (params: { uuid: string; content: string }) => Promise<void>
+	updateNotificationCount: (count: number) => Promise<void>
+	toggleAutoLaunch: (enabled: boolean) => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -101,6 +112,8 @@ if (env.isBrowser || env.isElectron) {
 		ping: () => ipcRenderer.invoke("ping"),
 		minimizeWindow: () => ipcRenderer.invoke("minimizeWindow"),
 		maximizeWindow: () => ipcRenderer.invoke("maximizeWindow"),
+		unmaximizeWindow: () => ipcRenderer.invoke("unmaximizeWindow"),
+		isWindowMaximized: () => ipcRenderer.invoke("isWindowMaximized"),
 		closeWindow: () => ipcRenderer.invoke("closeWindow"),
 		restart: () => ipcRenderer.invoke("restart"),
 		setConfig: config => ipcRenderer.invoke("setConfig", config),
@@ -116,17 +129,12 @@ if (env.isBrowser || env.isElectron) {
 		startWebDAVServer: () => ipcRenderer.invoke("startWebDAVServer"),
 		stopWebDAVServer: () => ipcRenderer.invoke("stopWebDAVServer"),
 		restartWebDAVServer: () => ipcRenderer.invoke("restartWebDAVServer"),
-		isWebDAVActive: () => ipcRenderer.invoke("isWebDAVActive"),
-		setState: params => ipcRenderer.invoke("setState", params),
-		getState: () => ipcRenderer.invoke("getState"),
 		startS3Server: () => ipcRenderer.invoke("startS3Server"),
 		stopS3Server: () => ipcRenderer.invoke("stopS3Server"),
 		restartS3Server: () => ipcRenderer.invoke("restartS3Server"),
-		isS3Active: () => ipcRenderer.invoke("isS3Active"),
 		startVirtualDrive: () => ipcRenderer.invoke("startVirtualDrive"),
 		stopVirtualDrive: () => ipcRenderer.invoke("stopVirtualDrive"),
 		restartVirtualDrive: () => ipcRenderer.invoke("restartVirtualDrive"),
-		isVirtualDriveMounted: () => ipcRenderer.invoke("isVirtualDriveMounted"),
 		getExistingDrives: () => ipcRenderer.invoke("getExistingDrives"),
 		isPortInUse: port => ipcRenderer.invoke("isPortInUse", port),
 		getAvailableDrives: () => ipcRenderer.invoke("getAvailableDrives"),
@@ -135,9 +143,6 @@ if (env.isBrowser || env.isElectron) {
 		virtualDriveCacheSize: () => ipcRenderer.invoke("virtualDriveCacheSize"),
 		virtualDriveCleanupCache: () => ipcRenderer.invoke("virtualDriveCleanupCache"),
 		virtualDriveCleanupLocalDir: () => ipcRenderer.invoke("virtualDriveCleanupLocalDir"),
-		isWebDAVOnline: () => ipcRenderer.invoke("isWebDAVOnline"),
-		isS3Online: () => ipcRenderer.invoke("isS3Online"),
-		isVirtualDriveActive: () => ipcRenderer.invoke("isVirtualDriveActive"),
 		canStartServerOnIPAndPort: params => ipcRenderer.invoke("canStartServerOnIPAndPort", params),
 		platform: () => process.platform,
 		arch: () => process.arch,
@@ -146,9 +151,27 @@ if (env.isBrowser || env.isElectron) {
 		startSync: () => ipcRenderer.invoke("startSync"),
 		stopSync: () => ipcRenderer.invoke("stopSync"),
 		restartSync: () => ipcRenderer.invoke("restartSync"),
-		isSyncActive: () => ipcRenderer.invoke("isSyncActive"),
-		forwardSyncMessage: message => ipcRenderer.invoke("forwardSyncMessage", message),
 		isPathWritable: path => ipcRenderer.invoke("isPathWritable", path),
-		isPathReadable: path => ipcRenderer.invoke("isPathReadable", path)
+		isPathReadable: path => ipcRenderer.invoke("isPathReadable", path),
+		isWebDAVOnline: () => ipcRenderer.invoke("isWebDAVOnline"),
+		isS3Online: () => ipcRenderer.invoke("isS3Online"),
+		isVirtualDriveMounted: () => ipcRenderer.invoke("isVirtualDriveMounted"),
+		isVirtualDriveActive: () => ipcRenderer.invoke("isVirtualDriveActive"),
+		isS3Active: () => ipcRenderer.invoke("isS3Active"),
+		isWebDAVActive: () => ipcRenderer.invoke("isWebDAVActive"),
+		isSyncActive: () => ipcRenderer.invoke("isSyncActive"),
+		isWorkerActive: () => ipcRenderer.invoke("isWorkerActive"),
+		syncResetCache: params => ipcRenderer.invoke("syncResetCache", params),
+		syncUpdateExcludeDotFiles: params => ipcRenderer.invoke("syncUpdateExcludeDotFiles", params),
+		syncUpdateMode: params => ipcRenderer.invoke("syncUpdateMode", params),
+		syncUpdatePaused: params => ipcRenderer.invoke("syncUpdatePaused", params),
+		syncUpdateRemoved: params => ipcRenderer.invoke("syncUpdateRemoved", params),
+		syncPauseTransfer: params => ipcRenderer.invoke("syncPauseTransfer", params),
+		syncResumeTransfer: params => ipcRenderer.invoke("syncResumeTransfer", params),
+		syncStopTransfer: params => ipcRenderer.invoke("syncStopTransfer", params),
+		syncUpdateIgnorerContent: params => ipcRenderer.invoke("syncUpdateIgnorerContent", params),
+		syncFetchIgnorerContent: params => ipcRenderer.invoke("syncFetchIgnorerContent", params),
+		updateNotificationCount: count => ipcRenderer.invoke("updateNotificationCount", count),
+		toggleAutoLaunch: enabled => ipcRenderer.invoke("toggleAutoLaunch", enabled)
 	} satisfies DesktopAPI)
 }

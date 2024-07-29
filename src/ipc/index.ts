@@ -7,9 +7,9 @@ import { type DirDownloadType } from "@filen/sdk/dist/types/api/v3/dir/download"
 import pathModule from "path"
 import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
-import { getState, type State, setState } from "../state"
 import { getExistingDrives, isPortInUse, getAvailableDriveLetters, canStartServerOnIPAndPort } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
+import { getTrayIcon, getAppIcon } from "../assets"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -133,7 +133,6 @@ export type IPCCanStartServerOnIPAndPort = {
 export class IPC {
 	private readonly desktop: FilenDesktop
 	private didCallRestart = false
-	private readonly postMainToWindowMessageProgressThrottle: Record<string, { next: number; storedBytes: number }> = {}
 	private readonly pauseSignals: Record<string, PauseSignal> = {}
 	private readonly abortControllers: Record<string, AbortController> = {}
 
@@ -144,16 +143,13 @@ export class IPC {
 		this.window()
 		this.cloud()
 		this.webdav()
-		this.state()
 		this.s3()
 		this.virtualDrive()
 		this.sync()
 	}
 
 	/**
-	 * Post a message to the main window.
-	 * We have to throttle the "progress" events of the "download"/"upload" message type. The SDK sends too many events for the electron IPC to handle properly.
-	 * It freezes the renderer process if we don't throttle it.
+	 * Send a message to the main window.
 	 *
 	 * @public
 	 * @param {MainToWindowMessage} message
@@ -163,55 +159,7 @@ export class IPC {
 			return
 		}
 
-		const now = Date.now()
-		let key = ""
-
-		if (message.type === "download" || message.type === "upload") {
-			if (message.data.type === "progress") {
-				key = `${message.type}:${message.data.uuid}:${message.data.name}:${message.data.type}`
-
-				if (!this.postMainToWindowMessageProgressThrottle[key]) {
-					this.postMainToWindowMessageProgressThrottle[key] = {
-						next: 0,
-						storedBytes: 0
-					}
-				}
-
-				this.postMainToWindowMessageProgressThrottle[key]!.storedBytes += message.data.bytes
-
-				if (this.postMainToWindowMessageProgressThrottle[key]!.next > now) {
-					return
-				}
-
-				message = {
-					...message,
-					data: {
-						...message.data,
-						bytes: this.postMainToWindowMessageProgressThrottle[key]!.storedBytes
-					}
-				}
-			}
-		}
-
 		this.desktop.driveWindow.webContents.postMessage("mainToWindowMessage", message)
-
-		if (
-			key.length > 0 &&
-			this.postMainToWindowMessageProgressThrottle[key] &&
-			(message.type === "download" || message.type === "upload")
-		) {
-			this.postMainToWindowMessageProgressThrottle[key]!.storedBytes = 0
-			this.postMainToWindowMessageProgressThrottle[key]!.next = now + 100
-
-			if (
-				message.data.type === "error" ||
-				message.data.type === "queued" ||
-				message.data.type === "stopped" ||
-				message.data.type === "finished"
-			) {
-				delete this.postMainToWindowMessageProgressThrottle[key]
-			}
-		}
 	}
 
 	/**
@@ -230,8 +178,28 @@ export class IPC {
 			app.relaunch()
 		})
 
-		ipcMain.handle("setConfig", (_, config: FilenDesktopConfig): void => {
+		ipcMain.handle("setConfig", async (_, config: FilenDesktopConfig): Promise<void> => {
+			config = {
+				...config,
+				sdkConfig: {
+					...config.sdkConfig,
+					connectToSocket: true,
+					metadataCache: true,
+					password: "redacted"
+				},
+				virtualDriveConfig: {
+					...config.virtualDriveConfig,
+					localDirPath: pathModule.join(app.getPath("userData"), "virtualDrive")
+				},
+				syncConfig: {
+					...config.syncConfig,
+					dbPath: pathModule.join(app.getPath("userData"), "sync")
+				}
+			}
+
 			setConfig(config)
+
+			await this.desktop.worker.invoke("setConfig", config)
 		})
 
 		ipcMain.handle("showSaveDialog", async (_, params?: IPCShowSaveDialogResultParams): Promise<IPCShowSaveDialogResult> => {
@@ -314,7 +282,7 @@ export class IPC {
 
 		ipcMain.handle("verifyUnixMountPath", async (_, path): Promise<boolean> => {
 			try {
-				await fs.access(path)
+				await fs.access(path, fs.constants.R_OK | fs.constants.W_OK)
 
 				const stat = await fs.stat(path)
 
@@ -337,6 +305,23 @@ export class IPC {
 
 		ipcMain.handle("isPathReadable", async (_, path: string) => {
 			return await this.desktop.lib.fs.isPathReadable(path)
+		})
+
+		ipcMain.handle("isWorkerActive", async () => {
+			return this.desktop.worker.active
+		})
+
+		ipcMain.handle("updateNotificationCount", async (_, count: number) => {
+			this.desktop.notificationCount = count
+			this.desktop.driveWindow?.setIcon(getAppIcon(count))
+			this.desktop.tray?.setImage(getTrayIcon(count))
+		})
+
+		ipcMain.handle("toggleAutoLaunch", async (_, enabled: boolean) => {
+			app.setLoginItemSettings({
+				openAtLogin: enabled,
+				...(enabled ? { openAsHidden: true, args: ["--hidden"] } : {})
+			})
 		})
 	}
 
@@ -408,6 +393,19 @@ export class IPC {
 					return ""
 				}
 
+				if (e instanceof Error) {
+					this.desktop.ipc.postMainToWindowMessage({
+						type: "download",
+						data: {
+							type: "error",
+							uuid: item.uuid,
+							name,
+							size: item.size,
+							err: e
+						}
+					})
+				}
+
 				throw e
 			} finally {
 				delete this.pauseSignals[item.uuid]
@@ -447,6 +445,19 @@ export class IPC {
 				} catch (e) {
 					if (e instanceof DOMException && e.name === "AbortError") {
 						return ""
+					}
+
+					if (e instanceof Error) {
+						this.desktop.ipc.postMainToWindowMessage({
+							type: "download",
+							data: {
+								type: "error",
+								uuid,
+								name,
+								size: 0,
+								err: e
+							}
+						})
 					}
 
 					throw e
@@ -497,6 +508,19 @@ export class IPC {
 						return ""
 					}
 
+					if (e instanceof Error) {
+						this.desktop.ipc.postMainToWindowMessage({
+							type: "download",
+							data: {
+								type: "error",
+								uuid: directoryId,
+								name,
+								size: 0,
+								err: e
+							}
+						})
+					}
+
 					throw e
 				} finally {
 					delete this.pauseSignals[directoryId]
@@ -513,24 +537,36 @@ export class IPC {
 	 * @private
 	 */
 	private window(): void {
-		ipcMain.handle("minimizeWindow", (): void => {
+		ipcMain.handle("minimizeWindow", async (): Promise<void> => {
 			this.desktop.driveWindow?.minimize()
 		})
 
-		ipcMain.handle("maximizeWindow", (): void => {
+		ipcMain.handle("maximizeWindow", async (): Promise<void> => {
 			this.desktop.driveWindow?.maximize()
 		})
 
-		ipcMain.handle("closeWindow", (): void => {
+		ipcMain.handle("unmaximizeWindow", async (): Promise<void> => {
+			this.desktop.driveWindow?.unmaximize()
+		})
+
+		ipcMain.handle("closeWindow", async (): Promise<void> => {
 			this.desktop.driveWindow?.close()
 		})
 
-		ipcMain.handle("showWindow", (): void => {
+		ipcMain.handle("showWindow", async (): Promise<void> => {
 			this.desktop.driveWindow?.show()
 		})
 
-		ipcMain.handle("hideWindow", (): void => {
+		ipcMain.handle("hideWindow", async (): Promise<void> => {
 			this.desktop.driveWindow?.hide()
+		})
+
+		ipcMain.handle("isWindowMaximized", async (): Promise<boolean> => {
+			if (!this.desktop.driveWindow) {
+				return false
+			}
+
+			return this.desktop.driveWindow.isMaximized()
 		})
 	}
 
@@ -541,41 +577,23 @@ export class IPC {
 	 */
 	private webdav(): void {
 		ipcMain.handle("startWebDAVServer", async () => {
-			await waitForConfig()
-			await this.desktop.webdav.start()
+			await this.desktop.worker.invoke("startWebDAV")
 		})
 
 		ipcMain.handle("stopWebDAVServer", async () => {
-			await waitForConfig()
-			await this.desktop.webdav.stop()
+			await this.desktop.worker.invoke("stopWebDAV")
 		})
 
 		ipcMain.handle("restartWebDAVServer", async () => {
-			await waitForConfig()
-			await this.desktop.webdav.restart()
-		})
-
-		ipcMain.handle("isWebDAVActive", async () => {
-			return this.desktop.webdav.instance() !== null
+			await this.desktop.worker.invoke("restartWebDAV")
 		})
 
 		ipcMain.handle("isWebDAVOnline", async () => {
-			return await this.desktop.webdav.isOnline()
-		})
-	}
-
-	/**
-	 * Handle all state related invocations.
-	 *
-	 * @private
-	 */
-	private state(): void {
-		ipcMain.handle("setState", async (_, state: State) => {
-			setState(state)
+			return await this.desktop.worker.isWebDAVOnline()
 		})
 
-		ipcMain.handle("getState", async () => {
-			return getState()
+		ipcMain.handle("isWebDAVActive", async () => {
+			return await this.desktop.worker.invoke("isWebDAVActive")
 		})
 	}
 
@@ -586,26 +604,23 @@ export class IPC {
 	 */
 	private s3(): void {
 		ipcMain.handle("startS3Server", async () => {
-			await waitForConfig()
-			await this.desktop.s3.start()
+			await this.desktop.worker.invoke("startS3")
 		})
 
 		ipcMain.handle("stopS3Server", async () => {
-			await waitForConfig()
-			await this.desktop.s3.stop()
+			await this.desktop.worker.invoke("stopS3")
 		})
 
 		ipcMain.handle("restartS3Server", async () => {
-			await waitForConfig()
-			await this.desktop.s3.restart()
-		})
-
-		ipcMain.handle("isS3Active", async () => {
-			return this.desktop.s3.instance() !== null
+			await this.desktop.worker.invoke("restartS3")
 		})
 
 		ipcMain.handle("isS3Online", async () => {
-			return await this.desktop.s3.isOnline()
+			return await this.desktop.worker.isS3Online()
+		})
+
+		ipcMain.handle("isS3Active", async () => {
+			return await this.desktop.worker.invoke("isS3Active")
 		})
 	}
 
@@ -616,42 +631,39 @@ export class IPC {
 	 */
 	private virtualDrive(): void {
 		ipcMain.handle("startVirtualDrive", async () => {
-			await waitForConfig()
-			await this.desktop.virtualDrive.start()
+			await this.desktop.worker.invoke("startVirtualDrive")
 		})
 
 		ipcMain.handle("stopVirtualDrive", async () => {
-			await waitForConfig()
-			await this.desktop.virtualDrive.stop()
+			await this.desktop.worker.invoke("stopVirtualDrive")
 		})
 
 		ipcMain.handle("restartVirtualDrive", async () => {
-			await waitForConfig()
-			await this.desktop.virtualDrive.restart()
+			await this.desktop.worker.invoke("restartVirtualDrive")
 		})
 
 		ipcMain.handle("isVirtualDriveMounted", async () => {
-			return this.desktop.virtualDrive.isMounted()
+			return await this.desktop.worker.isVirtualDriveMounted()
 		})
 
 		ipcMain.handle("virtualDriveAvailableCache", async () => {
-			return await this.desktop.virtualDrive.availableCacheSize()
+			return await this.desktop.worker.invoke("virtualDriveAvailableCacheSize")
 		})
 
 		ipcMain.handle("virtualDriveCacheSize", async () => {
-			return await this.desktop.virtualDrive.cacheSize()
+			return await this.desktop.worker.invoke("virtualDriveCacheSize")
 		})
 
 		ipcMain.handle("virtualDriveCleanupCache", async () => {
-			await this.desktop.virtualDrive.cleanupCache()
+			await this.desktop.worker.invoke("virtualDriveCleanupCache")
 		})
 
 		ipcMain.handle("virtualDriveCleanupLocalDir", async () => {
-			await this.desktop.virtualDrive.cleanupLocalDir()
+			await this.desktop.worker.invoke("virtualDriveCleanupLocalDir")
 		})
 
 		ipcMain.handle("isVirtualDriveActive", async () => {
-			return this.desktop.virtualDrive.instance() !== null
+			return await this.desktop.worker.invoke("isVirtualDriveActive")
 		})
 	}
 
@@ -662,26 +674,59 @@ export class IPC {
 	 */
 	private sync(): void {
 		ipcMain.handle("startSync", async () => {
-			await waitForConfig()
-			await this.desktop.sync.start()
+			await this.desktop.worker.invoke("startSync")
 		})
 
 		ipcMain.handle("stopSync", async () => {
-			await waitForConfig()
-			await this.desktop.sync.stop()
+			await this.desktop.worker.invoke("stopSync")
 		})
 
 		ipcMain.handle("restartSync", async () => {
-			await waitForConfig()
-			await this.desktop.sync.restart()
+			await this.desktop.worker.invoke("restartSync")
 		})
 
 		ipcMain.handle("isSyncActive", async () => {
-			return this.desktop.sync.instance() !== null
+			return await this.desktop.worker.invoke("isSyncActive")
 		})
 
-		ipcMain.handle("forwardSyncMessage", async (_, message: SyncMessage) => {
-			this.desktop.sync.instance()?.postMessage(message)
+		ipcMain.handle("syncResetCache", async (_, params) => {
+			await this.desktop.worker.invoke("syncResetCache", params)
+		})
+
+		ipcMain.handle("syncUpdateExcludeDotFiles", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdateExcludeDotFiles", params)
+		})
+
+		ipcMain.handle("syncUpdateIgnorerContent", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdateIgnorerContent", params)
+		})
+
+		ipcMain.handle("syncFetchIgnorerContent", async (_, params) => {
+			return await this.desktop.worker.invoke("syncFetchIgnorerContent", params)
+		})
+
+		ipcMain.handle("syncUpdateMode", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdateMode", params)
+		})
+
+		ipcMain.handle("syncUpdatePaused", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdatePaused", params)
+		})
+
+		ipcMain.handle("syncUpdateRemoved", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdateRemoved", params)
+		})
+
+		ipcMain.handle("syncPauseTransfer", async (_, params) => {
+			await this.desktop.worker.invoke("syncPauseTransfer", params)
+		})
+
+		ipcMain.handle("syncResumeTransfer", async (_, params) => {
+			await this.desktop.worker.invoke("syncResumeTransfer", params)
+		})
+
+		ipcMain.handle("syncStopTransfer", async (_, params) => {
+			await this.desktop.worker.invoke("syncStopTransfer", params)
 		})
 	}
 }

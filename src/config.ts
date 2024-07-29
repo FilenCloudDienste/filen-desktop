@@ -3,13 +3,7 @@ import { type FilenDesktopConfig } from "./types"
 export let CONFIG: FilenDesktopConfig | null = null
 
 export function setConfig(config: FilenDesktopConfig): void {
-	CONFIG = {
-		...config,
-		sdkConfig: {
-			...config.sdkConfig,
-			connectToSocket: true
-		}
-	}
+	CONFIG = config
 
 	console.log("Desktop config set")
 }
