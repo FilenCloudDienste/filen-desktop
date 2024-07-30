@@ -310,6 +310,30 @@ export class Worker {
 					}
 
 					this.invokeResponse(message.data.id, message.data.channel)
+				} else if (message.data.channel === "syncPauseTransfer") {
+					if (this.sync.active && this.sync.sync) {
+						const { uuid, relativePath, type } = message.data.data
+
+						this.sync.sync.pauseTransfer(uuid, type, relativePath)
+					}
+
+					this.invokeResponse(message.data.id, message.data.channel)
+				} else if (message.data.channel === "syncResumeTransfer") {
+					if (this.sync.active && this.sync.sync) {
+						const { uuid, relativePath, type } = message.data.data
+
+						this.sync.sync.resumeTransfer(uuid, type, relativePath)
+					}
+
+					this.invokeResponse(message.data.id, message.data.channel)
+				} else if (message.data.channel === "syncStopTransfer") {
+					if (this.sync.active && this.sync.sync) {
+						const { uuid, relativePath, type } = message.data.data
+
+						this.sync.sync.stopTransfer(uuid, type, relativePath)
+					}
+
+					this.invokeResponse(message.data.id, message.data.channel)
 				} else {
 					this.invokeError(message.data.id, message.data.channel, new Error(`Channel ${message.data.channel} not found.`))
 				}
