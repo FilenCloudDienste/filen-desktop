@@ -134,7 +134,7 @@ export class FilenDesktop {
 			minWidth: 1280,
 			minHeight: 720,
 			titleBarStyle: "hidden",
-			icon: getAppIcon(this.notificationCount),
+			icon: getAppIcon(this.notificationCount > 0),
 			trafficLightPosition: {
 				x: 10,
 				y: 10
@@ -154,7 +154,7 @@ export class FilenDesktop {
 			}
 		})
 
-		this.tray = new Tray(getTrayIcon(this.notificationCount))
+		this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
 		this.tray.setContextMenu(null)
 		this.tray.setToolTip("Filen")
 
@@ -172,8 +172,8 @@ export class FilenDesktop {
 
 		// Handle different icons based on the user's theme (dark/light)
 		nativeTheme.on("updated", () => {
-			this.driveWindow?.setIcon(getAppIcon(this.notificationCount))
-			this.tray?.setImage(getTrayIcon(this.notificationCount))
+			this.driveWindow?.setIcon(getAppIcon(this.notificationCount > 0))
+			this.tray?.setImage(getTrayIcon(this.notificationCount > 0))
 		})
 
 		// Open links in default external browser

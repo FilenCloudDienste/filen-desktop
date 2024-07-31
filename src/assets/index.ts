@@ -1,7 +1,8 @@
 import { nativeImage, nativeTheme } from "electron"
 import pathModule from "path"
+import memoize from "lodash/memoize"
 
-export function getAppIcon(notificationCount: number) {
+export const getAppIcon = memoize((notification: boolean) => {
 	return nativeImage.createFromPath(
 		pathModule.join(
 			__dirname,
@@ -10,14 +11,14 @@ export function getAppIcon(notificationCount: number) {
 			"assets",
 			"icons",
 			"app",
-			`${process.platform}${notificationCount > 0 ? "Notification" : ""}.${
+			`${process.platform}${notification ? "Notification" : ""}.${
 				process.platform === "win32" ? "ico" : process.platform === "darwin" ? "icns" : "png"
 			}`
 		)
 	)
-}
+})
 
-export function getTrayIcon(notificationCount: number) {
+export const getTrayIcon = memoize((notification: boolean) => {
 	return nativeImage.createFromPath(
 		pathModule.join(
 			__dirname,
@@ -27,9 +28,9 @@ export function getTrayIcon(notificationCount: number) {
 			"icons",
 			"tray",
 			nativeTheme.shouldUseDarkColors ? "light" : "dark",
-			`${process.platform}${notificationCount > 0 ? "Notification" : ""}${process.platform === "darwin" ? "Template" : ""}.${
+			`${process.platform}${notification ? "Notification" : ""}${process.platform === "darwin" ? "Template" : ""}.${
 				process.platform === "win32" ? "ico" : process.platform === "darwin" ? "png" : "png"
 			}`
 		)
 	)
-}
+})

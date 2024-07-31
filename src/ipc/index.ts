@@ -334,8 +334,8 @@ export class IPC {
 
 		ipcMain.handle("updateNotificationCount", async (_, count: number) => {
 			this.desktop.notificationCount = count
-			this.desktop.driveWindow?.setIcon(getAppIcon(count))
-			this.desktop.tray?.setImage(getTrayIcon(count))
+			this.desktop.driveWindow?.setIcon(getAppIcon(count > 0))
+			this.desktop.tray?.setImage(getTrayIcon(count > 0))
 		})
 
 		ipcMain.handle("toggleAutoLaunch", async (_, enabled: boolean) => {
