@@ -1,6 +1,6 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.27",
+	"version": "0.1.28",
 	"description": "Filen Desktop Client",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",

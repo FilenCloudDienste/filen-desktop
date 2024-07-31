@@ -7,7 +7,15 @@ import { type DirDownloadType } from "@filen/sdk/dist/types/api/v3/dir/download"
 import pathModule from "path"
 import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
-import { getExistingDrives, isPortInUse, getAvailableDriveLetters, canStartServerOnIPAndPort } from "../utils"
+import {
+	getExistingDrives,
+	isPortInUse,
+	getAvailableDriveLetters,
+	canStartServerOnIPAndPort,
+	isWinFSPInstalled,
+	isUnixMountPointValid,
+	isUnixMountPointEmpty
+} from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon } from "../assets"
 import { type SerializedError } from "../worker"
@@ -298,25 +306,6 @@ export class IPC {
 
 			if (open.length > 0) {
 				throw new Error(open)
-			}
-		})
-
-		ipcMain.handle("verifyUnixMountPath", async (_, path): Promise<boolean> => {
-			try {
-				await fs.access(path, fs.constants.R_OK | fs.constants.W_OK)
-
-				const stat = await fs.stat(path)
-
-				return (
-					stat.isDirectory() &&
-					!stat.isSymbolicLink() &&
-					!stat.isBlockDevice() &&
-					!stat.isCharacterDevice() &&
-					!stat.isFIFO() &&
-					!stat.isSocket()
-				)
-			} catch {
-				return false
 			}
 		})
 
@@ -689,6 +678,30 @@ export class IPC {
 
 		ipcMain.handle("isVirtualDriveActive", async () => {
 			return await this.desktop.worker.invoke("isVirtualDriveActive")
+		})
+
+		ipcMain.handle("isWinFSPInstalled", async () => {
+			if (process.platform !== "win32") {
+				return false
+			}
+
+			return await isWinFSPInstalled()
+		})
+
+		ipcMain.handle("isUnixMountPointValid", async (_, path): Promise<boolean> => {
+			if (process.platform === "win32") {
+				return false
+			}
+
+			return await isUnixMountPointValid(path)
+		})
+
+		ipcMain.handle("isUnixMountPointEmpty", async (_, path): Promise<boolean> => {
+			if (process.platform === "win32") {
+				return false
+			}
+
+			return await isUnixMountPointEmpty(path)
 		})
 	}
 

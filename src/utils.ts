@@ -5,6 +5,7 @@ import axios from "axios"
 import os from "os"
 import https from "https"
 import { exec } from "child_process"
+import pathModule from "path"
 
 /**
  * "Sleep" for N milliseconds.
@@ -229,7 +230,16 @@ export async function isUnixMountPointValid(mountPoint: string): Promise<boolean
 
 		await fs.access(mountPoint, fs.constants.R_OK | fs.constants.W_OK)
 
-		return true
+		const stat = await fs.stat(mountPoint)
+
+		return (
+			stat.isDirectory() &&
+			!stat.isSymbolicLink() &&
+			!stat.isBlockDevice() &&
+			!stat.isCharacterDevice() &&
+			!stat.isFIFO() &&
+			!stat.isSocket()
+		)
 	} catch {
 		return false
 	}
@@ -261,4 +271,29 @@ export async function execCommand(command: string, trimStdOut: boolean = true): 
 
 export async function killProcessByName(processName: string): Promise<void> {
 	await execCommand(os.platform() === "win32" ? `taskkill /F /T /IM ${processName}` : `pkill -TERM -P $(pgrep -d',' -f ${processName})`)
+}
+
+export async function isWinFSPInstalled(): Promise<boolean> {
+	if (process.platform !== "win32") {
+		return false
+	}
+
+	const possiblePaths = [
+		"C:\\Program Files\\WinFsp\\bin\\winfsp-x64.dll",
+		"C:\\Program Files (x86)\\WinFsp\\bin\\winfsp-x64.dll",
+		pathModule.join(process.env.ProgramFiles || "", "WinFsp", "bin", "winfsp-x64.dll"),
+		pathModule.join(process.env["ProgramFiles(x86)"] || "", "WinFsp", "bin", "winfsp-x64.dll")
+	]
+
+	for (const dllPath of possiblePaths) {
+		try {
+			await fs.access(dllPath, fs.constants.F_OK)
+
+			return true
+		} catch {
+			// Noop
+		}
+	}
+
+	return false
 }

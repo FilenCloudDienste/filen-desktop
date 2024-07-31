@@ -8,7 +8,8 @@ import {
 	isUnixMountPointEmpty,
 	httpHealthCheck,
 	execCommand,
-	killProcessByName
+	killProcessByName,
+	isWinFSPInstalled
 } from "../utils"
 import WebDAVServer from "@filen/webdav"
 import { type ChildProcess, spawn } from "child_process"
@@ -249,6 +250,10 @@ export class VirtualDrive {
 		await this.stop()
 
 		try {
+			if (process.platform === "win32" && !(await isWinFSPInstalled())) {
+				throw new Error("WinFSP not found.")
+			}
+
 			if (process.platform !== "win32") {
 				const paths = await this.paths()
 

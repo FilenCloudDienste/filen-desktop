@@ -66,7 +66,7 @@ export type DesktopAPI = {
 	platform: () => typeof process.platform
 	arch: () => typeof process.arch
 	selectDirectory: (multiple?: boolean) => Promise<IPCSelectDirectoryResult>
-	verifyUnixMountPath: (path: string) => Promise<boolean>
+	isUnixMountPointValid: (path: string) => Promise<boolean>
 	startSync: () => Promise<void>
 	stopSync: () => Promise<void>
 	restartSync: () => Promise<void>
@@ -93,6 +93,8 @@ export type DesktopAPI = {
 	updateNotificationCount: (count: number) => Promise<void>
 	toggleAutoLaunch: (enabled: boolean) => Promise<void>
 	installUpdate: () => Promise<void>
+	isWinFSPInstalled: () => Promise<boolean>
+	isUnixMountPointEmpty: (path: string) => Promise<boolean>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -148,7 +150,7 @@ if (env.isBrowser || env.isElectron) {
 		platform: () => process.platform,
 		arch: () => process.arch,
 		selectDirectory: multiple => ipcRenderer.invoke("selectDirectory", multiple),
-		verifyUnixMountPath: path => ipcRenderer.invoke("verifyUnixMountPath", path),
+		isUnixMountPointValid: path => ipcRenderer.invoke("isUnixMountPointValid", path),
 		startSync: () => ipcRenderer.invoke("startSync"),
 		stopSync: () => ipcRenderer.invoke("stopSync"),
 		restartSync: () => ipcRenderer.invoke("restartSync"),
@@ -174,6 +176,8 @@ if (env.isBrowser || env.isElectron) {
 		syncFetchIgnorerContent: params => ipcRenderer.invoke("syncFetchIgnorerContent", params),
 		updateNotificationCount: count => ipcRenderer.invoke("updateNotificationCount", count),
 		toggleAutoLaunch: enabled => ipcRenderer.invoke("toggleAutoLaunch", enabled),
-		installUpdate: () => ipcRenderer.invoke("installUpdate")
+		installUpdate: () => ipcRenderer.invoke("installUpdate"),
+		isWinFSPInstalled: () => ipcRenderer.invoke("isWinFSPInstalled"),
+		isUnixMountPointEmpty: path => ipcRenderer.invoke("isUnixMountPointEmpty", path)
 	} satisfies DesktopAPI)
 }
