@@ -105,7 +105,10 @@ export class FilenDesktop {
 			}
 		})
 
-		app.setUserTasks([])
+		if (process.platform === "win32") {
+			app.setUserTasks([])
+		}
+
 		app.setName("Filen")
 
 		await this.worker.start()
@@ -147,7 +150,6 @@ export class FilenDesktop {
 		})
 
 		this.tray = new Tray(getTrayIcon(this.notificationCount))
-		this.tray.setTitle("Filen")
 		this.tray.setContextMenu(null)
 		this.tray.setToolTip("Filen")
 
@@ -155,7 +157,9 @@ export class FilenDesktop {
 			this.driveWindow?.show()
 		})
 
-		this.driveWindow.setThumbarButtons([])
+		if (process.platform === "win32") {
+			this.driveWindow.setThumbarButtons([])
+		}
 
 		this.driveWindow.on("closed", () => {
 			this.driveWindow = null

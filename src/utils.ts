@@ -202,6 +202,39 @@ export async function httpHealthCheck({
 	}
 }
 
+export async function isUnixMountPointEmpty(mountPoint: string): Promise<boolean> {
+	try {
+		if (!(await fs.exists(mountPoint))) {
+			return false
+		}
+
+		await fs.access(mountPoint, fs.constants.R_OK | fs.constants.W_OK)
+
+		const dir = await fs.readdir(mountPoint, {
+			recursive: true,
+			encoding: "utf-8"
+		})
+
+		return dir.length === 0
+	} catch {
+		return false
+	}
+}
+
+export async function isUnixMountPointValid(mountPoint: string): Promise<boolean> {
+	try {
+		if (!(await fs.exists(mountPoint))) {
+			return false
+		}
+
+		await fs.access(mountPoint, fs.constants.R_OK | fs.constants.W_OK)
+
+		return true
+	} catch {
+		return false
+	}
+}
+
 export async function checkIfMountExists(mountPoint: string): Promise<boolean> {
 	try {
 		await fs.access(os.platform() === "win32" ? `${mountPoint}\\\\` : mountPoint, fs.constants.R_OK | fs.constants.W_OK)

@@ -4,6 +4,8 @@ import {
 	getAvailableDriveLetters,
 	generateRandomString,
 	checkIfMountExists,
+	isUnixMountPointValid,
+	isUnixMountPointEmpty,
 	httpHealthCheck,
 	execCommand,
 	killProcessByName
@@ -28,6 +30,8 @@ export class VirtualDrive {
 
 	public constructor(worker: Worker) {
 		this.worker = worker
+
+		this.monitor()
 	}
 
 	public async paths(): Promise<{
@@ -74,7 +78,7 @@ export class VirtualDrive {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
 		return [
-			`mount Filen: ${desktopConfig.virtualDriveConfig.mountPoint}`,
+			`nfsmount Filen: ${desktopConfig.virtualDriveConfig.mountPoint}`,
 			`--config "${paths.config}"`,
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
@@ -217,15 +221,58 @@ export class VirtualDrive {
 		await killProcessByName(this.rcloneBinaryName).catch(() => {})
 	}
 
+	public async monitor(): Promise<void> {
+		try {
+			if (!this.active) {
+				return
+			}
+
+			const desktopConfig = await this.worker.waitForConfig()
+			const [mountExists, webdavOnline] = await Promise.all([
+				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
+				this.isWebDAVOnline()
+			])
+
+			if (!mountExists || !webdavOnline) {
+				await this.stop()
+			}
+		} catch (e) {
+			console.error(e)
+		} finally {
+			await new Promise<void>(resolve => setTimeout(resolve, 1000))
+
+			this.monitor()
+		}
+	}
+
 	public async start(): Promise<void> {
 		await this.stop()
 
 		try {
-			const desktopConfig = await this.worker.waitForConfig()
-			const availableDriveLetters = await getAvailableDriveLetters()
+			if (process.platform !== "win32") {
+				const paths = await this.paths()
 
-			if (!availableDriveLetters.includes(desktopConfig.virtualDriveConfig.mountPoint)) {
-				throw new Error(`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Drive letter exists.`)
+				await execCommand(`chmod +x ${paths.binary}`)
+			}
+
+			const desktopConfig = await this.worker.waitForConfig()
+
+			if (process.platform === "win32") {
+				const availableDriveLetters = await getAvailableDriveLetters()
+
+				if (!availableDriveLetters.includes(desktopConfig.virtualDriveConfig.mountPoint)) {
+					throw new Error(`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Drive letter exists.`)
+				}
+			} else {
+				if (!(await isUnixMountPointValid(desktopConfig.virtualDriveConfig.mountPoint))) {
+					throw new Error(
+						`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Mount point does not exist.`
+					)
+				}
+
+				if (!(await isUnixMountPointEmpty(desktopConfig.virtualDriveConfig.mountPoint))) {
+					throw new Error(`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Mount point not empty.`)
+				}
 			}
 
 			const [port] = await findFreePorts(1)
