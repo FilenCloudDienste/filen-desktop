@@ -92,6 +92,7 @@ export type DesktopAPI = {
 	syncUpdateIgnorerContent: (params: { uuid: string; content: string }) => Promise<void>
 	updateNotificationCount: (count: number) => Promise<void>
 	toggleAutoLaunch: (enabled: boolean) => Promise<void>
+	installUpdate: () => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -172,6 +173,7 @@ if (env.isBrowser || env.isElectron) {
 		syncUpdateIgnorerContent: params => ipcRenderer.invoke("syncUpdateIgnorerContent", params),
 		syncFetchIgnorerContent: params => ipcRenderer.invoke("syncFetchIgnorerContent", params),
 		updateNotificationCount: count => ipcRenderer.invoke("updateNotificationCount", count),
-		toggleAutoLaunch: enabled => ipcRenderer.invoke("toggleAutoLaunch", enabled)
+		toggleAutoLaunch: enabled => ipcRenderer.invoke("toggleAutoLaunch", enabled),
+		installUpdate: () => ipcRenderer.invoke("installUpdate")
 	} satisfies DesktopAPI)
 }

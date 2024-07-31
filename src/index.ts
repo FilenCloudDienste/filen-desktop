@@ -9,6 +9,7 @@ import url from "url"
 import { IS_ELECTRON } from "./constants"
 import Worker from "./worker"
 import { getAppIcon, getTrayIcon } from "./assets"
+import Updater from "./lib/updater"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -37,6 +38,7 @@ export class FilenDesktop {
 	}
 	public notificationCount = 0
 	public tray: Tray | null = null
+	public updater: Updater
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -53,6 +55,7 @@ export class FilenDesktop {
 			fs: new FS(this)
 		}
 		this.worker = new Worker(this)
+		this.updater = new Updater(this)
 	}
 
 	/**
@@ -114,6 +117,8 @@ export class FilenDesktop {
 		await this.worker.start()
 		await this.createMainWindow()
 		await this.worker.invoke("restartSync")
+
+		this.updater.initialize()
 	}
 
 	private async createMainWindow(): Promise<void> {

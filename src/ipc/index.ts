@@ -10,6 +10,8 @@ import { v4 as uuidv4 } from "uuid"
 import { getExistingDrives, isPortInUse, getAvailableDriveLetters, canStartServerOnIPAndPort } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon } from "../assets"
+import { type SerializedError } from "../worker"
+import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -111,6 +113,25 @@ export type MainToWindowMessage =
 	| {
 			type: "sync"
 			message: SyncMessage
+	  }
+	| {
+			type: "updater"
+			data:
+				| {
+						type: "checkingForUpdate" | "updateAvailable" | "updateNotAvailable" | "updateCancelled"
+				  }
+				| {
+						type: "error"
+						error: SerializedError
+				  }
+				| {
+						type: "downloadProgress"
+						progress: ProgressInfo
+				  }
+				| {
+						type: "updateDownloaded"
+						info: UpdateDownloadedEvent
+				  }
 	  }
 
 export type IPCPauseResumeAbortSignalParams = {
@@ -322,6 +343,10 @@ export class IPC {
 				openAtLogin: enabled,
 				...(enabled ? { openAsHidden: true, args: ["--hidden"] } : {})
 			})
+		})
+
+		ipcMain.handle("installUpdate", async () => {
+			await this.desktop.updater.installUpdate()
 		})
 	}
 
