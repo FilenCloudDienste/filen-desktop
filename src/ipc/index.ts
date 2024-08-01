@@ -766,6 +766,10 @@ export class IPC {
 		ipcMain.handle("syncStopTransfer", async (_, params) => {
 			await this.desktop.worker.invoke("syncStopTransfer", params)
 		})
+
+		ipcMain.handle("syncResetTaskErrors", async (_, params) => {
+			await this.desktop.worker.invoke("syncResetTaskErrors", params)
+		})
 	}
 }
 

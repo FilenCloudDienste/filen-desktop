@@ -95,6 +95,7 @@ export type DesktopAPI = {
 	installUpdate: () => Promise<void>
 	isWinFSPInstalled: () => Promise<boolean>
 	isUnixMountPointEmpty: (path: string) => Promise<boolean>
+	syncResetTaskErrors: (params: { uuid: string }) => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -178,6 +179,7 @@ if (env.isBrowser || env.isElectron) {
 		toggleAutoLaunch: enabled => ipcRenderer.invoke("toggleAutoLaunch", enabled),
 		installUpdate: () => ipcRenderer.invoke("installUpdate"),
 		isWinFSPInstalled: () => ipcRenderer.invoke("isWinFSPInstalled"),
-		isUnixMountPointEmpty: path => ipcRenderer.invoke("isUnixMountPointEmpty", path)
+		isUnixMountPointEmpty: path => ipcRenderer.invoke("isUnixMountPointEmpty", path),
+		syncResetTaskErrors: params => ipcRenderer.invoke("syncResetTaskErrors", params)
 	} satisfies DesktopAPI)
 }

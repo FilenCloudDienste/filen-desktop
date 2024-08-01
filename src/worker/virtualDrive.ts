@@ -13,7 +13,6 @@ import {
 } from "../utils"
 import WebDAVServer from "@filen/webdav"
 import { type ChildProcess, spawn } from "child_process"
-import os from "os"
 import findFreePorts from "find-free-ports"
 import treeKill from "tree-kill"
 import type Worker from "./worker"
@@ -26,7 +25,7 @@ export class VirtualDrive {
 	public webdavPassword: string = "admin"
 	public webdavPort: number = 1905
 	public webdavEndpoint: string = "http://127.0.0.1:1905"
-	public rcloneBinaryName: string = `filen_rclone_${os.platform()}_${os.arch()}${os.platform() === "win32" ? ".exe" : ""}`
+	public rcloneBinaryName: string = `filen_rclone_${process.platform}_${process.arch}${process.platform === "win32" ? ".exe" : ""}`
 	public active: boolean = false
 
 	public constructor(worker: Worker) {
@@ -79,7 +78,7 @@ export class VirtualDrive {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
 		return [
-			`nfsmount Filen: ${desktopConfig.virtualDriveConfig.mountPoint}`,
+			`${process.platform === "win32" ? "mount" : "nfsmount"} Filen: ${desktopConfig.virtualDriveConfig.mountPoint}`,
 			`--config "${paths.config}"`,
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
