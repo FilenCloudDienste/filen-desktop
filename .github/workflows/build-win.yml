@@ -22,7 +22,7 @@ jobs:
             node-version: 18
             cache: "npm"
       - name: Install dependencies
-        run: npm install --package-lock-only && npm ci
+        run: npm install --package-lock-only; npm ci
       - name: Build
         run: npm run build:win
         env:
