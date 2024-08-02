@@ -139,13 +139,38 @@
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
 			"icon": "./assets/icons/png/",
-			"target": {
-				"target": "AppImage",
-				"arch": [
-					"x64",
-					"arm64"
-				]
-			},
+			"description": "Filen Desktop Client",
+			"synposis": "Filen Desktop Client",
+			"target": [
+				{
+					"target": "AppImage",
+					"arch": [
+						"x64",
+						"arm64"
+					]
+				},
+				{
+					"target": "deb",
+					"arch": [
+						"x64",
+						"arm64"
+					]
+				},
+				{
+					"target": "rpm",
+					"arch": [
+						"x64",
+						"arm64"
+					]
+				},
+				{
+					"target": "flatpack",
+					"arch": [
+						"x64",
+						"arm64"
+					]
+				}
+			],
 			"publish": [
 				{
 					"provider": "generic",
