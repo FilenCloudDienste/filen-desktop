@@ -164,7 +164,7 @@
 					]
 				},
 				{
-					"target": "flatpack",
+					"target": "flatpak",
 					"arch": [
 						"x64",
 						"arm64"
