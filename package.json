@@ -23,7 +23,8 @@
 		"dev:yalc": "npm run yalc && cross-env NODE_ENV=development electron ./src/index.dev.js",
 		"yalc": "npm run build && yalc push",
 		"build:mac": "npm run build && electron-builder -m --publish never",
-		"build:win": "npm run build && electron-builder -w --publish never"
+		"build:win": "npm run build && electron-builder -w --publish never",
+		"build:linux": "npm run build && electron-builder -l --publish never"
 	},
 	"repository": {
 		"type": "git",
