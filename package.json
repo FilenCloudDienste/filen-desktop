@@ -140,7 +140,7 @@
 			"category": "Utility",
 			"icon": "./assets/icons/png/",
 			"description": "Filen Desktop Client",
-			"synposis": "Filen Desktop Client",
+			"synopsis": "Filen Desktop Client",
 			"target": [
 				{
 					"target": "AppImage",
