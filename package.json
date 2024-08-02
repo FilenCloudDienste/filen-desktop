@@ -155,20 +155,6 @@
 						"x64",
 						"arm64"
 					]
-				},
-				{
-					"target": "rpm",
-					"arch": [
-						"x64",
-						"arm64"
-					]
-				},
-				{
-					"target": "flatpak",
-					"arch": [
-						"x64",
-						"arm64"
-					]
 				}
 			],
 			"publish": [
