@@ -10,3 +10,5 @@ bin
 src
 .yalc
 yalc.lock
+prod
+build

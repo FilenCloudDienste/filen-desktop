@@ -10,6 +10,7 @@ import { IS_ELECTRON } from "./constants"
 import Worker from "./worker"
 import { getAppIcon, getTrayIcon } from "./assets"
 import Updater from "./lib/updater"
+import isDev from "./isDev"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -147,10 +148,7 @@ export class FilenDesktop {
 				autoplayPolicy: "no-user-gesture-required",
 				contextIsolation: true,
 				experimentalFeatures: true,
-				preload:
-					process.env.NODE_ENV === "development"
-						? pathModule.join(__dirname, "..", "dist", "preload.js")
-						: pathModule.join(__dirname, "preload.js")
+				preload: isDev ? pathModule.join(__dirname, "..", "dist", "preload.js") : pathModule.join(__dirname, "preload.js")
 			}
 		})
 
@@ -186,7 +184,7 @@ export class FilenDesktop {
 		})
 
 		await this.driveWindow.loadURL(
-			process.env.NODE_ENV !== "development"
+			!isDev
 				? url.format({
 						pathname: "index.html",
 						protocol: "file",

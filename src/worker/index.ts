@@ -1,86 +1,11 @@
 import { Worker as WorkerThread } from "worker_threads"
 import pathModule from "path"
 import { waitForConfig } from "../config"
-import { httpHealthCheck, checkIfMountExists } from "../utils"
+import { httpHealthCheck, checkIfMountExists, deserializeError } from "../utils"
 import { app } from "electron"
-import { type SyncMessage } from "@filen/sync/dist/types"
 import type FilenDesktop from ".."
-
-export type WorkerInvokeChannel =
-	| "startVirtualDrive"
-	| "stopVirtualDrive"
-	| "restartVirtualDrive"
-	| "startS3"
-	| "stopS3"
-	| "restartS3"
-	| "startWebDAV"
-	| "stopWebDAV"
-	| "restartWebDAV"
-	| "setConfig"
-	| "stop"
-	| "virtualDriveAvailableCacheSize"
-	| "virtualDriveCacheSize"
-	| "virtualDriveCleanupLocalDir"
-	| "virtualDriveCleanupCache"
-	| "startSync"
-	| "stopSync"
-	| "restartSync"
-	| "isS3Active"
-	| "isWebDAVActive"
-	| "isSyncActive"
-	| "isVirtualDriveActive"
-	| "syncUpdateRemoved"
-	| "syncUpdatePaused"
-	| "syncUpdateIgnorerContent"
-	| "syncFetchIgnorerContent"
-	| "syncUpdateExcludeDotFiles"
-	| "syncUpdateMode"
-	| "syncResetCache"
-	| "syncStopTransfer"
-	| "syncPauseTransfer"
-	| "syncResumeTransfer"
-	| "syncResetTaskErrors"
-
-export type WorkerMessage =
-	| {
-			type: "error"
-			data: {
-				error: SerializedError
-			}
-	  }
-	| {
-			type: "started"
-	  }
-	| {
-			type: "invokeRequest"
-			data: {
-				id: number
-				channel: WorkerInvokeChannel
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				data?: any
-			}
-	  }
-	| {
-			type: "invokeResponse"
-			data: {
-				id: number
-				channel: WorkerInvokeChannel
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				result?: any
-			}
-	  }
-	| {
-			type: "invokeError"
-			data: {
-				id: number
-				channel: WorkerInvokeChannel
-				error: SerializedError
-			}
-	  }
-	| {
-			type: "sync"
-			data: SyncMessage
-	  }
+import isDev from "../isDev"
+import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
 
 export class Worker {
 	private worker: WorkerThread | null = null
@@ -154,19 +79,16 @@ export class Worker {
 		await new Promise<void>((resolve, reject) => {
 			console.log("starting worker")
 
-			this.worker = new WorkerThread(
-				pathModule.join(__dirname, process.env.NODE_ENV === "production" ? "worker.js" : "worker.dev.js"),
-				{
-					resourceLimits: {
-						maxOldGenerationSizeMb: 8192,
-						maxYoungGenerationSizeMb: 8192
-					}
+			this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"), {
+				resourceLimits: {
+					maxOldGenerationSizeMb: 8192,
+					maxYoungGenerationSizeMb: 8192
 				}
-			)
+			})
 
 			this.worker?.on("error", reject)
 
-			if (process.env.NODE_ENV !== "production") {
+			if (isDev) {
 				this.worker?.stderr.on("data", chunk => {
 					console.log("worker stderr", chunk.toString("utf-8"))
 				})
@@ -258,31 +180,6 @@ export class Worker {
 
 		return await checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)
 	}
-}
-
-export type SerializedError = {
-	name: string
-	message: string
-	stack?: string
-	stringified: string
-}
-
-export function serializeError(error: Error): SerializedError {
-	return {
-		name: error.name,
-		message: error.message,
-		stack: error.stack,
-		stringified: JSON.stringify(error)
-	}
-}
-
-export function deserializeError(serializedError: SerializedError): Error {
-	const error = new Error(serializedError.message)
-
-	error.name = serializedError.name
-	error.stack = serializedError.stack
-
-	return error
 }
 
 export default Worker

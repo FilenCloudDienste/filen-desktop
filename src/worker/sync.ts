@@ -1,7 +1,7 @@
 import type Worker from "./worker"
 import SyncWorker from "@filen/sync"
 import { parentPort } from "worker_threads"
-import { type WorkerMessage } from "."
+import { WorkerMessage } from "../types"
 
 export class Sync {
 	private worker: Worker

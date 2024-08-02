@@ -9,3 +9,4 @@ dev
 dist
 .yalc
 yalc.lock
+prod

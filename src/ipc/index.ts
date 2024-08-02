@@ -14,11 +14,11 @@ import {
 	canStartServerOnIPAndPort,
 	isWinFSPInstalled,
 	isUnixMountPointValid,
-	isUnixMountPointEmpty
+	isUnixMountPointEmpty,
+	type SerializedError
 } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon } from "../assets"
-import { type SerializedError } from "../worker"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
 
 export type IPCDownloadFileParams = {

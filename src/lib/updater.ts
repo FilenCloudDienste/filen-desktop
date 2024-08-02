@@ -1,7 +1,8 @@
 import { autoUpdater } from "electron-updater"
 import type FilenDesktop from ".."
-import { serializeError } from "../worker"
+import { serializeError } from "../utils"
 import { BrowserWindow, app } from "electron"
+import isDev from "../isDev"
 
 autoUpdater.allowDowngrade = false
 autoUpdater.autoDownload = true
@@ -17,7 +18,7 @@ export class Updater {
 	}
 
 	public initialize(): void {
-		if (process.env.NODE_ENV === "development") {
+		if (isDev) {
 			return
 		}
 

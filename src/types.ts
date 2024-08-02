@@ -3,6 +3,7 @@
 
 import { type CloudItem, type CloudItemShared, type FilenSDKConfig } from "@filen/sdk"
 import { type SyncPair, type SyncMessage as SyncSyncMessage } from "@filen/sync/dist/types"
+import { type SerializedError } from "./utils"
 
 export type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never
 
@@ -53,3 +54,79 @@ export type FilenDesktopConfig = {
 }
 
 export type SyncMessage = SyncSyncMessage
+
+export type WorkerInvokeChannel =
+	| "startVirtualDrive"
+	| "stopVirtualDrive"
+	| "restartVirtualDrive"
+	| "startS3"
+	| "stopS3"
+	| "restartS3"
+	| "startWebDAV"
+	| "stopWebDAV"
+	| "restartWebDAV"
+	| "setConfig"
+	| "stop"
+	| "virtualDriveAvailableCacheSize"
+	| "virtualDriveCacheSize"
+	| "virtualDriveCleanupLocalDir"
+	| "virtualDriveCleanupCache"
+	| "startSync"
+	| "stopSync"
+	| "restartSync"
+	| "isS3Active"
+	| "isWebDAVActive"
+	| "isSyncActive"
+	| "isVirtualDriveActive"
+	| "syncUpdateRemoved"
+	| "syncUpdatePaused"
+	| "syncUpdateIgnorerContent"
+	| "syncFetchIgnorerContent"
+	| "syncUpdateExcludeDotFiles"
+	| "syncUpdateMode"
+	| "syncResetCache"
+	| "syncStopTransfer"
+	| "syncPauseTransfer"
+	| "syncResumeTransfer"
+	| "syncResetTaskErrors"
+
+export type WorkerMessage =
+	| {
+			type: "error"
+			data: {
+				error: SerializedError
+			}
+	  }
+	| {
+			type: "started"
+	  }
+	| {
+			type: "invokeRequest"
+			data: {
+				id: number
+				channel: WorkerInvokeChannel
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				data?: any
+			}
+	  }
+	| {
+			type: "invokeResponse"
+			data: {
+				id: number
+				channel: WorkerInvokeChannel
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				result?: any
+			}
+	  }
+	| {
+			type: "invokeError"
+			data: {
+				id: number
+				channel: WorkerInvokeChannel
+				error: SerializedError
+			}
+	  }
+	| {
+			type: "sync"
+			data: SyncMessage
+	  }
