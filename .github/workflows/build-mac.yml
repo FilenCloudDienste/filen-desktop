@@ -1,0 +1,56 @@
+name: Build macOS artifacts and attach to release
+
+on:
+    release:
+        types: [published]
+
+jobs:
+    build:
+        name: Build macOS artifacts and attach to release
+        runs-on: macos-latest
+        permissions:
+            contents: write
+        env:
+            APPLE_DEVELOPER_ID_CERT: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
+            APPLE_DEVELOPER_ID_CERT_PASS: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASS }}
+            APPLE_NOTARIZE_ID: ${{ secrets.APPLE_NOTARIZE_ID }}
+            APPLE_NOTARIZE_PASS: ${{ secrets.APPLE_NOTARIZE_PASS }}
+            APPLE_NOTARIZE_TEAM_ID: ${{ secrets.APPLE_NOTARIZE_TEAM_ID }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+            - name: Set up Node
+              uses: actions/setup-node@v4
+              with:
+                  node-version: 18
+                  cache: "npm"
+            - name: Install dependencies
+              run: npm install --package-lock-only && npm ci
+            - name: Decode macOS certificate
+              run: |
+                  echo "$APPLE_DEVELOPER_ID_CERT" | base64 --decode > certificate.p12
+            - name: Import certificate to keychain
+              run: |
+                  security create-keychain -p actions build.keychain
+                  security import certificate.p12 -k ~/Library/Keychains/build.keychain -P "$APPLE_DEVELOPER_ID_CERT_PASS" -T /usr/bin/codesign
+                  security list-keychains -d user -s ~/Library/Keychains/build.keychain
+                  security set-keychain-settings -t 3600 -u ~/Library/Keychains/build.keychain
+                  security unlock-keychain -p actions ~/Library/Keychains/build.keychain
+                  security set-key-partition-list -S apple-tool:,apple: -s -k actions ~/Library/Keychains/build.keychain
+            - name: Build
+              run: npm run build:mac
+            - name: Attach artifacts to release
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: |
+                      prod/filen_x64.dmg
+                      prod/filen_arm64.dmg
+                      prod/filen_x64.dmg.blockmap
+                      prod/filen_arm64.dmg.blockmap
+                      prod/latest-mac.yml
+            - name: Cleanup keychain
+              run: |
+                  security delete-keychain build.keychain
+                  rm -f certificate.p12
+            - name: Cleanup
+              run: npm run clear
