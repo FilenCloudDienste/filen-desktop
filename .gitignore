@@ -10,3 +10,4 @@ dist
 .yalc
 yalc.lock
 prod
+.env

@@ -22,7 +22,8 @@
 		"dev:dev": "tsx ./dev/index.ts",
 		"dev:yalc": "npm run yalc && cross-env NODE_ENV=development electron ./src/index.dev.js",
 		"yalc": "npm run build && yalc push",
-		"build:mac": "npm run build && electron-builder -m --publish never"
+		"build:mac": "npm run build && electron-builder -m --publish never",
+		"build:win": "npm run build && electron-builder -w --publish never"
 	},
 	"repository": {
 		"type": "git",
@@ -49,6 +50,7 @@
 		"@typescript-eslint/eslint-plugin": "^6.20.0",
 		"@typescript-eslint/parser": "^6.20.0",
 		"cross-env": "^7.0.3",
+		"dotenv": "^16.4.5",
 		"electron": "^31.3.0",
 		"electron-builder": "^24.13.3",
 		"eslint": "^8.56.0",
@@ -80,7 +82,7 @@
 		"appId": "io.filen.desktop",
 		"productName": "Filen",
 		"asar": true,
-		"npmRebuild": true,
+		"npmRebuild": false,
 		"nodeGypRebuild": false,
 		"artifactName": "filen_${arch}.${ext}",
 		"afterSign": "./build/notarize.js",

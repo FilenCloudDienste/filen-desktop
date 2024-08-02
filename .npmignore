@@ -12,3 +12,4 @@ src
 yalc.lock
 prod
 build
+.env

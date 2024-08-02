@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
+require("dotenv").config()
 const pathModule = require("path")
 
 const JSIGN = pathModule.join(__dirname, "jsign-4.2.jar")
