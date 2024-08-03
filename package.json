@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "0.1.29",
-	"buildNumber": 2023,
+	"version": "3.0.1",
+	"buildNumber": 301,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -24,7 +24,8 @@
 		"yalc": "npm run build && yalc push",
 		"build:mac": "npm run build && electron-builder -m --publish never",
 		"build:win": "npm run build && electron-builder -w --publish never",
-		"build:linux": "npm run build && electron-builder -l --publish never"
+		"build:linux": "npm run build && electron-builder -l --publish never",
+		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest"
 	},
 	"repository": {
 		"type": "git",
@@ -64,9 +65,9 @@
 	},
 	"dependencies": {
 		"@filen/s3": "^0.2.13",
-		"@filen/sdk": "^0.1.134",
-		"@filen/sync": "^0.1.17",
-		"@filen/web": "^0.1.12",
+		"@filen/sdk": "^0.1.136",
+		"@filen/sync": "^0.1.19",
+		"@filen/web": "^0.1.13",
 		"@filen/webdav": "^0.2.20",
 		"axios": "^1.7.2",
 		"diskusage-ng": "^1.0.4",
@@ -101,7 +102,7 @@
 		"publish": [
 			{
 				"provider": "generic",
-				"url": "https://cdn.filen.io/desktop/release/"
+				"url": "https://cdn.filen.io/@filen/desktop/release/"
 			}
 		],
 		"win": {
@@ -121,7 +122,7 @@
 			"publish": [
 				{
 					"provider": "generic",
-					"url": "https://cdn.filen.io/desktop/release/"
+					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			],
 			"sign": "./build/sign.js"
@@ -160,7 +161,7 @@
 			"publish": [
 				{
 					"provider": "generic",
-					"url": "https://cdn.filen.io/desktop/release/"
+					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			]
 		},
@@ -181,7 +182,7 @@
 			"publish": [
 				{
 					"provider": "generic",
-					"url": "https://cdn.filen.io/desktop/release/"
+					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			],
 			"icon": "./build/icons/mac/icon.icns"

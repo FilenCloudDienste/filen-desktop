@@ -4,6 +4,10 @@ on:
     release:
         types: [published]
 
+concurrency:
+    group: "build"
+    cancel-in-progress: true
+
 jobs:
     buildWindows:
         name: Build windows artifacts and attach to release

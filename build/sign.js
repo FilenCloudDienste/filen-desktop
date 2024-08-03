@@ -10,6 +10,12 @@ const ALIAS = process.env.SIGN_TOKEN_ALIAS
 const TYPE = "PKCS11"
 
 exports.default = async function sign(context) {
+	const { electronPlatformName } = context
+
+	if (electronPlatformName !== "win32") {
+		return
+	}
+
 	await new Promise((resolve, reject) => {
 		try {
 			if (context.hash === "sha1") {

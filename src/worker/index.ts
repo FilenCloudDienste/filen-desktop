@@ -26,6 +26,11 @@ export class Worker {
 
 			this.isQuittingApp = true
 
+			// We force exit the process after 15 seconds (with or without worker cleanup)
+			setTimeout(() => {
+				process.exit(0)
+			}, 15000)
+
 			try {
 				e.preventDefault()
 

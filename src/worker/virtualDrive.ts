@@ -27,11 +27,32 @@ export class VirtualDrive {
 	public webdavEndpoint: string = "http://127.0.0.1:1905"
 	public rcloneBinaryName: string = `filen_rclone_${process.platform}_${process.arch}${process.platform === "win32" ? ".exe" : ""}`
 	public active: boolean = false
+	public storedBinaryPath = pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName)
 
 	public constructor(worker: Worker) {
 		this.worker = worker
 
 		this.monitor()
+	}
+
+	public async copyRCloneBinary(): Promise<void> {
+		const paths = await this.paths()
+
+		if (!(await fs.exists(this.storedBinaryPath))) {
+			throw new Error("Stored RClone binary not found.")
+		}
+
+		if (await fs.exists(paths.binary)) {
+			return
+		}
+
+		await fs.copy(this.storedBinaryPath, paths.binary, {
+			overwrite: true
+		})
+
+		if (process.platform !== "win32") {
+			await execCommand(`chmod +x ${paths.binary}`)
+		}
 	}
 
 	public async paths(): Promise<{
@@ -42,7 +63,7 @@ export class VirtualDrive {
 		const desktopConfig = await this.worker.waitForConfig()
 
 		return {
-			binary: pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName),
+			binary: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, this.rcloneBinaryName),
 			cache: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"),
 			config: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf")
 		}
@@ -253,11 +274,7 @@ export class VirtualDrive {
 				throw new Error("WinFSP not found.")
 			}
 
-			if (process.platform !== "win32") {
-				const paths = await this.paths()
-
-				await execCommand(`chmod +x ${paths.binary}`)
-			}
+			await this.copyRCloneBinary()
 
 			const desktopConfig = await this.worker.waitForConfig()
 
