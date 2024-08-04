@@ -66,8 +66,8 @@
 	},
 	"dependencies": {
 		"@filen/s3": "^0.2.13",
-		"@filen/sdk": "^0.1.136",
-		"@filen/sync": "^0.1.19",
+		"@filen/sdk": "^0.1.137",
+		"@filen/sync": "^0.1.22",
 		"@filen/web": "^0.1.13",
 		"@filen/webdav": "^0.2.20",
 		"axios": "^1.7.2",

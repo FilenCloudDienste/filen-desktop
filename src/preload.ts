@@ -90,6 +90,7 @@ export type DesktopAPI = {
 	syncResumeTransfer: (params: { uuid: string; type: "upload" | "download"; relativePath: string }) => Promise<void>
 	syncFetchIgnorerContent: (params: { uuid: string }) => Promise<string>
 	syncUpdateIgnorerContent: (params: { uuid: string; content: string }) => Promise<void>
+	syncToggleLocalTrash: (params: { uuid: string; enabled: boolean }) => Promise<void>
 	updateNotificationCount: (count: number) => Promise<void>
 	toggleAutoLaunch: (enabled: boolean) => Promise<void>
 	installUpdate: () => Promise<void>
@@ -180,6 +181,7 @@ if (env.isBrowser || env.isElectron) {
 		installUpdate: () => ipcRenderer.invoke("installUpdate"),
 		isWinFSPInstalled: () => ipcRenderer.invoke("isWinFSPInstalled"),
 		isUnixMountPointEmpty: path => ipcRenderer.invoke("isUnixMountPointEmpty", path),
-		syncResetTaskErrors: params => ipcRenderer.invoke("syncResetTaskErrors", params)
+		syncResetTaskErrors: params => ipcRenderer.invoke("syncResetTaskErrors", params),
+		syncToggleLocalTrash: params => ipcRenderer.invoke("syncToggleLocalTrash", params)
 	} satisfies DesktopAPI)
 }

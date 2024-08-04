@@ -341,6 +341,14 @@ export class Worker {
 					}
 
 					this.invokeResponse(message.data.id, message.data.channel)
+				} else if (message.data.channel === "syncToggleLocalTrash") {
+					if (this.sync.active && this.sync.sync) {
+						const { uuid, enabled } = message.data.data
+
+						this.sync.sync.toggleLocalTrash(uuid, enabled)
+					}
+
+					this.invokeResponse(message.data.id, message.data.channel)
 				} else {
 					this.invokeError(message.data.id, message.data.channel, new Error(`Channel ${message.data.channel} not found.`))
 				}

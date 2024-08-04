@@ -770,6 +770,10 @@ export class IPC {
 		ipcMain.handle("syncResetTaskErrors", async (_, params) => {
 			await this.desktop.worker.invoke("syncResetTaskErrors", params)
 		})
+
+		ipcMain.handle("syncToggleLocalTrash", async (_, params) => {
+			await this.desktop.worker.invoke("syncToggleLocalTrash", params)
+		})
 	}
 }
 
