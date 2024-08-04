@@ -99,13 +99,17 @@ export class VirtualDrive {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
 		return [
-			`${process.platform === "win32" ? "mount" : "nfsmount"} Filen: ${desktopConfig.virtualDriveConfig.mountPoint}`,
+			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${
+				desktopConfig.virtualDriveConfig.mountPoint
+			}`,
 			`--config "${paths.config}"`,
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
 			"--devname Filen",
 			"--volname Filen",
 			`--vfs-cache-max-size ${desktopConfig.virtualDriveConfig.cacheSizeInGi}Gi`,
+			"--vfs-cache-max-age 24h",
+			"--vfs-cache-poll-interval 5m",
 			"--dir-cache-time 1m",
 			"--cache-info-age 1m",
 			"--vfs-block-norm-dupes",
@@ -171,7 +175,7 @@ export class VirtualDrive {
 
 						reject(err)
 					})
-			}, 1000)
+			}, 250)
 
 			checkTimeout = setTimeout(() => {
 				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)
@@ -192,9 +196,23 @@ export class VirtualDrive {
 			}, 15000)
 
 			this.rcloneProcess = spawn(paths.binary, args, {
-				stdio: ["ignore", "ignore", "ignore", "ignore"],
+				stdio: ["pipe", "pipe", "pipe", "pipe"],
 				shell: true,
 				detached: false
+			})
+
+			this.rcloneProcess.on("error", err => {
+				clearInterval(checkInterval)
+				clearTimeout(checkTimeout)
+
+				reject(err)
+			})
+
+			this.rcloneProcess.on("exit", () => {
+				clearInterval(checkInterval)
+				clearTimeout(checkTimeout)
+
+				reject(new Error("Could not start rclone process."))
 			})
 		})
 	}

@@ -25,7 +25,8 @@
 		"build:mac": "npm run build && electron-builder -m --publish never",
 		"build:win": "npm run build && electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
-		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest"
+		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest",
+		"publish": "npm run build && npm publish --access=public"
 	},
 	"repository": {
 		"type": "git",
@@ -105,6 +106,9 @@
 				"url": "https://cdn.filen.io/@filen/desktop/release/"
 			}
 		],
+		"extraResources": [
+			"./build/winfsp-2.0.23075.msi"
+		],
 		"win": {
 			"publisherName": [
 				"Filen Cloud Dienste UG (haftungsbeschränkt)"
@@ -133,7 +137,8 @@
 			"createStartMenuShortcut": true,
 			"deleteAppDataOnUninstall": true,
 			"allowToChangeInstallationDirectory": false,
-			"allowElevation": true
+			"allowElevation": true,
+			"include": "./build/installer.nsh"
 		},
 		"linux": {
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
@@ -144,14 +149,14 @@
 			"synopsis": "Filen Desktop Client",
 			"target": [
 				{
-					"target": "AppImage",
+					"target": "deb",
 					"arch": [
 						"x64",
 						"arm64"
 					]
 				},
 				{
-					"target": "deb",
+					"target": "rpm",
 					"arch": [
 						"x64",
 						"arm64"

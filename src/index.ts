@@ -94,6 +94,13 @@ export class FilenDesktop {
 
 		await app.whenReady()
 
+		app.setAppUserModelId("io.filen.desktop")
+		app.setName("Filen")
+
+		if (process.platform === "win32") {
+			app.setUserTasks([])
+		}
+
 		// Handle frontend bundle loading in production via file://
 		protocol.interceptFileProtocol("file", (req, callback) => {
 			const url = req.url.slice(7)
@@ -108,12 +115,6 @@ export class FilenDesktop {
 				this.createMainWindow().catch(console.error)
 			}
 		})
-
-		if (process.platform === "win32") {
-			app.setUserTasks([])
-		}
-
-		app.setName("Filen")
 
 		await this.worker.start()
 		await this.createMainWindow()
