@@ -153,13 +153,15 @@ export class FilenDesktop {
 			}
 		})
 
-		this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
-		this.tray.setContextMenu(null)
-		this.tray.setToolTip("Filen")
+		if (process.platform !== "linux") {
+			this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
+			this.tray.setContextMenu(null)
+			this.tray.setToolTip("Filen")
 
-		this.tray.on("click", () => {
-			this.driveWindow?.show()
-		})
+			this.tray.on("click", () => {
+				this.driveWindow?.show()
+			})
+		}
 
 		if (process.platform === "win32") {
 			this.driveWindow.setThumbarButtons([])

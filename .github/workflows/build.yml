@@ -11,7 +11,7 @@ concurrency:
 jobs:
     buildWindows:
         name: Build windows artifacts and attach to release
-        runs-on: windows-latest
+        runs-on: win11
         permissions:
             contents: write
         env:
