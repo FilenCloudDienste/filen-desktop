@@ -294,7 +294,7 @@ export class VirtualDrive {
 
 			await this.copyRCloneBinary()
 
-			const desktopConfig = await this.worker.waitForConfig()
+			const [desktopConfig, sdk] = await Promise.all([this.worker.waitForConfig(), this.worker.getSDKInstance()])
 
 			if (process.platform === "win32") {
 				const availableDriveLetters = await getAvailableDriveLetters()
@@ -331,7 +331,7 @@ export class VirtualDrive {
 				user: {
 					username: this.webdavUsername,
 					password: this.webdavPassword,
-					sdkConfig: desktopConfig.sdkConfig
+					sdk
 				},
 				authMode: "basic"
 			})

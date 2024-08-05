@@ -27,7 +27,7 @@ export class WebDAV {
 		await this.stop()
 
 		try {
-			const desktopConfig = await this.worker.waitForConfig()
+			const [desktopConfig, sdk] = await Promise.all([this.worker.waitForConfig(), this.worker.getSDKInstance()])
 
 			if (await isPortInUse(desktopConfig.webdavConfig.port)) {
 				throw new Error(
@@ -46,7 +46,7 @@ export class WebDAV {
 					? {
 							username: desktopConfig.webdavConfig.username,
 							password: desktopConfig.webdavConfig.password,
-							sdkConfig: desktopConfig.sdkConfig
+							sdk
 					  }
 					: undefined,
 				https: desktopConfig.webdavConfig.https,

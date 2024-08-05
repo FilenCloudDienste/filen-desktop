@@ -25,7 +25,7 @@ export class S3 {
 		await this.stop()
 
 		try {
-			const desktopConfig = await this.worker.waitForConfig()
+			const [desktopConfig, sdk] = await Promise.all([this.worker.waitForConfig(), this.worker.getSDKInstance()])
 
 			if (await isPortInUse(desktopConfig.s3Config.port)) {
 				throw new Error(`Cannot start S3 server on ${desktopConfig.s3Config.hostname}:${desktopConfig.s3Config.port}: Port in use.`)
@@ -41,7 +41,7 @@ export class S3 {
 				user: {
 					accessKeyId: desktopConfig.s3Config.accessKeyId,
 					secretKeyId: desktopConfig.s3Config.secretKeyId,
-					sdkConfig: desktopConfig.sdkConfig
+					sdk
 				},
 				https: desktopConfig.s3Config.https
 			})

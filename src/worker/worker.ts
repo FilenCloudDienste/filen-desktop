@@ -8,6 +8,8 @@ import { promiseAllChunked, serializeError } from "../utils"
 import pathModule from "path"
 import fs from "fs-extra"
 import Sync from "./sync"
+import FilenSDK from "@filen/sdk"
+import { Semaphore } from "../semaphore"
 
 export class Worker {
 	public desktopConfig: FilenDesktopConfig | null = null
@@ -15,6 +17,8 @@ export class Worker {
 	private s3: S3
 	private virtualDrive: VirtualDrive
 	private sync: Sync
+	private sdk: FilenSDK | null = null
+	private readonly sdkMutex = new Semaphore(1)
 
 	public constructor() {
 		if (isMainThread || !parentPort) {
@@ -25,6 +29,28 @@ export class Worker {
 		this.s3 = new S3(this)
 		this.virtualDrive = new VirtualDrive(this)
 		this.sync = new Sync(this)
+	}
+
+	public async getSDKInstance(): Promise<FilenSDK> {
+		await this.sdkMutex.acquire()
+
+		try {
+			if (this.sdk) {
+				return this.sdk
+			}
+
+			const desktopConfig = await this.waitForConfig()
+
+			this.sdk = new FilenSDK({
+				...desktopConfig.sdkConfig,
+				connectToSocket: true,
+				metadataCache: true
+			})
+
+			return this.sdk
+		} finally {
+			this.sdkMutex.release()
+		}
 	}
 
 	public async waitForConfig(): Promise<FilenDesktopConfig> {

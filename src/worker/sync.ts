@@ -35,12 +35,12 @@ export class Sync {
 		await this.stop()
 
 		try {
-			const desktopConfig = await this.worker.waitForConfig()
+			const [desktopConfig, sdk] = await Promise.all([this.worker.waitForConfig(), this.worker.getSDKInstance()])
 
 			this.sync = new SyncWorker({
 				syncPairs: desktopConfig.syncConfig.syncPairs,
 				dbPath: desktopConfig.syncConfig.dbPath,
-				sdkConfig: desktopConfig.sdkConfig,
+				sdk,
 				onMessage: message => {
 					parentPort?.postMessage({
 						type: "sync",
