@@ -161,7 +161,7 @@
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
-			"icon": "assets/icons/png/",
+			"icon": "build/icons/png/",
 			"description": "Filen Desktop Client",
 			"synopsis": "Filen Desktop Client",
 			"target": [
