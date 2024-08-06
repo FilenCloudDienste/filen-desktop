@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.1",
-	"buildNumber": 301,
+	"version": "3.0.2",
+	"buildNumber": 302,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -65,11 +65,11 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/s3": "^0.2.16",
+		"@filen/s3": "^0.2.17",
 		"@filen/sdk": "^0.1.139",
-		"@filen/sync": "^0.1.26",
+		"@filen/sync": "^0.1.28",
 		"@filen/web": "^0.1.13",
-		"@filen/webdav": "^0.2.22",
+		"@filen/webdav": "^0.2.23",
 		"axios": "^1.7.2",
 		"diskusage-ng": "^1.0.4",
 		"electron-updater": "^6.2.1",
