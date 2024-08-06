@@ -185,6 +185,13 @@
 						"x64",
 						"arm64"
 					]
+				},
+				{
+					"target": "AppImage",
+					"arch": [
+						"x64",
+						"arm64"
+					]
 				}
 			],
 			"publish": [
