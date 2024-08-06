@@ -159,14 +159,18 @@ jobs:
               uses: softprops/action-gh-release@v2
               with:
                   files: |
-                      prod/filen_x64.dmg
-                      prod/filen_x64.dmg.sha256.txt
-                      prod/filen_arm64.dmg
-                      prod/filen_arm64.dmg.sha256.txt
-                      prod/filen_x64.dmg.blockmap
-                      prod/filen_x64.dmg.blockmap.sha256.txt
-                      prod/filen_arm64.dmg.blockmap
-                      prod/filen_arm64.dmg.blockmap.sha256.txt
+                      prod/Filen_mac_x64.dmg
+                      prod/Filen_mac_x64.dmg.sha256.txt
+                      prod/Filen_mac_arm64.dmg
+                      prod/Filen_mac_arm64.dmg.sha256.txt
+                      prod/Filen_mac_x64.dmg.blockmap
+                      prod/Filen_mac_x64.dmg.blockmap.sha256.txt
+                      prod/Filen_mac_arm64.dmg.blockmap
+                      prod/Filen_mac_arm64.dmg.blockmap.sha256.txt
+                      prod/Filen_mac_x64.zip
+                      prod/Filen_mac_x64.zip.sha256.txt
+                      prod/Filen_mac_arm64.zip
+                      prod/Filen_mac_arm64.zip.sha256.txt
                       prod/latest-mac.yml
                       prod/latest-mac.yml.sha256.txt
             - name: Cleanup keychain
