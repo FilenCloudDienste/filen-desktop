@@ -27,6 +27,8 @@ jobs:
                   cache: "npm"
             - name: Install dependencies
               run: npm install --package-lock-only; npm ci
+            - name: Install prebuilts
+              run: npm install @parcel/watcher-win32-ia32 @parcel/watcher-win32-x64 @parcel/watcher-win32-arm64 --force
             - name: Build
               run: npm run build:win
               env:
@@ -78,6 +80,8 @@ jobs:
                   cache: "npm"
             - name: Install dependencies
               run: npm install --package-lock-only && npm ci
+            - name: Install prebuilts
+              run: npm install @parcel/watcher-linux-x64-glibc @parcel/watcher-linux-x64-musl @parcel/watcher-linux-arm64-musl @parcel/watcher-linux-arm64-glibc @parcel/watcher-linux-arm-glibc --force
             - name: Build
               run: npm run build:linux
             - name: Generate SHA256 hashes
@@ -135,6 +139,8 @@ jobs:
                   cache: "npm"
             - name: Install dependencies
               run: npm install --package-lock-only && npm ci
+            - name: Install prebuilts
+              run: npm install @parcel/watcher-darwin-arm64 @parcel/watcher-darwin-x64 --force
             - name: Decode macOS certificate
               run: |
                   echo "$APPLE_DEVELOPER_ID_CERT" | base64 --decode > certificate.p12
