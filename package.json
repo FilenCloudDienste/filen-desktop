@@ -87,18 +87,20 @@
 		"asar": true,
 		"npmRebuild": false,
 		"nodeGypRebuild": false,
-		"artifactName": "filen_${arch}.${ext}",
-		"afterSign": "./build/notarize.js",
+		"artifactName": "Filen_${os}_${arch}.${ext}",
+		"afterSign": "build/notarize.js",
 		"directories": {
-			"output": "./prod/",
-			"buildResources": "./build/"
+			"output": "prod",
+			"buildResources": "build"
 		},
 		"files": [
-			"./node_modules/**/*",
-			"./package.json",
-			"./assets/**/*",
-			"./dist/**/*",
-			"./bin/**/*"
+			"node_modules/**/*",
+			"package.json",
+			"assets/**/*",
+			"dist/**/*",
+			"bin/**/*",
+			"build/installer.nsh",
+			"build/winfsp-2.1.24051.msi"
 		],
 		"publish": [
 			{
@@ -106,16 +108,13 @@
 				"url": "https://cdn.filen.io/@filen/desktop/release/"
 			}
 		],
-		"extraResources": [
-			"./build/winfsp-2.0.23075.msi"
-		],
 		"win": {
 			"publisherName": [
 				"Filen Cloud Dienste UG (haftungsbeschränkt)"
 			],
 			"certificateSubjectName": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"verifyUpdateCodeSignature": false,
-			"icon": "./build/icons/win/icon.ico",
+			"icon": "build/icons/win/icon.ico",
 			"target": [
 				{
 					"target": "nsis",
@@ -138,22 +137,31 @@
 					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			],
-			"sign": "./build/sign.js"
+			"sign": "build/sign.js",
+			"extraFiles": [
+				{
+					"from": "build/winfsp-2.1.24051.msi",
+					"to": "build/winfsp-2.1.24051.msi"
+				}
+			]
 		},
 		"nsis": {
-			"oneClick": true,
+			"oneClick": false,
 			"createDesktopShortcut": true,
 			"createStartMenuShortcut": true,
 			"deleteAppDataOnUninstall": true,
 			"allowToChangeInstallationDirectory": false,
+			"selectPerMachineByDefault": false,
+			"perMachine": false,
 			"allowElevation": true,
-			"include": "./build/installer.nsh"
+			"runAfterFinish": true,
+			"include": "build/installer.nsh"
 		},
 		"linux": {
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
-			"icon": "./assets/icons/png/",
+			"icon": "assets/icons/png/",
 			"description": "Filen Desktop Client",
 			"synopsis": "Filen Desktop Client",
 			"target": [
@@ -189,8 +197,8 @@
 		"mac": {
 			"hardenedRuntime": true,
 			"gatekeeperAssess": false,
-			"entitlements": "./build/entitlements.mac.plist",
-			"entitlementsInherit": "./build/entitlements.mac.plist",
+			"entitlements": "build/entitlements.mac.plist",
+			"entitlementsInherit": "build/entitlements.mac.plist",
 			"category": "public.app-category.productivity",
 			"darkModeSupport": true,
 			"target": [
@@ -215,7 +223,7 @@
 					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			],
-			"icon": "./build/icons/mac/icon.icns"
+			"icon": "build/icons/mac/icon.icns"
 		},
 		"dmg": {
 			"sign": false

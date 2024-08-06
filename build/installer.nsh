@@ -1,28 +1,18 @@
 !define WINFSP_INSTALLER "winfsp-2.1.24051.msi"
 
-!macro winfspInstall
-  SetOutPath "$INSTDIR"
-  File "build\\${WINFSP_INSTALLER}"
-  
-  ; Check if WinFsp is already installed by looking for the InstallDir registry key
-  ReadRegStr $0 HKLM "SOFTWARE\\WinFsp" "InstallDir"
-  ${If} $0 == ""
-    ; Check if WinFsp is installed under Wow6432Node for 32-bit installations on 64-bit systems
-    ReadRegStr $0 HKLM "SOFTWARE\\Wow6432Node\\WinFsp" "InstallDir"
-  ${EndIf}
+RequestExecutionLevel admin
 
-  ${If} $0 == ""
-    ExecWait '"$SYSDIR\\msiexec.exe" /i "$INSTDIR\\${WINFSP_INSTALLER}" /quiet /norestart' $1
-    DetailPrint "WinFsp installation attempt exit code: $1"
-    ; Log the error but do not show any dialogs
-    ${If} $1 != 0
-      DetailPrint "WinFsp installation failed with exit code $1. Continuing with the main installation."
+!macro customInstall
+  UserInfo::GetAccountType
+  Pop $0
+  ${If} $0 == "Admin"
+    ClearErrors
+    ReadRegStr $1 HKCR "Installer\\Dependencies\\WinFsp" "Version"
+
+    ${If} ${Errors}
+      File /oname=$PLUGINSDIR\\${WINFSP_INSTALLER} "${BUILD_RESOURCES_DIR}\\${WINFSP_INSTALLER}"
+
+      ExecWait '"msiexec.exe" /i "$PLUGINSDIR\\${WINFSP_INSTALLER}" /qn' $2
     ${EndIf}
-  ${Else}
-    DetailPrint "WinFsp is already installed at $0"
   ${EndIf}
 !macroend
-
-Function winfspInstall
-  !insertmacro winfspInstall
-FunctionEnd

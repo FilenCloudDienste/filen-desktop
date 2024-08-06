@@ -42,20 +42,24 @@ jobs:
               uses: softprops/action-gh-release@v2
               with:
                   files: |
-                      prod/filen.exe
-                      prod/filen.exe.sha256.txt
-                      prod/filen.exe.blockmap
-                      prod/filen.exe.blockmap.sha256.txt
-                      prod/filen_arm64.exe
-                      prod/filen_arm64.exe.sha256.txt
-                      prod/filen_arm64.exe.blockmap
-                      prod/filen_arm64.exe.blockmap.sha256.txt
-                      prod/filen_x64.exe
-                      prod/filen_x64.exe.sha256.txt
-                      prod/filen_x64.exe.blockmap
-                      prod/filen_x64.exe.blockmap.sha256.txt
+                      prod/Filen_win.exe
+                      prod/Filen_win.exe.sha256.txt
+                      prod/Filen_win.exe.blockmap
+                      prod/Filen_win.exe.blockmap.sha256.txt
+                      prod/Filen_win_arm64.exe
+                      prod/Filen_win_arm64.exe.sha256.txt
+                      prod/Filen_win_arm64.exe.blockmap
+                      prod/Filen_win_arm64.exe.blockmap.sha256.txt
+                      prod/Filen_win_arm64.zip
+                      prod/Filen_win_arm64.zip.sha256.txt
+                      prod/Filen_win_x64.exe
+                      prod/Filen_win_x64.exe.sha256.txt
+                      prod/Filen_win_x64.exe.blockmap
+                      prod/Filen_win_x64.exe.blockmap.sha256.txt
+                      prod/Filen_win_x64.zip
+                      prod/Filen_win_x64.zip.sha256.txt
                       prod/latest.yml
-                      prod/latest.yml.sha256.yml
+                      prod/latest.yml.sha256.txt
             - name: Cleanup
               run: npm run clear
 

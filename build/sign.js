@@ -10,6 +10,7 @@ const ALIAS = process.env.SIGN_TOKEN_ALIAS
 const TYPE = "PKCS11"
 
 exports.default = async function sign(context) {
+	await new Promise(resolve => setTimeout(resolve, 5000))
 	await new Promise((resolve, reject) => {
 		try {
 			if (context.hash === "sha1") {
@@ -18,7 +19,7 @@ exports.default = async function sign(context) {
 				console.log("SIGNING SHA-1")
 
 				require("child_process").execSync(sha1Cmd, {
-					stdio: "inherit"
+					stdio: ["ignore", "ignore", "ignore", "ignore"]
 				})
 
 				console.log("SIGNING DONE SHA-1")
@@ -30,17 +31,19 @@ exports.default = async function sign(context) {
 				console.log("SIGNING SHA-256")
 
 				require("child_process").execSync(sha256Cmd, {
-					stdio: "inherit"
+					stdio: ["ignore", "ignore", "ignore", "ignore"]
 				})
 
 				console.log("SIGNING DONE SHA-256")
 			}
 
 			resolve()
-		} catch (e) {
-			console.error(e)
+		} catch {
+			const err = new Error(`Signing failed for ${context.path}`)
 
-			reject(e)
+			console.error(err)
+
+			reject(err)
 		}
 	})
 }
