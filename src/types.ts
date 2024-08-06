@@ -90,6 +90,7 @@ export type WorkerInvokeChannel =
 	| "syncResumeTransfer"
 	| "syncResetTaskErrors"
 	| "syncToggleLocalTrash"
+	| "syncResetLocalTreeErrors"
 
 export type WorkerMessage =
 	| {

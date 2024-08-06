@@ -774,6 +774,10 @@ export class IPC {
 		ipcMain.handle("syncToggleLocalTrash", async (_, params) => {
 			await this.desktop.worker.invoke("syncToggleLocalTrash", params)
 		})
+
+		ipcMain.handle("syncResetLocalTreeErrors", async (_, params) => {
+			await this.desktop.worker.invoke("syncResetLocalTreeErrors", params)
+		})
 	}
 }
 

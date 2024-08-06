@@ -97,6 +97,7 @@ export type DesktopAPI = {
 	isWinFSPInstalled: () => Promise<boolean>
 	isUnixMountPointEmpty: (path: string) => Promise<boolean>
 	syncResetTaskErrors: (params: { uuid: string }) => Promise<void>
+	syncResetLocalTreeErrors: (params: { uuid: string }) => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -182,6 +183,7 @@ if (env.isBrowser || env.isElectron) {
 		isWinFSPInstalled: () => ipcRenderer.invoke("isWinFSPInstalled"),
 		isUnixMountPointEmpty: path => ipcRenderer.invoke("isUnixMountPointEmpty", path),
 		syncResetTaskErrors: params => ipcRenderer.invoke("syncResetTaskErrors", params),
+		syncResetLocalTreeErrors: params => ipcRenderer.invoke("syncResetLocalTreeErrors", params),
 		syncToggleLocalTrash: params => ipcRenderer.invoke("syncToggleLocalTrash", params)
 	} satisfies DesktopAPI)
 }
