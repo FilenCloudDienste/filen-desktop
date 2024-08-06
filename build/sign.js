@@ -16,25 +16,25 @@ exports.default = async function sign(context) {
 			if (context.hash === "sha1") {
 				const sha1Cmd = `java -jar "${JSIGN}" --keystore "${CFG_PATH}" --storepass "${PASS}" --storetype "${TYPE}" --tsaurl "${TS}" --alias "${ALIAS}" --alg SHA-1 ${context.path}`
 
-				console.log("SIGNING SHA-1")
+				console.log("SIGNING SHA-1", context.path)
 
 				require("child_process").execSync(sha1Cmd, {
 					stdio: ["ignore", "ignore", "ignore", "ignore"]
 				})
 
-				console.log("SIGNING DONE SHA-1")
+				console.log("SIGNING DONE SHA-1", context.path)
 			}
 
 			if (context.hash === "sha256") {
 				const sha256Cmd = `java -jar "${JSIGN}" --keystore "${CFG_PATH}" --storepass "${PASS}" --storetype "${TYPE}" --tsaurl "${TS}" --alias "${ALIAS}" --alg SHA-256 ${context.path}`
 
-				console.log("SIGNING SHA-256")
+				console.log("SIGNING SHA-256", context.path)
 
 				require("child_process").execSync(sha256Cmd, {
 					stdio: ["ignore", "ignore", "ignore", "ignore"]
 				})
 
-				console.log("SIGNING DONE SHA-256")
+				console.log("SIGNING DONE SHA-256", context.path)
 			}
 
 			resolve()
