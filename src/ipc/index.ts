@@ -20,6 +20,8 @@ import {
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon } from "../assets"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
+import { DISALLOWED_SYNC_DIRS } from "../constants"
+import os from "os"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -777,6 +779,44 @@ export class IPC {
 
 		ipcMain.handle("syncResetLocalTreeErrors", async (_, params) => {
 			await this.desktop.worker.invoke("syncResetLocalTreeErrors", params)
+		})
+
+		ipcMain.handle("isAllowedToSyncDirectory", async (_, path: string) => {
+			try {
+				const normalizedPath = pathModule.normalize(path)
+
+				for (const disallowedDir of DISALLOWED_SYNC_DIRS) {
+					if (normalizedPath.startsWith(pathModule.normalize(disallowedDir))) {
+						return false
+					}
+				}
+
+				if (normalizedPath.startsWith(os.tmpdir())) {
+					return false
+				}
+
+				if (process.platform === "win32" && normalizedPath.startsWith("\\")) {
+					return false
+				}
+
+				const stat = await fs.lstat(path)
+
+				if (
+					!stat.isDirectory() ||
+					stat.isSymbolicLink() ||
+					stat.isFile() ||
+					stat.isBlockDevice() ||
+					stat.isCharacterDevice() ||
+					stat.isFIFO() ||
+					stat.isSocket()
+				) {
+					return false
+				}
+
+				return true
+			} catch {
+				return false
+			}
 		})
 	}
 }

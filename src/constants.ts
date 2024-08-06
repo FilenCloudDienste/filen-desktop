@@ -15,3 +15,17 @@ export const env = {
 export const IS_BROWSER = env.isBrowser
 export const IS_ELECTRON = env.isElectron
 export const IS_NODE = env.isNode
+export const DISALLOWED_SYNC_DIRS = [
+	"C:\\Windows",
+	"C:\\Program Files",
+	"C:\\Program Files (x86)",
+	"/System",
+	"/Library",
+	"/Applications",
+	"/usr",
+	"/bin",
+	"/sbin",
+	"/var",
+	"/tmp",
+	"/private"
+]
