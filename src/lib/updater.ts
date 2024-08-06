@@ -7,6 +7,10 @@ import isDev from "../isDev"
 autoUpdater.allowDowngrade = false
 autoUpdater.autoDownload = true
 autoUpdater.autoInstallOnAppQuit = false
+autoUpdater.disableDifferentialDownload = true
+autoUpdater.autoRunAppAfterInstall = true
+autoUpdater.allowPrerelease = false
+autoUpdater.disableWebInstaller = true
 
 export class Updater {
 	private readonly desktop: FilenDesktop
