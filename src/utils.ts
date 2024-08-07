@@ -6,6 +6,7 @@ import os from "os"
 import https from "https"
 import { exec } from "child_process"
 import pathModule from "path"
+import sudoPrompt from "sudo-prompt"
 
 /**
  * "Sleep" for N milliseconds.
@@ -269,8 +270,47 @@ export async function execCommand(command: string, trimStdOut: boolean = true): 
 	})
 }
 
+export async function execCommandSudo(command: string, trimStdOut: boolean = true): Promise<string> {
+	return new Promise((resolve, reject) => {
+		sudoPrompt.exec(command, { name: "Filen" }, (err, stdout, stderr) => {
+			if (err || stderr) {
+				if (!stderr) {
+					stdout = ""
+				}
+
+				if (stderr instanceof Buffer) {
+					stderr = stderr.toString("utf-8")
+				}
+
+				reject(err ? err : new Error(stderr))
+
+				return
+			}
+
+			if (!stdout) {
+				stdout = ""
+			}
+
+			if (stdout instanceof Buffer) {
+				stdout = stdout.toString("utf-8")
+			}
+
+			resolve(trimStdOut ? stdout.trim() : stdout)
+		})
+	})
+}
+
 export async function killProcessByName(processName: string): Promise<void> {
-	await execCommand(os.platform() === "win32" ? `taskkill /F /T /IM ${processName}` : `pkill -9 -P $(pgrep -d',' -f ${processName})`)
+	if (os.platform() === "win32") {
+		await execCommand(`taskkill /F /T /IM ${processName}`)
+	} else {
+		const stdout = await execCommand(`pgrep -f ${processName}`)
+		const pids = stdout.split("\n").filter(pid => pid && pid.trim().length > 0)
+
+		for (const pid of pids) {
+			await execCommand(`kill -9 ${pid.trim()}`)
+		}
+	}
 }
 
 export async function killProcessByPid(pid: number): Promise<void> {

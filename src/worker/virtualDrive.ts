@@ -10,12 +10,14 @@ import {
 	execCommand,
 	killProcessByName,
 	isWinFSPInstalled,
-	killProcessByPid
+	killProcessByPid,
+	execCommandSudo
 } from "../utils"
 import WebDAVServer from "@filen/webdav"
 import { type ChildProcess, spawn } from "child_process"
 import findFreePorts from "find-free-ports"
 import type Worker from "./worker"
+import { Semaphore } from "../semaphore"
 
 export class VirtualDrive {
 	private worker: Worker
@@ -28,6 +30,8 @@ export class VirtualDrive {
 	public rcloneBinaryName: string = `filen_rclone_${process.platform}_${process.arch}${process.platform === "win32" ? ".exe" : ""}`
 	public active: boolean = false
 	public storedBinaryPath = pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName)
+	public stopMutex = new Semaphore(1)
+	public startMutex = new Semaphore(1)
 
 	public constructor(worker: Worker) {
 		this.worker = worker
@@ -285,10 +289,13 @@ export class VirtualDrive {
 
 		await killProcessByName(this.rcloneBinaryName).catch(() => {})
 
-		if (process.platform !== "win32") {
+		if (process.platform === "linux" || process.platform === "darwin") {
 			const desktopConfig = await this.worker.waitForConfig()
+			const listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
 
-			await execCommand(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
+			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
+				await execCommandSudo(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
+			}
 		}
 	}
 
@@ -311,9 +318,11 @@ export class VirtualDrive {
 	}
 
 	public async start(): Promise<void> {
-		await this.stop()
+		await this.startMutex.acquire()
 
 		try {
+			await this.stop()
+
 			if (process.platform === "win32" && !(await isWinFSPInstalled())) {
 				throw new Error("WinFSP not found.")
 			}
@@ -329,6 +338,10 @@ export class VirtualDrive {
 					throw new Error(`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Drive letter exists.`)
 				}
 			} else {
+				if (!desktopConfig.virtualDriveConfig.mountPoint.startsWith("/home")) {
+					throw new Error("Cannot mount to a directory outside of your home directory.")
+				}
+
 				if (!(await isUnixMountPointValid(desktopConfig.virtualDriveConfig.mountPoint))) {
 					throw new Error(
 						`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Mount point does not exist.`
@@ -378,10 +391,14 @@ export class VirtualDrive {
 			await this.stop()
 
 			throw e
+		} finally {
+			this.startMutex.release()
 		}
 	}
 
 	public async stop(): Promise<void> {
+		await this.stopMutex.acquire()
+
 		try {
 			const webdavOnline = await this.isWebDAVOnline()
 
@@ -398,6 +415,8 @@ export class VirtualDrive {
 			this.worker.logger.log("error", e, "virtualDrive")
 
 			throw e
+		} finally {
+			this.stopMutex.release()
 		}
 	}
 }

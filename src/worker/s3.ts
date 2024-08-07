@@ -1,11 +1,14 @@
 import S3Server from "@filen/s3"
 import { isPortInUse, httpHealthCheck } from "../utils"
 import type Worker from "./worker"
+import { Semaphore } from "../semaphore"
 
 export class S3 {
 	private worker: Worker
 	public server: S3Server | null = null
 	public active: boolean = false
+	public stopMutex = new Semaphore(1)
+	public startMutex = new Semaphore(1)
 
 	public constructor(worker: Worker) {
 		this.worker = worker
@@ -22,9 +25,11 @@ export class S3 {
 	}
 
 	public async start(): Promise<void> {
-		await this.stop()
+		await this.startMutex.acquire()
 
 		try {
+			await this.stop()
+
 			const [desktopConfig, sdk] = await Promise.all([this.worker.waitForConfig(), this.worker.getSDKInstance()])
 
 			if (await isPortInUse(desktopConfig.s3Config.port)) {
@@ -59,10 +64,14 @@ export class S3 {
 			await this.stop()
 
 			throw e
+		} finally {
+			this.startMutex.release()
 		}
 	}
 
 	public async stop(): Promise<void> {
+		await this.stopMutex.acquire()
+
 		try {
 			if (!this.server) {
 				this.active = false
@@ -80,6 +89,8 @@ export class S3 {
 			this.worker.logger.log("error", e, "s3")
 
 			throw e
+		} finally {
+			this.stopMutex.release()
 		}
 	}
 }

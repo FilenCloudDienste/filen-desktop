@@ -77,6 +77,8 @@ export class Worker {
 	public async virtualDriveAvailableCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
 
+		await fs.ensureDir(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"))
+
 		return await new Promise<number>((resolve, reject) => {
 			diskusage(desktopConfig.virtualDriveConfig.localDirPath, (err, usage) => {
 				if (err) {

@@ -1,11 +1,14 @@
 import type Worker from "./worker"
 import WebDAVServer from "@filen/webdav"
 import { isPortInUse, httpHealthCheck } from "../utils"
+import { Semaphore } from "../semaphore"
 
 export class WebDAV {
 	private worker: Worker
 	public server: WebDAVServer | null = null
 	public active: boolean = false
+	public stopMutex = new Semaphore(1)
+	public startMutex = new Semaphore(1)
 
 	public constructor(worker: Worker) {
 		this.worker = worker
@@ -24,9 +27,11 @@ export class WebDAV {
 	}
 
 	public async start(): Promise<void> {
-		await this.stop()
+		await this.startMutex.acquire()
 
 		try {
+			await this.stop()
+
 			const [desktopConfig, sdk] = await Promise.all([this.worker.waitForConfig(), this.worker.getSDKInstance()])
 
 			if (await isPortInUse(desktopConfig.webdavConfig.port)) {
@@ -66,10 +71,14 @@ export class WebDAV {
 			await this.stop()
 
 			throw e
+		} finally {
+			this.startMutex.release()
 		}
 	}
 
 	public async stop(): Promise<void> {
+		await this.stopMutex.acquire()
+
 		try {
 			if (!this.server) {
 				this.active = false
@@ -87,6 +96,8 @@ export class WebDAV {
 			this.worker.logger.log("error", e, "webdav")
 
 			throw e
+		} finally {
+			this.stopMutex.release()
 		}
 	}
 }
