@@ -338,8 +338,15 @@ export class VirtualDrive {
 					throw new Error(`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Drive letter exists.`)
 				}
 			} else {
-				if (!desktopConfig.virtualDriveConfig.mountPoint.startsWith("/home")) {
+				if (process.platform === "linux" && !desktopConfig.virtualDriveConfig.mountPoint.startsWith("/home")) {
 					throw new Error("Cannot mount to a directory outside of your home directory.")
+				}
+
+				if (
+					process.platform === "darwin" &&
+					!desktopConfig.virtualDriveConfig.mountPoint.startsWith(`/Users/${process.env.USER ?? "user"}`)
+				) {
+					throw new Error("Cannot mount to a directory outside of your user directory.")
 				}
 
 				if (!(await isUnixMountPointValid(desktopConfig.virtualDriveConfig.mountPoint))) {
