@@ -9,12 +9,12 @@ import {
 	httpHealthCheck,
 	execCommand,
 	killProcessByName,
-	isWinFSPInstalled
+	isWinFSPInstalled,
+	killProcessByPid
 } from "../utils"
 import WebDAVServer from "@filen/webdav"
 import { type ChildProcess, spawn } from "child_process"
 import findFreePorts from "find-free-ports"
-import treeKill from "tree-kill"
 import type Worker from "./worker"
 
 export class VirtualDrive {
@@ -184,10 +184,11 @@ export class VirtualDrive {
 		return new Promise<void>((resolve, reject) => {
 			let checkInterval: NodeJS.Timeout | undefined = undefined
 			let checkTimeout: NodeJS.Timeout | undefined = undefined
+			let rcloneSpawned = false
 
 			checkInterval = setInterval(async () => {
 				try {
-					if (await this.isMountActuallyActive()) {
+					if ((await this.isMountActuallyActive()) && rcloneSpawned) {
 						clearInterval(checkInterval)
 						clearTimeout(checkTimeout)
 
@@ -220,7 +221,13 @@ export class VirtualDrive {
 				detached: false
 			})
 
+			this.rcloneProcess.on("spawn", () => {
+				rcloneSpawned = true
+			})
+
 			this.rcloneProcess.on("error", err => {
+				rcloneSpawned = false
+
 				clearInterval(checkInterval)
 				clearTimeout(checkTimeout)
 
@@ -228,6 +235,8 @@ export class VirtualDrive {
 			})
 
 			this.rcloneProcess.on("exit", () => {
+				rcloneSpawned = false
+
 				clearInterval(checkInterval)
 				clearTimeout(checkTimeout)
 
@@ -267,13 +276,11 @@ export class VirtualDrive {
 				}
 			}
 
-			if (this.rcloneProcess.pid) {
-				await new Promise<void>(resolve => {
-					treeKill(this.rcloneProcess!.pid!, "SIGKILL", () => resolve())
-				})
-			}
+			this.rcloneProcess.kill("SIGKILL")
 
-			this.rcloneProcess.kill()
+			if (this.rcloneProcess.pid) {
+				await killProcessByPid(this.rcloneProcess.pid).catch(() => {})
+			}
 		}
 
 		await killProcessByName(this.rcloneBinaryName).catch(() => {})

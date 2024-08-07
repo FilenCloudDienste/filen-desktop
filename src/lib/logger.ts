@@ -2,8 +2,9 @@ import pathModule from "path"
 import pino, { type Logger as PinoLogger } from "pino"
 import os from "os"
 import fs from "fs-extra"
+import { createStream } from "rotating-file-stream"
 
-export function filenLogsPath(): string {
+export async function filenLogsPath(): Promise<string> {
 	let configPath = ""
 
 	switch (process.platform) {
@@ -29,8 +30,8 @@ export function filenLogsPath(): string {
 
 	configPath = pathModule.join(configPath, "@filen", "logs")
 
-	if (!fs.existsSync(configPath)) {
-		fs.mkdirSync(configPath, {
+	if (!(await fs.exists(configPath))) {
+		await fs.mkdir(configPath, {
 			recursive: true
 		})
 	}
@@ -39,33 +40,52 @@ export function filenLogsPath(): string {
 }
 
 export class Logger {
-	private logger: PinoLogger
-	private readonly dest: string
+	private logger: PinoLogger | null = null
+	private dest: string | null = null
 	private isCleaning: boolean = false
-	private readonly maxSize = 1024 * 1024 * 10
 	private readonly disableLogging: boolean
+	private readonly isWorker: boolean
 
 	public constructor(disableLogging: boolean = false, isWorker: boolean = false) {
-		this.dest = pathModule.join(filenLogsPath(), isWorker ? "desktop-worker.log" : "desktop.log")
 		this.disableLogging = disableLogging
+		this.isWorker = isWorker
 
-		if (fs.existsSync(this.dest)) {
-			const stats = fs.statSync(this.dest)
+		this.init()
+	}
 
-			if (stats.size >= this.maxSize) {
-				fs.rmSync(this.dest)
-			}
+	public async init(): Promise<void> {
+		try {
+			this.dest = pathModule.join(await filenLogsPath(), this.isWorker ? "desktop-worker.log" : "desktop.log")
+
+			this.logger = pino(
+				createStream(pathModule.basename(this.dest), {
+					size: "10M",
+					interval: "7d",
+					compress: "gzip",
+					encoding: "utf-8",
+					maxFiles: 3,
+					path: pathModule.dirname(this.dest)
+				})
+			)
+		} catch (e) {
+			console.error(e)
+		}
+	}
+
+	public async waitForPino(): Promise<void> {
+		if (this.logger) {
+			return
 		}
 
-		this.logger = pino(
-			pino.destination({
-				sync: false,
-				fsync: false,
-				dest: this.dest
-			})
-		)
+		await new Promise<void>(resolve => {
+			const wait = setInterval(() => {
+				if (this.logger) {
+					clearInterval(wait)
 
-		this.clean()
+					resolve()
+				}
+			}, 100)
+		})
 	}
 
 	public log(level: "info" | "debug" | "warn" | "error" | "trace" | "fatal", object?: unknown, where?: string): void {
@@ -73,59 +93,44 @@ export class Logger {
 			return
 		}
 
-		const log = `${where ? `[${where}] ` : ""}${
-			typeof object !== "undefined"
-				? typeof object === "string" || typeof object === "number"
-					? object
-					: JSON.stringify(object)
-				: ""
-		}`
-
-		if (level === "info") {
-			this.logger.info(log)
-		} else if (level === "debug") {
-			this.logger.debug(log)
-		} else if (level === "error") {
-			this.logger.error(log)
-		} else if (level === "warn") {
-			this.logger.warn(log)
-		} else if (level === "trace") {
-			this.logger.trace(log)
-		} else if (level === "fatal") {
-			this.logger.fatal(log)
-		} else {
-			this.logger.info(log)
-		}
-	}
-
-	public clean(): void {
-		if (this.disableLogging) {
-			return
-		}
-
-		setInterval(async () => {
-			if (this.isCleaning) {
-				return
-			}
-
-			this.isCleaning = true
-
+		// eslint-disable-next-line no-extra-semi
+		;(async () => {
 			try {
-				if ((await fs.exists(this.dest)) && (await fs.stat(this.dest)).size > this.maxSize) {
-					await fs.unlink(this.dest)
-
-					this.logger = pino(
-						pino.destination({
-							sync: false,
-							fsync: false,
-							dest: this.dest
-						})
-					)
+				if (!this.logger) {
+					await this.waitForPino()
 				}
-			} finally {
-				this.isCleaning = false
+
+				const log = `${where ? `[${where}] ` : ""}${
+					typeof object !== "undefined"
+						? typeof object === "string" || typeof object === "number"
+							? object
+							: JSON.stringify(object)
+						: ""
+				}`
+
+				if (level === "info") {
+					this.logger?.info(log)
+				} else if (level === "debug") {
+					this.logger?.debug(log)
+				} else if (level === "error") {
+					this.logger?.error(log)
+
+					if (object instanceof Error) {
+						this.logger?.error(object)
+					}
+				} else if (level === "warn") {
+					this.logger?.warn(log)
+				} else if (level === "trace") {
+					this.logger?.trace(log)
+				} else if (level === "fatal") {
+					this.logger?.fatal(log)
+				} else {
+					this.logger?.info(log)
+				}
+			} catch (e) {
+				console.error(e)
 			}
-		}, 3600000)
+		})()
 	}
 }
 

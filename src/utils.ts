@@ -270,7 +270,11 @@ export async function execCommand(command: string, trimStdOut: boolean = true): 
 }
 
 export async function killProcessByName(processName: string): Promise<void> {
-	await execCommand(os.platform() === "win32" ? `taskkill /F /T /IM ${processName}` : `pkill -TERM -P $(pgrep -d',' -f ${processName})`)
+	await execCommand(os.platform() === "win32" ? `taskkill /F /T /IM ${processName}` : `pkill -9 -P $(pgrep -d',' -f ${processName})`)
+}
+
+export async function killProcessByPid(pid: number): Promise<void> {
+	await execCommand(os.platform() === "win32" ? `taskkill /F /PID ${pid}` : `kill -9 ${pid}`)
 }
 
 export async function isWinFSPInstalled(): Promise<boolean> {

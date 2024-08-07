@@ -6,6 +6,7 @@ import { app } from "electron"
 import type FilenDesktop from ".."
 import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
+import fs from "fs-extra"
 
 export class Worker {
 	private worker: WorkerThread | null = null
@@ -171,9 +172,19 @@ export class Worker {
 	}
 
 	public async isVirtualDriveMounted(): Promise<boolean> {
-		const desktopConfig = await waitForConfig()
+		try {
+			const desktopConfig = await waitForConfig()
 
-		return await checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)
+			if (!(await checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint))) {
+				return false
+			}
+
+			const stat = await fs.stat(desktopConfig.virtualDriveConfig.mountPoint)
+
+			return process.platform === "darwin" || process.platform === "linux" ? stat.ino === 0 || stat.birthtimeMs === 0 : stat.ino === 1
+		} catch {
+			return false
+		}
 	}
 }
 
