@@ -27,7 +27,7 @@ export class VirtualDrive {
 	public webdavEndpoint: string = "http://127.0.0.1:1905"
 	public rcloneBinaryName: string = `filen_rclone_${process.platform}_${process.arch}${process.platform === "win32" ? ".exe" : ""}`
 	public active: boolean = false
-	public storedBinaryPath = pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName)
+	public storedBinaryPath = this.normalizePath(pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName))
 
 	public constructor(worker: Worker) {
 		this.worker = worker
@@ -35,11 +35,19 @@ export class VirtualDrive {
 		this.monitor()
 	}
 
+	public normalizePath(path: string): string {
+		if (process.platform === "win32") {
+			return pathModule.normalize(path)
+		}
+
+		return pathModule.normalize(path).replace(/(\s+)/g, "\\$1")
+	}
+
 	public async copyRCloneBinary(): Promise<void> {
 		const paths = await this.paths()
 
 		if (!(await fs.exists(this.storedBinaryPath))) {
-			throw new Error("Stored RClone binary not found.")
+			throw new Error("Stored virtual drive binary not found.")
 		}
 
 		if (await fs.exists(paths.binary)) {
@@ -63,9 +71,9 @@ export class VirtualDrive {
 		const desktopConfig = await this.worker.waitForConfig()
 
 		return {
-			binary: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, this.rcloneBinaryName),
-			cache: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"),
-			config: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf")
+			binary: this.normalizePath(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, this.rcloneBinaryName)),
+			cache: this.normalizePath(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")),
+			config: this.normalizePath(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf"))
 		}
 	}
 
@@ -73,7 +81,7 @@ export class VirtualDrive {
 		const paths = await this.paths()
 
 		if (!(await fs.exists(paths.binary))) {
-			throw new Error(`Rclone binary not found at ${paths.binary}.`)
+			throw new Error(`Virtual drive binary not found at ${paths.binary}.`)
 		}
 
 		return await execCommand(`"${paths.binary}" obscure ${this.webdavPassword}`)
@@ -99,9 +107,9 @@ export class VirtualDrive {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
 		return [
-			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${
+			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePath(
 				desktopConfig.virtualDriveConfig.mountPoint
-			}`,
+			)}`,
 			`--config "${paths.config}"`,
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
@@ -140,11 +148,11 @@ export class VirtualDrive {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
 		if (!(await fs.exists(paths.binary))) {
-			throw new Error(`Rclone binary not found at ${paths.binary}.`)
+			throw new Error(`Virtual drive binary not found at ${paths.binary}.`)
 		}
 
 		if (!(await fs.exists(paths.config))) {
-			throw new Error(`Rclone config not found at ${paths.config}.`)
+			throw new Error(`Virtual drive config not found at ${paths.config}.`)
 		}
 
 		if (typeof desktopConfig.virtualDriveConfig.cacheSizeInGi !== "number" || isNaN(desktopConfig.virtualDriveConfig.cacheSizeInGi)) {
@@ -159,40 +167,40 @@ export class VirtualDrive {
 			let checkInterval: NodeJS.Timeout | undefined = undefined
 			let checkTimeout: NodeJS.Timeout | undefined = undefined
 
-			checkInterval = setInterval(() => {
-				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)
-					.then(exists => {
-						if (exists) {
-							clearInterval(checkInterval)
-							clearTimeout(checkTimeout)
+			checkInterval = setInterval(async () => {
+				try {
+					const [mountExists, webdavOnline] = await Promise.all([
+						checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
+						this.isWebDAVOnline()
+					])
 
-							resolve()
-						}
-					})
-					.catch(err => {
+					if (mountExists && webdavOnline) {
 						clearInterval(checkInterval)
 						clearTimeout(checkTimeout)
 
-						reject(err)
-					})
-			}, 250)
+						resolve()
+					}
+				} catch {
+					// Noop
+				}
+			}, 1000)
 
-			checkTimeout = setTimeout(() => {
-				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)
-					.then(exists => {
-						if (!exists) {
-							clearInterval(checkInterval)
-							clearTimeout(checkTimeout)
+			checkTimeout = setTimeout(async () => {
+				try {
+					const [mountExists, webdavOnline] = await Promise.all([
+						checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
+						this.isWebDAVOnline()
+					])
 
-							reject(new Error("Could not start rclone process."))
-						}
-					})
-					.catch(err => {
-						clearInterval(checkInterval)
-						clearTimeout(checkTimeout)
-
-						reject(err)
-					})
+					if (!mountExists || !webdavOnline) {
+						reject(new Error("Could not start virtual drive."))
+					}
+				} catch (e) {
+					reject(e)
+				} finally {
+					clearInterval(checkInterval)
+					clearTimeout(checkTimeout)
+				}
 			}, 15000)
 
 			this.rcloneProcess = spawn(paths.binary, args, {
@@ -212,7 +220,7 @@ export class VirtualDrive {
 				clearInterval(checkInterval)
 				clearTimeout(checkTimeout)
 
-				reject(new Error("Could not start rclone process."))
+				reject(new Error("Could not start virtual drive."))
 			})
 		})
 	}
@@ -258,6 +266,12 @@ export class VirtualDrive {
 		}
 
 		await killProcessByName(this.rcloneBinaryName).catch(() => {})
+
+		if (process.platform !== "win32") {
+			const desktopConfig = await this.worker.waitForConfig()
+
+			await execCommand(`umount -f ${this.normalizePath(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
+		}
 	}
 
 	public async monitor(): Promise<void> {
@@ -351,7 +365,7 @@ export class VirtualDrive {
 			}
 
 			if (!webdavOnline) {
-				throw new Error("Rclone webdav server not started.")
+				throw new Error("WebDAV server not started.")
 			}
 
 			this.active = true

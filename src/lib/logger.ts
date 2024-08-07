@@ -2,7 +2,6 @@ import pathModule from "path"
 import pino, { type Logger as PinoLogger } from "pino"
 import os from "os"
 import fs from "fs-extra"
-import isDev from "../isDev"
 
 export function filenLogsPath(): string {
 	let configPath = ""
@@ -83,46 +82,18 @@ export class Logger {
 		}`
 
 		if (level === "info") {
-			if (isDev) {
-				console.log(log)
-			}
-
 			this.logger.info(log)
 		} else if (level === "debug") {
-			if (isDev) {
-				console.log(log)
-			}
-
 			this.logger.debug(log)
 		} else if (level === "error") {
-			if (isDev) {
-				console.error(log)
-			}
-
 			this.logger.error(log)
 		} else if (level === "warn") {
-			if (isDev) {
-				console.warn(log)
-			}
-
 			this.logger.warn(log)
 		} else if (level === "trace") {
-			if (isDev) {
-				console.trace(log)
-			}
-
 			this.logger.trace(log)
 		} else if (level === "fatal") {
-			if (isDev) {
-				console.error(log)
-			}
-
 			this.logger.fatal(log)
 		} else {
-			if (isDev) {
-				console.log(log)
-			}
-
 			this.logger.info(log)
 		}
 	}
