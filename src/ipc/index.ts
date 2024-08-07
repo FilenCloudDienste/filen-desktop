@@ -18,7 +18,7 @@ import {
 	type SerializedError
 } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
-import { getTrayIcon, getAppIcon } from "../assets"
+import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
 import { DISALLOWED_SYNC_DIRS } from "../constants"
 import os from "os"
@@ -328,6 +328,10 @@ export class IPC {
 
 			this.desktop.driveWindow?.setIcon(getAppIcon(count > 0))
 			this.desktop.tray?.setImage(getTrayIcon(count > 0))
+
+			if (count > 0 && process.platform === "win32") {
+				this.desktop.driveWindow?.setOverlayIcon(getOverlayIcon(count), count.toString())
+			}
 
 			if (process.platform === "darwin") {
 				app.dock.setIcon(getAppIcon(count > 0))

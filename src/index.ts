@@ -8,7 +8,7 @@ import FS from "./lib/fs"
 import url from "url"
 import { IS_ELECTRON } from "./constants"
 import Worker from "./worker"
-import { getAppIcon, getTrayIcon } from "./assets"
+import { getAppIcon, getTrayIcon, getOverlayIcon } from "./assets"
 import Updater from "./lib/updater"
 import isDev from "./isDev"
 import Logger from "./lib/logger"
@@ -193,6 +193,10 @@ export class FilenDesktop {
 		nativeTheme.on("updated", () => {
 			this.driveWindow?.setIcon(getAppIcon(this.notificationCount > 0))
 			this.tray?.setImage(getTrayIcon(this.notificationCount > 0))
+
+			if (this.notificationCount > 0 && process.platform === "win32") {
+				this.driveWindow?.setOverlayIcon(getOverlayIcon(this.notificationCount), this.notificationCount.toString())
+			}
 
 			if (process.platform === "darwin") {
 				app.dock.setIcon(getAppIcon(this.notificationCount > 0))

@@ -1,8 +1,7 @@
 import { nativeImage, nativeTheme } from "electron"
 import pathModule from "path"
-import memoize from "lodash/memoize"
 
-export const getAppIcon = memoize((notification: boolean) => {
+export function getAppIcon(notification: boolean) {
 	return nativeImage.createFromPath(
 		pathModule.join(
 			__dirname,
@@ -16,9 +15,9 @@ export const getAppIcon = memoize((notification: boolean) => {
 			}`
 		)
 	)
-})
+}
 
-export const getTrayIcon = memoize((notification: boolean) => {
+export function getTrayIcon(notification: boolean) {
 	return nativeImage.createFromPath(
 		pathModule.join(
 			__dirname,
@@ -33,4 +32,10 @@ export const getTrayIcon = memoize((notification: boolean) => {
 			}`
 		)
 	)
-})
+}
+
+export function getOverlayIcon(notificationCount: number) {
+	const count = notificationCount > 9 ? 99 : notificationCount
+
+	return nativeImage.createFromPath(pathModule.join(__dirname, "..", "..", "assets", "icons", "app", "overlay", `${count}.png`))
+}
