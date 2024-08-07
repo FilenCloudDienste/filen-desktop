@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.2",
-	"buildNumber": 302,
+	"version": "3.0.3",
+	"buildNumber": 303,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -25,8 +25,7 @@
 		"build:mac": "npm run build && electron-builder -m --publish never",
 		"build:win": "npm run build && electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
-		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest",
-		"publish": "npm run build && npm publish --access=public"
+		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest"
 	},
 	"repository": {
 		"type": "git",
@@ -67,8 +66,8 @@
 	"dependencies": {
 		"@filen/s3": "^0.2.17",
 		"@filen/sdk": "^0.1.139",
-		"@filen/sync": "^0.1.31",
-		"@filen/web": "^0.1.15",
+		"@filen/sync": "^0.1.32",
+		"@filen/web": "^0.1.16",
 		"@filen/webdav": "^0.2.23",
 		"axios": "^1.7.2",
 		"diskusage-ng": "^1.0.4",
