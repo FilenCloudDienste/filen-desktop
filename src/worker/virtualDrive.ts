@@ -27,7 +27,7 @@ export class VirtualDrive {
 	public webdavEndpoint: string = "http://127.0.0.1:1905"
 	public rcloneBinaryName: string = `filen_rclone_${process.platform}_${process.arch}${process.platform === "win32" ? ".exe" : ""}`
 	public active: boolean = false
-	public storedBinaryPath = this.normalizePath(pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName))
+	public storedBinaryPath = pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName)
 
 	public constructor(worker: Worker) {
 		this.worker = worker
@@ -35,9 +35,9 @@ export class VirtualDrive {
 		this.monitor()
 	}
 
-	public normalizePath(path: string): string {
+	public normalizePathForCmd(path: string): string {
 		if (process.platform === "win32") {
-			return pathModule.normalize(path)
+			return path
 		}
 
 		return pathModule.normalize(path).replace(/(\s+)/g, "\\$1")
@@ -47,19 +47,17 @@ export class VirtualDrive {
 		const paths = await this.paths()
 
 		if (!(await fs.exists(this.storedBinaryPath))) {
-			throw new Error("Stored virtual drive binary not found.")
+			throw new Error("Stored virtual drive binary not found in app bundle.")
 		}
 
-		if (await fs.exists(paths.binary)) {
-			return
+		if (!(await fs.exists(paths.binary))) {
+			await fs.copy(this.storedBinaryPath, paths.binary, {
+				overwrite: true
+			})
 		}
-
-		await fs.copy(this.storedBinaryPath, paths.binary, {
-			overwrite: true
-		})
 
 		if (process.platform !== "win32") {
-			await execCommand(`chmod +x ${paths.binary}`)
+			await execCommand(`chmod +x ${this.normalizePathForCmd(paths.binary)}`)
 		}
 	}
 
@@ -71,9 +69,9 @@ export class VirtualDrive {
 		const desktopConfig = await this.worker.waitForConfig()
 
 		return {
-			binary: this.normalizePath(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, this.rcloneBinaryName)),
-			cache: this.normalizePath(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")),
-			config: this.normalizePath(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf"))
+			binary: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, this.rcloneBinaryName),
+			cache: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"),
+			config: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf")
 		}
 	}
 
@@ -84,7 +82,7 @@ export class VirtualDrive {
 			throw new Error(`Virtual drive binary not found at ${paths.binary}.`)
 		}
 
-		return await execCommand(`"${paths.binary}" obscure ${this.webdavPassword}`)
+		return await execCommand(`"${this.normalizePathForCmd(paths.binary)}" obscure ${this.webdavPassword}`)
 	}
 
 	public async writeRCloneConfig(): Promise<void> {
@@ -107,7 +105,7 @@ export class VirtualDrive {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
 		return [
-			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePath(
+			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePathForCmd(
 				desktopConfig.virtualDriveConfig.mountPoint
 			)}`,
 			`--config "${paths.config}"`,
@@ -144,6 +142,26 @@ export class VirtualDrive {
 		]
 	}
 
+	public async isMountActuallyActive(): Promise<boolean> {
+		try {
+			const desktopConfig = await this.worker.waitForConfig()
+			const [mountExists, webdavOnline] = await Promise.all([
+				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
+				this.isWebDAVOnline()
+			])
+
+			if (!mountExists || !webdavOnline) {
+				return false
+			}
+
+			const stat = await fs.stat(desktopConfig.virtualDriveConfig.mountPoint)
+
+			return process.platform === "darwin" || process.platform === "linux" ? stat.ino === 0 || stat.birthtimeMs === 0 : stat.ino === 1
+		} catch {
+			return false
+		}
+	}
+
 	public async spawnRClone(): Promise<void> {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
@@ -169,12 +187,7 @@ export class VirtualDrive {
 
 			checkInterval = setInterval(async () => {
 				try {
-					const [mountExists, webdavOnline] = await Promise.all([
-						checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
-						this.isWebDAVOnline()
-					])
-
-					if (mountExists && webdavOnline) {
+					if (await this.isMountActuallyActive()) {
 						clearInterval(checkInterval)
 						clearTimeout(checkTimeout)
 
@@ -187,24 +200,22 @@ export class VirtualDrive {
 
 			checkTimeout = setTimeout(async () => {
 				try {
-					const [mountExists, webdavOnline] = await Promise.all([
-						checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
-						this.isWebDAVOnline()
-					])
+					if (!(await this.isMountActuallyActive())) {
+						clearInterval(checkInterval)
+						clearTimeout(checkTimeout)
 
-					if (!mountExists || !webdavOnline) {
 						reject(new Error("Could not start virtual drive."))
 					}
 				} catch (e) {
-					reject(e)
-				} finally {
 					clearInterval(checkInterval)
 					clearTimeout(checkTimeout)
+
+					reject(e)
 				}
 			}, 15000)
 
-			this.rcloneProcess = spawn(paths.binary, args, {
-				stdio: ["pipe", "pipe", "pipe", "pipe"],
+			this.rcloneProcess = spawn(this.normalizePathForCmd(paths.binary), args, {
+				stdio: "ignore",
 				shell: true,
 				detached: false
 			})
@@ -270,7 +281,7 @@ export class VirtualDrive {
 		if (process.platform !== "win32") {
 			const desktopConfig = await this.worker.waitForConfig()
 
-			await execCommand(`umount -f ${this.normalizePath(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
+			await execCommand(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
 		}
 	}
 
@@ -280,13 +291,7 @@ export class VirtualDrive {
 				return
 			}
 
-			const desktopConfig = await this.worker.waitForConfig()
-			const [mountExists, webdavOnline] = await Promise.all([
-				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
-				this.isWebDAVOnline()
-			])
-
-			if (!mountExists || !webdavOnline) {
+			if (!(await this.isMountActuallyActive())) {
 				await this.stop()
 			}
 		} catch (e) {
@@ -355,17 +360,8 @@ export class VirtualDrive {
 			await this.writeRCloneConfig()
 			await this.spawnRClone()
 
-			const [mountExists, webdavOnline] = await Promise.all([
-				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
-				this.isWebDAVOnline()
-			])
-
-			if (!mountExists) {
-				throw new Error("Mount not found after starting.")
-			}
-
-			if (!webdavOnline) {
-				throw new Error("WebDAV server not started.")
+			if (!(await this.isMountActuallyActive())) {
+				throw new Error("Could not start virtual drive.")
 			}
 
 			this.active = true
