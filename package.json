@@ -137,13 +137,7 @@
 					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			],
-			"sign": "build/sign.js",
-			"extraFiles": [
-				{
-					"from": "build/winfsp-2.1.24051.msi",
-					"to": "build/winfsp-2.1.24051.msi"
-				}
-			]
+			"sign": "build/sign.js"
 		},
 		"nsis": {
 			"oneClick": false,

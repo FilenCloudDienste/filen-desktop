@@ -175,6 +175,10 @@ export class FilenDesktop {
 		nativeTheme.on("updated", () => {
 			this.driveWindow?.setIcon(getAppIcon(this.notificationCount > 0))
 			this.tray?.setImage(getTrayIcon(this.notificationCount > 0))
+
+			if (process.platform === "darwin") {
+				app.dock.setIcon(getAppIcon(this.notificationCount > 0))
+			}
 		})
 
 		// Open links in default external browser
