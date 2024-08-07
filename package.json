@@ -138,19 +138,36 @@
 					"url": "https://cdn.filen.io/@filen/desktop/release/"
 				}
 			],
-			"sign": "build/sign.js"
+			"sign": "build/sign.js",
+			"extraFiles": [
+				{
+					"from": "build/winfsp-2.1.24051.msi",
+					"to": "build/winfsp-2.1.24051.msi"
+				},
+				{
+					"from": "build/installer.nsh",
+					"to": "build/installer.nsh"
+				}
+			]
 		},
 		"nsis": {
 			"oneClick": false,
-			"createDesktopShortcut": true,
-			"createStartMenuShortcut": true,
 			"deleteAppDataOnUninstall": true,
 			"allowToChangeInstallationDirectory": false,
-			"selectPerMachineByDefault": false,
-			"perMachine": false,
 			"allowElevation": true,
 			"runAfterFinish": true,
+			"packElevateHelper": true,
+			"perMachine": true,
+			"selectPerMachineByDefault": true,
+			"createDesktopShortcut": true,
+			"createStartMenuShortcut": true,
 			"include": "build/installer.nsh"
+		},
+		"deb": {
+			"depends": ["gconf2", "gconf-service", "libnotify4", "libappindicator1", "libxtst6", "libnss3", "fuse3"]
+		},
+		"rpm": {
+			"depends": ["gconf2", "gconf-service", "libnotify4", "libappindicator1", "libxtst6", "libnss3", "fuse3"]
 		},
 		"linux": {
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
