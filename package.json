@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.3",
-	"buildNumber": 303,
+	"version": "3.0.4",
+	"buildNumber": 304,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -164,10 +164,26 @@
 			"include": "build/installer.nsh"
 		},
 		"deb": {
-			"depends": ["gconf2", "gconf-service", "libnotify4", "libappindicator1", "libxtst6", "libnss3", "fuse3"]
+			"depends": [
+				"gconf2",
+				"gconf-service",
+				"libnotify4",
+				"libappindicator1",
+				"libxtst6",
+				"libnss3",
+				"fuse3"
+			]
 		},
 		"rpm": {
-			"depends": ["gconf2", "gconf-service", "libnotify4", "libappindicator1", "libxtst6", "libnss3", "fuse3"]
+			"depends": [
+				"gconf2",
+				"gconf-service",
+				"libnotify4",
+				"libappindicator1",
+				"libxtst6",
+				"libnss3",
+				"fuse3"
+			]
 		},
 		"linux": {
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
