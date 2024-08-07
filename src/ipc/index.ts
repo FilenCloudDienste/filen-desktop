@@ -329,8 +329,12 @@ export class IPC {
 			this.desktop.driveWindow?.setIcon(getAppIcon(count > 0))
 			this.desktop.tray?.setImage(getTrayIcon(count > 0))
 
-			if (count > 0 && process.platform === "win32") {
-				this.desktop.driveWindow?.setOverlayIcon(getOverlayIcon(count), count.toString())
+			if (process.platform === "win32") {
+				if (count > 0) {
+					this.desktop.driveWindow?.setOverlayIcon(getOverlayIcon(count), count.toString())
+				} else {
+					this.desktop.driveWindow?.setOverlayIcon(null, "")
+				}
 			}
 
 			if (process.platform === "darwin") {
@@ -699,7 +703,7 @@ export class IPC {
 			return await isWinFSPInstalled()
 		})
 
-		ipcMain.handle("isUnixMountPointValid", async (_, path): Promise<boolean> => {
+		ipcMain.handle("isUnixMountPointValid", async (_, path: string): Promise<boolean> => {
 			if (process.platform === "win32") {
 				return false
 			}
@@ -707,12 +711,28 @@ export class IPC {
 			return await isUnixMountPointValid(path)
 		})
 
-		ipcMain.handle("isUnixMountPointEmpty", async (_, path): Promise<boolean> => {
+		ipcMain.handle("isUnixMountPointEmpty", async (_, path: string): Promise<boolean> => {
 			if (process.platform === "win32") {
 				return false
 			}
 
 			return await isUnixMountPointEmpty(path)
+		})
+
+		ipcMain.handle("doesPathStartWithHomeDir", async (_, path: string) => {
+			if (process.platform === "win32") {
+				return path.startsWith(`C:\\Users\\${process.env.USER ?? "user"}`)
+			}
+
+			if (process.platform === "linux") {
+				return path.startsWith(`/home/${process.env.USER ?? "user"}`)
+			}
+
+			if (process.platform === "darwin") {
+				return path.startsWith(`/Users/${process.env.USER ?? "user"}`)
+			}
+
+			return false
 		})
 	}
 

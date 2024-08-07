@@ -99,6 +99,7 @@ export type DesktopAPI = {
 	syncResetTaskErrors: (params: { uuid: string }) => Promise<void>
 	syncResetLocalTreeErrors: (params: { uuid: string }) => Promise<void>
 	isAllowedToSyncDirectory: (path: string) => Promise<boolean>
+	doesPathStartWithHomeDir: (path: string) => Promise<boolean>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -186,6 +187,7 @@ if (env.isBrowser || env.isElectron) {
 		syncResetTaskErrors: params => ipcRenderer.invoke("syncResetTaskErrors", params),
 		syncResetLocalTreeErrors: params => ipcRenderer.invoke("syncResetLocalTreeErrors", params),
 		syncToggleLocalTrash: params => ipcRenderer.invoke("syncToggleLocalTrash", params),
-		isAllowedToSyncDirectory: path => ipcRenderer.invoke("isAllowedToSyncDirectory", path)
+		isAllowedToSyncDirectory: path => ipcRenderer.invoke("isAllowedToSyncDirectory", path),
+		doesPathStartWithHomeDir: path => ipcRenderer.invoke("doesPathStartWithHomeDir", path)
 	} satisfies DesktopAPI)
 }

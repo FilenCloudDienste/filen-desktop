@@ -194,8 +194,12 @@ export class FilenDesktop {
 			this.driveWindow?.setIcon(getAppIcon(this.notificationCount > 0))
 			this.tray?.setImage(getTrayIcon(this.notificationCount > 0))
 
-			if (this.notificationCount > 0 && process.platform === "win32") {
-				this.driveWindow?.setOverlayIcon(getOverlayIcon(this.notificationCount), this.notificationCount.toString())
+			if (process.platform === "win32") {
+				if (this.notificationCount > 0) {
+					this.driveWindow?.setOverlayIcon(getOverlayIcon(this.notificationCount), this.notificationCount.toString())
+				} else {
+					this.driveWindow?.setOverlayIcon(null, "")
+				}
 			}
 
 			if (process.platform === "darwin") {

@@ -294,7 +294,11 @@ export class VirtualDrive {
 			const listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
 
 			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
-				await execCommandSudo(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
+				try {
+					await execCommandSudo(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`)
+				} catch {
+					await execCommand(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
+				}
 			}
 		}
 	}
@@ -338,7 +342,10 @@ export class VirtualDrive {
 					throw new Error(`Cannot mount virtual drive at ${desktopConfig.virtualDriveConfig.mountPoint}: Drive letter exists.`)
 				}
 			} else {
-				if (process.platform === "linux" && !desktopConfig.virtualDriveConfig.mountPoint.startsWith("/home")) {
+				if (
+					process.platform === "linux" &&
+					!desktopConfig.virtualDriveConfig.mountPoint.startsWith(`/home/${process.env.USER ?? "user"}`)
+				) {
 					throw new Error("Cannot mount to a directory outside of your home directory.")
 				}
 
