@@ -54,6 +54,8 @@ export class S3 {
 
 			this.active = true
 		} catch (e) {
+			this.worker.logger.log("error", e, "s3")
+
 			await this.stop()
 
 			throw e
@@ -61,18 +63,24 @@ export class S3 {
 	}
 
 	public async stop(): Promise<void> {
-		if (!this.server) {
+		try {
+			if (!this.server) {
+				this.active = false
+
+				return
+			}
+
+			if ((await this.isOnline()) && this.server.serverInstance) {
+				await this.server.stop()
+			}
+
+			this.server = null
 			this.active = false
+		} catch (e) {
+			this.worker.logger.log("error", e, "s3")
 
-			return
+			throw e
 		}
-
-		if ((await this.isOnline()) && this.server.serverInstance) {
-			await this.server.stop()
-		}
-
-		this.server = null
-		this.active = false
 	}
 }
 

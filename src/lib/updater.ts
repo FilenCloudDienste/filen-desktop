@@ -27,6 +27,8 @@ export class Updater {
 		}
 
 		autoUpdater.on("checking-for-update", () => {
+			this.desktop.logger.log("info", "Checking for update")
+
 			this.desktop.ipc.postMainToWindowMessage({
 				type: "updater",
 				data: {
@@ -49,6 +51,8 @@ export class Updater {
 			this.updateDownloaded = false
 			this.updateAvailable = false
 
+			this.desktop.logger.log("error", err, "updater")
+
 			this.desktop.ipc.postMainToWindowMessage({
 				type: "updater",
 				data: {
@@ -60,6 +64,8 @@ export class Updater {
 
 		autoUpdater.on("update-available", () => {
 			this.updateAvailable = true
+
+			this.desktop.logger.log("info", "Update available")
 
 			this.desktop.ipc.postMainToWindowMessage({
 				type: "updater",
@@ -73,6 +79,8 @@ export class Updater {
 			this.updateDownloaded = false
 			this.updateAvailable = false
 
+			this.desktop.logger.log("info", "No update available")
+
 			this.desktop.ipc.postMainToWindowMessage({
 				type: "updater",
 				data: {
@@ -84,6 +92,8 @@ export class Updater {
 		autoUpdater.on("update-downloaded", info => {
 			this.updateDownloaded = true
 
+			this.desktop.logger.log("info", `Update downloaded: ${JSON.stringify(info)}`)
+
 			this.desktop.ipc.postMainToWindowMessage({
 				type: "updater",
 				data: {
@@ -94,6 +104,8 @@ export class Updater {
 		})
 
 		autoUpdater.on("update-cancelled", () => {
+			this.desktop.logger.log("info", "Update cancelled")
+
 			this.desktop.ipc.postMainToWindowMessage({
 				type: "updater",
 				data: {
@@ -107,6 +119,8 @@ export class Updater {
 		if (!this.updateDownloaded || !this.updateAvailable) {
 			throw new Error("No update available to install.")
 		}
+
+		this.desktop.logger.log("info", "Installing update")
 
 		await this.desktop.worker.stop()
 

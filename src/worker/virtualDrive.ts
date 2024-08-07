@@ -276,7 +276,7 @@ export class VirtualDrive {
 				await this.stop()
 			}
 		} catch (e) {
-			console.error(e)
+			this.worker.logger.log("error", e, "virtualDrive")
 		} finally {
 			await new Promise<void>(resolve => setTimeout(resolve, 1000))
 
@@ -356,6 +356,8 @@ export class VirtualDrive {
 
 			this.active = true
 		} catch (e) {
+			this.worker.logger.log("error", e, "virtualDrive")
+
 			await this.stop()
 
 			throw e
@@ -363,17 +365,23 @@ export class VirtualDrive {
 	}
 
 	public async stop(): Promise<void> {
-		const webdavOnline = await this.isWebDAVOnline()
+		try {
+			const webdavOnline = await this.isWebDAVOnline()
 
-		if (webdavOnline && this.webdavServer?.serverInstance) {
-			await this.webdavServer?.stop()
+			if (webdavOnline && this.webdavServer?.serverInstance) {
+				await this.webdavServer?.stop()
+			}
+
+			await this.cleanupRClone()
+
+			this.webdavServer = null
+			this.rcloneProcess = null
+			this.active = false
+		} catch (e) {
+			this.worker.logger.log("error", e, "virtualDrive")
+
+			throw e
 		}
-
-		await this.cleanupRClone()
-
-		this.webdavServer = null
-		this.rcloneProcess = null
-		this.active = false
 	}
 }
 

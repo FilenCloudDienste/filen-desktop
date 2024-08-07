@@ -61,6 +61,8 @@ export class WebDAV {
 
 			this.active = true
 		} catch (e) {
+			this.worker.logger.log("error", e, "webdav")
+
 			await this.stop()
 
 			throw e
@@ -68,18 +70,24 @@ export class WebDAV {
 	}
 
 	public async stop(): Promise<void> {
-		if (!this.server) {
+		try {
+			if (!this.server) {
+				this.active = false
+
+				return
+			}
+
+			if ((await this.isOnline()) && this.server.serverInstance) {
+				await this.server.stop()
+			}
+
+			this.server = null
 			this.active = false
+		} catch (e) {
+			this.worker.logger.log("error", e, "webdav")
 
-			return
+			throw e
 		}
-
-		if ((await this.isOnline()) && this.server.serverInstance) {
-			await this.server.stop()
-		}
-
-		this.server = null
-		this.active = false
 	}
 }
 

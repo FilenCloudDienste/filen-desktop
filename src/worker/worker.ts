@@ -10,6 +10,7 @@ import fs from "fs-extra"
 import Sync from "./sync"
 import FilenSDK from "@filen/sdk"
 import { Semaphore } from "../semaphore"
+import Logger from "../lib/logger"
 
 export class Worker {
 	public desktopConfig: FilenDesktopConfig | null = null
@@ -19,6 +20,7 @@ export class Worker {
 	private sync: Sync
 	private sdk: FilenSDK | null = null
 	private readonly sdkMutex = new Semaphore(1)
+	public readonly logger: Logger
 
 	public constructor() {
 		if (isMainThread || !parentPort) {
@@ -29,6 +31,7 @@ export class Worker {
 		this.s3 = new S3(this)
 		this.virtualDrive = new VirtualDrive(this)
 		this.sync = new Sync(this)
+		this.logger = new Logger(false, true)
 	}
 
 	public async getSDKInstance(): Promise<FilenSDK> {

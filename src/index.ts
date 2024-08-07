@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, protocol, Tray, nativeTheme } from "electron"
+import { app, BrowserWindow, shell, protocol, Tray, nativeTheme, dialog } from "electron"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
@@ -11,6 +11,7 @@ import Worker from "./worker"
 import { getAppIcon, getTrayIcon } from "./assets"
 import Updater from "./lib/updater"
 import isDev from "./isDev"
+import Logger from "./lib/logger"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -40,6 +41,7 @@ export class FilenDesktop {
 	public notificationCount = 0
 	public tray: Tray | null = null
 	public updater: Updater
+	public logger: Logger
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -57,6 +59,7 @@ export class FilenDesktop {
 		}
 		this.worker = new Worker(this)
 		this.updater = new Updater(this)
+		this.logger = new Logger(false, false)
 	}
 
 	/**
@@ -72,7 +75,7 @@ export class FilenDesktop {
 		this.sdk.init(config.sdkConfig)
 		this.sdkInitialized = true
 
-		console.log("SDK initialized")
+		this.logger.log("info", "SDK initialized")
 	}
 
 	/**
@@ -84,43 +87,58 @@ export class FilenDesktop {
 	 * @returns {Promise<void>}
 	 */
 	public async initialize(): Promise<void> {
-		this.initializeSDK()
+		try {
+			this.initializeSDK()
 
-		app.on("window-all-closed", () => {
-			if (process.platform !== "darwin") {
-				app.quit()
-			}
-		})
-
-		await app.whenReady()
-
-		app.setAppUserModelId("io.filen.desktop")
-		app.setName("Filen")
-
-		if (process.platform === "win32") {
-			app.setUserTasks([])
-		}
-
-		// Handle frontend bundle loading in production via file://
-		protocol.interceptFileProtocol("file", (req, callback) => {
-			const url = req.url.slice(7)
-
-			callback({
-				path: pathModule.join(__dirname, "..", "node_modules", "@filen/web", "dist", url)
+			app.on("window-all-closed", () => {
+				if (process.platform !== "darwin") {
+					app.quit()
+				}
 			})
-		})
 
-		app.on("activate", () => {
-			if (BrowserWindow.getAllWindows().length === 0) {
-				this.createMainWindow().catch(console.error)
+			await app.whenReady()
+
+			app.setAppUserModelId("io.filen.desktop")
+			app.setName("Filen")
+
+			if (process.platform === "win32") {
+				app.setUserTasks([])
 			}
-		})
 
-		await this.worker.start()
-		await this.createMainWindow()
-		await this.worker.invoke("restartSync")
+			// Handle frontend bundle loading in production via file://
+			protocol.interceptFileProtocol("file", (req, callback) => {
+				const url = req.url.slice(7)
 
-		this.updater.initialize()
+				callback({
+					path: pathModule.join(__dirname, "..", "node_modules", "@filen/web", "dist", url)
+				})
+			})
+
+			app.on("activate", () => {
+				if (BrowserWindow.getAllWindows().length === 0) {
+					this.createMainWindow().catch(err => {
+						this.logger.log("error", err)
+					})
+				}
+			})
+
+			this.logger.log("info", "Starting worker and creating window")
+
+			await this.worker.start()
+			await this.createMainWindow()
+
+			this.logger.log("info", "Starting sync inside worker")
+
+			await this.worker.invoke("restartSync")
+
+			this.logger.log("info", "Started")
+
+			this.updater.initialize()
+		} catch (e) {
+			this.logger.log("error", e)
+
+			throw e
+		}
 	}
 
 	private async createMainWindow(): Promise<void> {
@@ -207,7 +225,9 @@ export class FilenDesktop {
 }
 
 if (IS_ELECTRON) {
-	new FilenDesktop().initialize().catch(console.error)
+	new FilenDesktop().initialize().catch(err => {
+		dialog.showErrorBox("Could not launch Filen", err instanceof Error ? err.message : "Unknown error")
+	})
 }
 
 export { deserializeError, serializeError } from "@filen/sync"

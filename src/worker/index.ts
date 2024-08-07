@@ -34,8 +34,6 @@ export class Worker {
 			try {
 				e.preventDefault()
 
-				console.log("will-quit")
-
 				await this.stop()
 			} catch {
 				// Noop
@@ -65,8 +63,6 @@ export class Worker {
 						reject
 					}
 
-					console.log("invoke", channel)
-
 					this.worker?.postMessage({
 						type: "invokeRequest",
 						data: {
@@ -82,7 +78,7 @@ export class Worker {
 
 	public async start(): Promise<void> {
 		await new Promise<void>((resolve, reject) => {
-			console.log("starting worker")
+			this.desktop.logger.log("info", "Starting worker")
 
 			this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"), {
 				resourceLimits: {
@@ -105,23 +101,21 @@ export class Worker {
 
 			this.worker?.on("message", async (message: WorkerMessage) => {
 				if (message.type === "error") {
-					console.error(deserializeError(message.data.error))
+					this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
 
 					reject(deserializeError(message.data.error))
 				} else if (message.type === "started") {
-					console.log("worker started")
+					this.desktop.logger.log("info", "Worker started")
 
 					resolve()
 				} else if (message.type === "invokeResponse") {
-					console.log("invokeResponse", message.data.channel, message.data.result)
-
 					if (this.invokes[message.data.id]) {
 						this.invokes[message.data.id]!.resolve(message.data.result)
 
 						delete this.invokes[message.data.id]
 					}
 				} else if (message.type === "invokeError") {
-					console.log("invokeErr", message.data.channel, deserializeError(message.data.error))
+					this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
 
 					if (this.invokes[message.data.id]) {
 						this.invokes[message.data.id]!.reject(deserializeError(message.data.error))
@@ -129,8 +123,6 @@ export class Worker {
 						delete this.invokes[message.data.id]
 					}
 				} else if (message.type === "sync") {
-					//console.log("syncMsg", message.data.type)
-
 					this.desktop.ipc.postMainToWindowMessage({
 						type: "sync",
 						message: message.data
@@ -148,8 +140,6 @@ export class Worker {
 
 			return
 		}
-
-		console.log("stopping worker")
 
 		await this.invoke("stop")
 		await this.worker.terminate()
