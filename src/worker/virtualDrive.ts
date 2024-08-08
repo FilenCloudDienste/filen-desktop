@@ -292,14 +292,17 @@ export class VirtualDrive {
 
 		if (process.platform === "linux" || process.platform === "darwin") {
 			const desktopConfig = await this.worker.waitForConfig()
-			const listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
+			const umountCmd = `umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
+			let listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
 
 			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
-				try {
-					await execCommandSudo(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`)
-				} catch {
-					await execCommand(`umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`).catch(() => {})
-				}
+				await execCommand(umountCmd).catch(() => {})
+			}
+
+			listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
+
+			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
+				await execCommandSudo(umountCmd).catch(() => {})
 			}
 		}
 	}
