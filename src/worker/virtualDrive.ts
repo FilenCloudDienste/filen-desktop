@@ -87,7 +87,7 @@ export class VirtualDrive {
 			throw new Error(`Virtual drive binary not found at ${paths.binary}.`)
 		}
 
-		return await execCommand(`"${this.normalizePathForCmd(paths.binary)}" obscure ${this.webdavPassword}`)
+		return await execCommand(`${this.normalizePathForCmd(paths.binary)} obscure ${this.webdavPassword}`)
 	}
 
 	public async writeRCloneConfig(): Promise<void> {
