@@ -316,7 +316,7 @@ export class VirtualDrive {
 		} catch (e) {
 			this.worker.logger.log("error", e, "virtualDrive")
 		} finally {
-			await new Promise<void>(resolve => setTimeout(resolve, 1000))
+			await new Promise<void>(resolve => setTimeout(resolve, 15000))
 
 			this.monitor()
 		}
