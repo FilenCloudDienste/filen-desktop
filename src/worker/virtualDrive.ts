@@ -11,7 +11,8 @@ import {
 	killProcessByName,
 	isWinFSPInstalled,
 	killProcessByPid,
-	execCommandSudo
+	execCommandSudo,
+	isFUSEInstalledOnLinux
 } from "../utils"
 import WebDAVServer from "@filen/webdav"
 import { type ChildProcess, spawn } from "child_process"
@@ -328,7 +329,11 @@ export class VirtualDrive {
 			await this.stop()
 
 			if (process.platform === "win32" && !(await isWinFSPInstalled())) {
-				throw new Error("WinFSP not found.")
+				throw new Error("WinFSP not installed.")
+			}
+
+			if (process.platform === "linux" && !(await isFUSEInstalledOnLinux())) {
+				throw new Error("FUSE not installed.")
 			}
 
 			await this.copyRCloneBinary()

@@ -342,6 +342,27 @@ export async function isWinFSPInstalled(): Promise<boolean> {
 	return false
 }
 
+export async function isFUSEInstalledOnLinux(): Promise<boolean> {
+	if (process.platform !== "linux") {
+		return false
+	}
+
+	try {
+		const stdout = await execCommand(
+			// eslint-disable-next-line quotes
+			'dpkg -l | grep -E "^ii\\s+fuse3\\s|^ii\\s+fuse2\\s|^ii\\s+fuse\\s|^ii\\s+libfuse3\\s|^ii\\s+libfuse2\\s|^ii\\s+libfuse\\s"'
+		)
+
+		if (!stdout.includes("fuse")) {
+			return false
+		}
+
+		return true
+	} catch {
+		return false
+	}
+}
+
 export type SerializedError = {
 	name: string
 	message: string

@@ -166,28 +166,6 @@
 			"createStartMenuShortcut": true,
 			"include": "build/installer.nsh"
 		},
-		"deb": {
-			"depends": [
-				"gconf2",
-				"gconf-service",
-				"libnotify4",
-				"libappindicator1",
-				"libxtst6",
-				"libnss3",
-				"fuse3"
-			]
-		},
-		"rpm": {
-			"depends": [
-				"gconf2",
-				"gconf-service",
-				"libnotify4",
-				"libappindicator1",
-				"libxtst6",
-				"libnss3",
-				"fuse3"
-			]
-		},
 		"linux": {
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
