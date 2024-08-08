@@ -34,8 +34,11 @@ export function getTrayIcon(notification: boolean) {
 	)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function getOverlayIcon(notificationCount: number) {
-	const count = notificationCount > 9 ? 99 : notificationCount
+	//const count = notificationCount > 9 ? 99 : notificationCount
+
+	const count = 0
 
 	return nativeImage.createFromPath(pathModule.join(__dirname, "..", "..", "assets", "icons", "app", "overlay", `${count}.png`))
 }
