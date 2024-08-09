@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.4",
-	"buildNumber": 304,
+	"version": "3.0.5",
+	"buildNumber": 305,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -67,7 +67,7 @@
 		"@filen/s3": "^0.2.18",
 		"@filen/sdk": "^0.1.143",
 		"@filen/sync": "^0.1.34",
-		"@filen/web": "^0.1.17",
+		"@filen/web": "^0.1.18",
 		"@filen/webdav": "^0.2.24",
 		"axios": "^1.7.2",
 		"diskusage-ng": "^1.0.4",
