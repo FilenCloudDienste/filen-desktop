@@ -19,12 +19,13 @@ export class Worker {
 	public active: boolean = false
 	private readonly startMutex = new Semaphore(1)
 	private readonly stopMutex = new Semaphore(1)
+	private didQuitApp = false
 
 	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
 
 		app.on("will-quit", async e => {
-			if (this.isQuittingApp) {
+			if (this.isQuittingApp || this.didQuitApp) {
 				return
 			}
 
@@ -37,7 +38,9 @@ export class Worker {
 			} catch {
 				// Noop
 			} finally {
-				process.exit(0)
+				this.didQuitApp = true
+
+				app.quit()
 			}
 		})
 	}
