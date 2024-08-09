@@ -7,6 +7,7 @@ import type FilenDesktop from ".."
 import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
 import fs from "fs-extra"
+import { Semaphore } from "../semaphore"
 
 export class Worker {
 	private worker: WorkerThread | null = null
@@ -16,6 +17,8 @@ export class Worker {
 	private isQuittingApp = false
 	private desktop: FilenDesktop
 	public active: boolean = false
+	private readonly startMutex = new Semaphore(1)
+	private readonly stopMutex = new Semaphore(1)
 
 	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
@@ -73,76 +76,88 @@ export class Worker {
 	}
 
 	public async start(): Promise<void> {
-		await new Promise<void>((resolve, reject) => {
-			this.desktop.logger.log("info", "Starting worker")
+		await this.startMutex.acquire()
 
-			this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"), {
-				resourceLimits: {
-					maxOldGenerationSizeMb: 3584,
-					maxYoungGenerationSizeMb: 512,
-					codeRangeSizeMb: 512
-				}
-			})
+		try {
+			await new Promise<void>((resolve, reject) => {
+				this.desktop.logger.log("info", "Starting worker")
 
-			this.worker?.on("error", reject)
-
-			if (isDev) {
-				this.worker?.stderr.on("data", chunk => {
-					console.log("worker stderr", chunk.toString("utf-8"))
+				this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"), {
+					resourceLimits: {
+						maxOldGenerationSizeMb: 3584,
+						maxYoungGenerationSizeMb: 512,
+						codeRangeSizeMb: 512
+					}
 				})
 
-				this.worker?.stdout.on("data", chunk => {
-					console.log("worker stdout", chunk.toString("utf-8"))
-				})
-			}
+				this.worker?.on("error", reject)
 
-			this.worker?.on("message", async (message: WorkerMessage) => {
-				if (message.type === "error") {
-					this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
+				if (isDev) {
+					this.worker?.stderr.on("data", chunk => {
+						console.log("worker stderr", chunk.toString("utf-8"))
+					})
 
-					reject(deserializeError(message.data.error))
-				} else if (message.type === "started") {
-					this.desktop.logger.log("info", "Worker started")
-
-					resolve()
-				} else if (message.type === "invokeResponse") {
-					if (this.invokes[message.data.id]) {
-						this.invokes[message.data.id]!.resolve(message.data.result)
-
-						delete this.invokes[message.data.id]
-					}
-				} else if (message.type === "invokeError") {
-					this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
-
-					if (this.invokes[message.data.id]) {
-						this.invokes[message.data.id]!.reject(deserializeError(message.data.error))
-
-						delete this.invokes[message.data.id]
-					}
-				} else if (message.type === "sync") {
-					this.desktop.ipc.postMainToWindowMessage({
-						type: "sync",
-						message: message.data
+					this.worker?.stdout.on("data", chunk => {
+						console.log("worker stdout", chunk.toString("utf-8"))
 					})
 				}
-			})
-		})
 
-		this.active = true
+				this.worker?.on("message", async (message: WorkerMessage) => {
+					if (message.type === "error") {
+						this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
+
+						reject(deserializeError(message.data.error))
+					} else if (message.type === "started") {
+						this.desktop.logger.log("info", "Worker started")
+
+						resolve()
+					} else if (message.type === "invokeResponse") {
+						if (this.invokes[message.data.id]) {
+							this.invokes[message.data.id]!.resolve(message.data.result)
+
+							delete this.invokes[message.data.id]
+						}
+					} else if (message.type === "invokeError") {
+						this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
+
+						if (this.invokes[message.data.id]) {
+							this.invokes[message.data.id]!.reject(deserializeError(message.data.error))
+
+							delete this.invokes[message.data.id]
+						}
+					} else if (message.type === "sync") {
+						this.desktop.ipc.postMainToWindowMessage({
+							type: "sync",
+							message: message.data
+						})
+					}
+				})
+			})
+
+			this.active = true
+		} finally {
+			this.startMutex.release()
+		}
 	}
 
 	public async stop(): Promise<void> {
-		if (!this.worker) {
+		await this.stopMutex.acquire()
+
+		try {
+			if (!this.worker) {
+				this.active = false
+
+				return
+			}
+
+			await this.invoke("stop")
+			await this.worker.terminate()
+
+			this.worker = null
 			this.active = false
-
-			return
+		} finally {
+			this.stopMutex.release()
 		}
-
-		await this.invoke("stop")
-		await this.worker.terminate()
-
-		this.worker = null
-		this.active = false
 	}
 
 	public async isWebDAVOnline(): Promise<boolean> {

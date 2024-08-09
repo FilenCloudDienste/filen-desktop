@@ -22,6 +22,8 @@ import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
 import { DISALLOWED_SYNC_DIRS } from "../constants"
 import os from "os"
+import { zip } from "zip-a-folder"
+import { filenLogsPath } from "../lib/logger"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -351,6 +353,69 @@ export class IPC {
 
 		ipcMain.handle("installUpdate", async () => {
 			await this.desktop.updater.installUpdate()
+		})
+
+		ipcMain.handle("exportLogs", async () => {
+			if (!this.desktop.driveWindow) {
+				return
+			}
+
+			const name = `filenDesktopLogs_${Date.now()}.zip`
+			const { canceled, filePath } = await dialog.showSaveDialog(this.desktop.driveWindow, {
+				properties: ["createDirectory", "showHiddenFiles", "showOverwriteConfirmation", "treatPackageAsDirectory"],
+				defaultPath: name
+			})
+
+			if (canceled || !filePath) {
+				return
+			}
+
+			const parentPath = pathModule.dirname(filePath)
+			const canWrite = await new Promise<boolean>(resolve =>
+				fs.access(parentPath, fs.constants.W_OK | fs.constants.R_OK, err => resolve(err ? false : true))
+			)
+
+			if (!canWrite) {
+				throw new Error(`Cannot write at path ${parentPath}.`)
+			}
+
+			const logsPath = await filenLogsPath()
+			const dir = await fs.readdir(logsPath, {
+				recursive: false,
+				encoding: "utf-8"
+			})
+
+			if (dir.length === 0) {
+				return
+			}
+
+			await zip(logsPath, pathModule.join(pathModule.dirname(filePath), name), {
+				compression: 9
+			})
+		})
+
+		ipcMain.handle("version", async () => {
+			return app.getVersion()
+		})
+
+		ipcMain.handle("restartWorker", async () => {
+			await this.desktop.worker.stop()
+			await this.desktop.worker.start()
+		})
+
+		ipcMain.handle("getLocalDirectoryItemCount", async (_, path: string) => {
+			const canRead = await new Promise<boolean>(resolve => fs.access(path, fs.constants.R_OK, err => resolve(err ? false : true)))
+
+			if (!canRead) {
+				throw new Error(`Cannot read at path ${path}.`)
+			}
+
+			const dir = await fs.readdir(path, {
+				recursive: true,
+				encoding: "utf-8"
+			})
+
+			return dir.length
 		})
 	}
 

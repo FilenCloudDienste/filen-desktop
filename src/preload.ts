@@ -100,6 +100,10 @@ export type DesktopAPI = {
 	syncResetLocalTreeErrors: (params: { uuid: string }) => Promise<void>
 	isAllowedToSyncDirectory: (path: string) => Promise<boolean>
 	doesPathStartWithHomeDir: (path: string) => Promise<boolean>
+	exportLogs: () => Promise<void>
+	version: () => Promise<string>
+	restartWorker: () => Promise<void>
+	getLocalDirectoryItemCount: (path: string) => Promise<number>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -188,6 +192,10 @@ if (env.isBrowser || env.isElectron) {
 		syncResetLocalTreeErrors: params => ipcRenderer.invoke("syncResetLocalTreeErrors", params),
 		syncToggleLocalTrash: params => ipcRenderer.invoke("syncToggleLocalTrash", params),
 		isAllowedToSyncDirectory: path => ipcRenderer.invoke("isAllowedToSyncDirectory", path),
-		doesPathStartWithHomeDir: path => ipcRenderer.invoke("doesPathStartWithHomeDir", path)
+		doesPathStartWithHomeDir: path => ipcRenderer.invoke("doesPathStartWithHomeDir", path),
+		exportLogs: () => ipcRenderer.invoke("exportLogs"),
+		version: () => ipcRenderer.invoke("version"),
+		restartWorker: () => ipcRenderer.invoke("restartWorker"),
+		getLocalDirectoryItemCount: path => ipcRenderer.invoke("getLocalDirectoryItemCount", path)
 	} satisfies DesktopAPI)
 }
