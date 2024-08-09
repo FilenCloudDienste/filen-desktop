@@ -29,22 +29,22 @@ git clone https://github.com/FilenCloudDienste/filen-desktop filen-desktop
 cd filen-desktop && npm install
 ```
 
-2. Running a development build
+3. Running a development build
 
-To run a development build you need to have "@filen/web" running locally.
+To run a development build you need to have "@filen/web" (dev) running locally.
 
 ```sh
 npm run dev
 ```
 
-3. Build
+4. Build
 
 ```sh
 npm run build:<os>
 
 Where <os> is either "win", "mac" or "linux"
 
-Building the client requires setting up signing and notarization. See "build/" directory.
+Building the client requires setting up signing and notarization. See "build/" directory and package.json key.
 ```
 
 ## License
