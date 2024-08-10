@@ -64,11 +64,11 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/s3": "^0.2.18",
-		"@filen/sdk": "^0.1.143",
-		"@filen/sync": "^0.1.34",
+		"@filen/s3": "^0.2.21",
+		"@filen/sdk": "^0.1.147",
+		"@filen/sync": "^0.1.39",
 		"@filen/web": "^0.1.18",
-		"@filen/webdav": "^0.2.24",
+		"@filen/webdav": "^0.2.27",
 		"axios": "^1.7.2",
 		"diskusage-ng": "^1.0.4",
 		"electron-updater": "^6.2.1",
