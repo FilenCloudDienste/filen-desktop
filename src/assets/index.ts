@@ -1,7 +1,7 @@
 import { nativeImage, nativeTheme } from "electron"
 import pathModule from "path"
 
-export function getAppIcon(notification: boolean) {
+export function getAppIcon() {
 	return nativeImage.createFromPath(
 		pathModule.join(
 			__dirname,
@@ -10,9 +10,7 @@ export function getAppIcon(notification: boolean) {
 			"assets",
 			"icons",
 			"app",
-			`${process.platform}${notification ? "Notification" : ""}.${
-				process.platform === "win32" ? "ico" : process.platform === "darwin" ? "icns" : "png"
-			}`
+			`${process.platform}.${process.platform === "win32" ? "ico" : process.platform === "darwin" ? "icns" : "png"}`
 		)
 	)
 }

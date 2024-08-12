@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron"
+import { contextBridge, ipcRenderer, type LoginItemSettings } from "electron"
 import {
 	type IPCDownloadFileParams,
 	type IPCDownloadDirectoryParams,
@@ -104,6 +104,8 @@ export type DesktopAPI = {
 	version: () => Promise<string>
 	restartWorker: () => Promise<void>
 	getLocalDirectoryItemCount: (path: string) => Promise<number>
+	getAutoLaunch: () => Promise<LoginItemSettings>
+	isFUSEInstalledOnLinux: () => Promise<boolean>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -196,6 +198,8 @@ if (env.isBrowser || env.isElectron) {
 		exportLogs: () => ipcRenderer.invoke("exportLogs"),
 		version: () => ipcRenderer.invoke("version"),
 		restartWorker: () => ipcRenderer.invoke("restartWorker"),
-		getLocalDirectoryItemCount: path => ipcRenderer.invoke("getLocalDirectoryItemCount", path)
+		getLocalDirectoryItemCount: path => ipcRenderer.invoke("getLocalDirectoryItemCount", path),
+		getAutoLaunch: () => ipcRenderer.invoke("getAutoLaunch"),
+		isFUSEInstalledOnLinux: () => ipcRenderer.invoke("isFUSEInstalledOnLinux")
 	} satisfies DesktopAPI)
 }

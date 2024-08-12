@@ -88,11 +88,29 @@ export class FilenDesktop {
 	 */
 	public async initialize(): Promise<void> {
 		try {
+			const lock = app.requestSingleInstanceLock()
+
+			if (!lock) {
+				app.quit()
+
+				return
+			}
+
 			this.initializeSDK()
 
 			app.on("window-all-closed", () => {
 				if (process.platform !== "darwin") {
 					app.quit()
+				}
+			})
+
+			app.on("second-instance", () => {
+				if (this.driveWindow) {
+					if (this.driveWindow.isMinimized()) {
+						this.driveWindow.restore()
+					}
+
+					this.driveWindow.focus()
 				}
 			})
 
@@ -154,7 +172,7 @@ export class FilenDesktop {
 			minWidth: 1280,
 			minHeight: 720,
 			titleBarStyle: "hidden",
-			icon: getAppIcon(this.notificationCount > 0),
+			icon: getAppIcon(),
 			trafficLightPosition: {
 				x: 10,
 				y: 10
@@ -191,7 +209,7 @@ export class FilenDesktop {
 
 		// Handle different icons based on the user's theme (dark/light)
 		nativeTheme.on("updated", () => {
-			this.driveWindow?.setIcon(getAppIcon(this.notificationCount > 0))
+			this.driveWindow?.setIcon(getAppIcon())
 			this.tray?.setImage(getTrayIcon(this.notificationCount > 0))
 
 			if (process.platform === "win32") {
@@ -203,7 +221,11 @@ export class FilenDesktop {
 			}
 
 			if (process.platform === "darwin") {
-				app.dock.setIcon(getAppIcon(this.notificationCount > 0))
+				app.dock.setIcon(getAppIcon())
+			}
+
+			if (process.platform === "darwin" || (process.platform === "linux" && app.isUnityRunning())) {
+				app.setBadgeCount(this.notificationCount)
 			}
 		})
 

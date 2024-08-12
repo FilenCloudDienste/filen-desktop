@@ -15,7 +15,8 @@ import {
 	isWinFSPInstalled,
 	isUnixMountPointValid,
 	isUnixMountPointEmpty,
-	type SerializedError
+	type SerializedError,
+	isFUSEInstalledOnLinux
 } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
@@ -328,7 +329,7 @@ export class IPC {
 		ipcMain.handle("updateNotificationCount", async (_, count: number) => {
 			this.desktop.notificationCount = count
 
-			this.desktop.driveWindow?.setIcon(getAppIcon(count > 0))
+			this.desktop.driveWindow?.setIcon(getAppIcon())
 			this.desktop.tray?.setImage(getTrayIcon(count > 0))
 
 			if (process.platform === "win32") {
@@ -340,7 +341,11 @@ export class IPC {
 			}
 
 			if (process.platform === "darwin") {
-				app.dock.setIcon(getAppIcon(count > 0))
+				app.dock.setIcon(getAppIcon())
+			}
+
+			if (process.platform === "darwin" || (process.platform === "linux" && app.isUnityRunning())) {
+				app.setBadgeCount(count)
 			}
 		})
 
@@ -348,6 +353,12 @@ export class IPC {
 			app.setLoginItemSettings({
 				openAtLogin: enabled,
 				...(enabled ? { openAsHidden: true, args: ["--hidden"] } : {})
+			})
+		})
+
+		ipcMain.handle("getAutoLaunch", async () => {
+			return app.getLoginItemSettings({
+				args: ["--hidden"]
 			})
 		})
 
@@ -766,6 +777,14 @@ export class IPC {
 			}
 
 			return await isWinFSPInstalled()
+		})
+
+		ipcMain.handle("isFUSEInstalledOnLinux", async () => {
+			if (process.platform !== "linux") {
+				return false
+			}
+
+			return await isFUSEInstalledOnLinux()
 		})
 
 		ipcMain.handle("isUnixMountPointValid", async (_, path: string): Promise<boolean> => {
