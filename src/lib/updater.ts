@@ -16,6 +16,7 @@ export class Updater {
 	private readonly desktop: FilenDesktop
 	public updateDownloaded: boolean = false
 	public updateAvailable: boolean = false
+	private interval: ReturnType<typeof setInterval> | undefined = undefined
 
 	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
@@ -113,6 +114,20 @@ export class Updater {
 				}
 			})
 		})
+
+		autoUpdater.checkForUpdates().catch(err => {
+			this.desktop.logger.log("error", err, "updater.interval")
+			this.desktop.logger.log("error", err)
+		})
+
+		clearInterval(this.interval)
+
+		this.interval = setInterval(() => {
+			autoUpdater.checkForUpdates().catch(err => {
+				this.desktop.logger.log("error", err, "updater.interval")
+				this.desktop.logger.log("error", err)
+			})
+		}, 3600000)
 	}
 
 	public async installUpdate(): Promise<void> {

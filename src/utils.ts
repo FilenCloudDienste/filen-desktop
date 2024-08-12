@@ -350,10 +350,10 @@ export async function isFUSEInstalledOnLinux(): Promise<boolean> {
 	try {
 		const stdout = await execCommand(
 			// eslint-disable-next-line quotes
-			'dpkg -l | grep -E "^ii\\s+fuse3\\s|^ii\\s+fuse2\\s|^ii\\s+fuse\\s|^ii\\s+libfuse3\\s|^ii\\s+libfuse2\\s|^ii\\s+libfuse\\s"'
+			'dpkg -l | grep -E "^ii\\s+fuse3\\s|^ii\\s+libfuse3\\s"'
 		)
 
-		if (!stdout.includes("fuse")) {
+		if (!stdout.includes("fuse3")) {
 			return false
 		}
 
