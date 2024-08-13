@@ -35,6 +35,7 @@ export class Worker {
 				e.preventDefault()
 
 				await this.stop()
+				await new Promise<void>(resolve => setTimeout(resolve, 3000))
 			} catch {
 				// Noop
 			} finally {
