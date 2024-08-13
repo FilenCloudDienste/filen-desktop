@@ -4,8 +4,6 @@ export let CONFIG: FilenDesktopConfig | null = null
 
 export function setConfig(config: FilenDesktopConfig): void {
 	CONFIG = config
-
-	console.log("Desktop config set")
 }
 
 export function waitForConfig(): Promise<FilenDesktopConfig> {

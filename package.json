@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.5",
-	"buildNumber": 305,
+	"version": "3.0.6",
+	"buildNumber": 306,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -53,7 +53,7 @@
 		"@typescript-eslint/parser": "^6.20.0",
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
-		"electron": "^31.3.0",
+		"electron": "^31.3.1",
 		"electron-builder": "^24.13.3",
 		"eslint": "^8.56.0",
 		"jest": "^29.7.0",
@@ -66,7 +66,7 @@
 	"dependencies": {
 		"@filen/s3": "^0.2.21",
 		"@filen/sdk": "^0.1.147",
-		"@filen/sync": "^0.1.39",
+		"@filen/sync": "^0.1.41",
 		"@filen/web": "^0.1.18",
 		"@filen/webdav": "^0.2.27",
 		"axios": "^1.7.2",
@@ -110,7 +110,7 @@
 		"publish": [
 			{
 				"provider": "generic",
-				"url": "https://cdn.filen.io/@filen/desktop/release/"
+				"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 			}
 		],
 		"win": {
@@ -139,7 +139,7 @@
 			"publish": [
 				{
 					"provider": "generic",
-					"url": "https://cdn.filen.io/@filen/desktop/release/"
+					"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 				}
 			],
 			"sign": "build/sign.js",
@@ -207,7 +207,7 @@
 			"publish": [
 				{
 					"provider": "generic",
-					"url": "https://cdn.filen.io/@filen/desktop/release/"
+					"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 				}
 			]
 		},
@@ -237,7 +237,7 @@
 			"publish": [
 				{
 					"provider": "generic",
-					"url": "https://cdn.filen.io/@filen/desktop/release/"
+					"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 				}
 			],
 			"icon": "build/icons/mac/icon.icns"

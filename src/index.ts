@@ -42,6 +42,7 @@ export class FilenDesktop {
 	public tray: Tray | null = null
 	public updater: Updater
 	public logger: Logger
+	public isUnityRunning: boolean = process.platform === "linux" ? app.isUnityRunning() : false
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -151,7 +152,9 @@ export class FilenDesktop {
 
 			this.logger.log("info", "Started")
 
-			this.updater.initialize()
+			setTimeout(() => {
+				this.updater.initialize()
+			}, 15000)
 		} catch (e) {
 			this.logger.log("error", e)
 
@@ -224,7 +227,7 @@ export class FilenDesktop {
 				app.dock.setIcon(getAppIcon())
 			}
 
-			if (process.platform === "darwin" || (process.platform === "linux" && app.isUnityRunning())) {
+			if (process.platform === "darwin" || (process.platform === "linux" && this.isUnityRunning)) {
 				app.setBadgeCount(this.notificationCount)
 			}
 		})

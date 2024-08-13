@@ -40,7 +40,7 @@ export class Worker {
 			} finally {
 				this.didQuitApp = true
 
-				app.quit()
+				app.exit(0)
 			}
 		})
 	}

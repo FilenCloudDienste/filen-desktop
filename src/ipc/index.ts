@@ -344,7 +344,7 @@ export class IPC {
 				app.dock.setIcon(getAppIcon())
 			}
 
-			if (process.platform === "darwin" || (process.platform === "linux" && app.isUnityRunning())) {
+			if (process.platform === "darwin" || (process.platform === "linux" && this.desktop.isUnityRunning)) {
 				app.setBadgeCount(count)
 			}
 		})
