@@ -31,8 +31,13 @@ jobs:
               run: npm install @parcel/watcher-win32-ia32 @parcel/watcher-win32-x64 @parcel/watcher-win32-arm64 --force
             - name: Clear builder cache
               run: |
-                  Remove-Item -Recurse -Force "$env:LOCALAPPDATA\electron-builder\cache"
-                  Remove-Item -Recurse -Force "C:\Windows\Temp\electron-builder-cache"
+                  if (Test-Path "$env:LOCALAPPDATA\electron-builder\cache") {
+                    Remove-Item -Recurse -Force "$env:LOCALAPPDATA\electron-builder\cache"
+                  }
+
+                  if (Test-Path "C:\Windows\Temp\electron-builder-cache") {
+                    Remove-Item -Recurse -Force "C:\Windows\Temp\electron-builder-cache"
+                  }
             - name: Build
               run: npm run build:win
               env:
@@ -87,7 +92,10 @@ jobs:
             - name: Install prebuilts
               run: npm install @parcel/watcher-linux-x64-glibc @parcel/watcher-linux-x64-musl @parcel/watcher-linux-arm64-musl @parcel/watcher-linux-arm64-glibc @parcel/watcher-linux-arm-glibc --force
             - name: Clear builder cache
-              run: rm -rf ~/.cache/electron-builder/
+              run: |
+                  if [ -d "~/.cache/electron-builder" ]; then
+                      rm -rf ~/.cache/electron-builder/
+                  fi
             - name: Build
               run: npm run build:linux
             - name: Generate SHA256 hashes
@@ -159,7 +167,10 @@ jobs:
                   security unlock-keychain -p actions ~/Library/Keychains/build.keychain
                   security set-key-partition-list -S apple-tool:,apple: -s -k actions ~/Library/Keychains/build.keychain
             - name: Clear builder cache
-              run: rm -rf ~/Library/Caches/electron-builder/
+              run: |
+                  if [ -d "~/Library/Caches/electron-builder" ]; then
+                      rm -rf ~/Library/Caches/electron-builder/
+                  fi
             - name: Build
               run: npm run build:mac
             - name: Generate SHA256 hashes
