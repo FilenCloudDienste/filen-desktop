@@ -31,7 +31,7 @@ cd filen-desktop && npm install
 
 3. Running a development build
 
-To run a development build you need to have "@filen/web" (dev) running locally.
+To run a development build you need to have "@filen/web" (`npm run dev`) running locally.
 
 ```sh
 npm run dev
