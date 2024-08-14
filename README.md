@@ -17,7 +17,7 @@ The package is still a work in progress. DO NOT USE IT IN PRODUCTION YET. Class 
 
 ### Installation and building
 
-1. Install using NPM
+1. Clone repository
 
 ```sh
 git clone https://github.com/FilenCloudDienste/filen-desktop filen-desktop
