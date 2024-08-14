@@ -19,6 +19,7 @@ import { type ChildProcess, spawn } from "child_process"
 import findFreePorts from "find-free-ports"
 import type Worker from "./worker"
 import { Semaphore } from "../semaphore"
+import writeFileAtomic from "write-file-atomic"
 
 export class VirtualDrive {
 	private worker: Worker
@@ -95,7 +96,7 @@ export class VirtualDrive {
 		const obscuredPassword = await this.obscureRClonePassword()
 		const content = `[Filen]\ntype = webdav\nurl = ${this.webdavEndpoint}\nvendor = other\nuser = ${this.webdavUsername}\npass = ${obscuredPassword}`
 
-		await fs.writeFile(paths.config, content, "utf-8")
+		await writeFileAtomic(paths.config, content, "utf-8")
 	}
 
 	public async isWebDAVOnline(): Promise<boolean> {

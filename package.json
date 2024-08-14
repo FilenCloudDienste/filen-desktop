@@ -49,6 +49,7 @@
 		"@types/lodash": "^4.14.202",
 		"@types/mime-types": "^2.1.4",
 		"@types/uuid": "^9.0.8",
+		"@types/write-file-atomic": "^4.0.3",
 		"@typescript-eslint/eslint-plugin": "^6.20.0",
 		"@typescript-eslint/parser": "^6.20.0",
 		"cross-env": "^7.0.3",
@@ -81,6 +82,7 @@
 		"sudo-prompt": "^9.2.1",
 		"typed-emitter": "^2.1.0",
 		"uuid": "^9.0.1",
+		"write-file-atomic": "^5.0.1",
 		"zip-a-folder": "^3.1.7"
 	},
 	"build": {

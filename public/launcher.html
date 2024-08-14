@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>Filen</title>
+		<style>
+			:root {
+				--bg-color-light: #ffffff;
+				--bg-color-dark: #09090b;
+				--border-color-dark: #27272a;
+				--border-color-light: #e4e4e7;
+			}
+
+			@media (prefers-color-scheme: light) {
+				body {
+					background-color: var(--bg-color-light);
+					border: 1px solid var(--border-color-light);
+				}
+
+				.logo {
+					background-image: url("dark_logo.svg");
+				}
+			}
+
+			@media (prefers-color-scheme: dark) {
+				body {
+					background-color: var(--bg-color-dark);
+					border: 1px solid var(--border-color-dark);
+				}
+
+				.logo {
+					background-image: url("light_logo.svg");
+				}
+			}
+
+			body,
+			html {
+				height: 100%;
+				width: 100%;
+				margin: 0;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-family: Arial, sans-serif;
+				overflow: hidden;
+			}
+
+			.logo {
+				width: 90px;
+				height: 90px;
+				background-size: contain;
+				background-repeat: no-repeat;
+				background-position: center;
+				animation: ping 2s infinite;
+			}
+
+			@keyframes ping {
+				0% {
+					transform: scale(1);
+					opacity: 1;
+				}
+				50% {
+					transform: scale(1.2);
+					opacity: 0.75;
+				}
+				100% {
+					transform: scale(1);
+					opacity: 1;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<div class="logo"></div>
+	</body>
+</html>

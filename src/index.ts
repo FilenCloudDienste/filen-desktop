@@ -30,6 +30,7 @@ if (IS_ELECTRON) {
  */
 export class FilenDesktop {
 	public driveWindow: BrowserWindow | null = null
+	public launcherWindow: BrowserWindow | null = null
 	public readonly ipc: IPC
 	public readonly sdk: FilenSDK
 	public readonly worker: Worker
@@ -92,10 +93,13 @@ export class FilenDesktop {
 			const lock = app.requestSingleInstanceLock()
 
 			if (!lock) {
-				app.quit()
+				app.exit(0)
 
 				return
 			}
+
+			await app.whenReady()
+			await this.createLauncherWindow()
 
 			this.initializeSDK()
 
@@ -114,8 +118,6 @@ export class FilenDesktop {
 					this.driveWindow.focus()
 				}
 			})
-
-			await app.whenReady()
 
 			app.setAppUserModelId("io.filen.desktop")
 			app.setName("Filen")
@@ -146,6 +148,8 @@ export class FilenDesktop {
 			await this.worker.start()
 			await this.createMainWindow()
 
+			this.destroyLauncherWindow()
+
 			this.logger.log("info", "Starting sync inside worker")
 
 			await this.worker.invoke("restartSync")
@@ -159,7 +163,47 @@ export class FilenDesktop {
 			this.logger.log("error", e)
 
 			throw e
+		} finally {
+			this.destroyLauncherWindow()
 		}
+	}
+
+	private async createLauncherWindow(): Promise<void> {
+		if (this.launcherWindow) {
+			return
+		}
+
+		this.launcherWindow = new BrowserWindow({
+			width: 250,
+			height: 250,
+			frame: false,
+			title: "Filen",
+			minWidth: 250,
+			minHeight: 250,
+			icon: getAppIcon(),
+			skipTaskbar: true,
+			backgroundColor: "rgba(0, 0, 0, 0)",
+			hasShadow: true,
+			center: true,
+			alwaysOnTop: true,
+			show: false,
+			resizable: false
+		})
+
+		await this.launcherWindow.loadFile(pathModule.join("..", "public", "launcher.html"))
+
+		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden")) {
+			this.launcherWindow.show()
+		}
+	}
+
+	private destroyLauncherWindow(): void {
+		if (!this.launcherWindow || this.launcherWindow.isDestroyed()) {
+			return
+		}
+
+		this.launcherWindow.destroy()
+		this.launcherWindow = null
 	}
 
 	private async createMainWindow(): Promise<void> {
@@ -259,6 +303,8 @@ export class FilenDesktop {
 
 if (IS_ELECTRON) {
 	new FilenDesktop().initialize().catch(err => {
+		console.error(err)
+
 		dialog.showErrorBox("Could not launch Filen", err instanceof Error ? err.message : "Unknown error")
 	})
 }
