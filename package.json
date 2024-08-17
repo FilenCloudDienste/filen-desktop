@@ -116,8 +116,19 @@
 				"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 			}
 		],
-		"extraResources": [
-			"public/**/*"
+		"extraFiles": [
+			{
+				"from": "public/launcher.html",
+				"to": "resources/public/launcher.html"
+			},
+			{
+				"from": "public/dark_logo.svg",
+				"to": "resources/public/dark_logo.svg"
+			},
+			{
+				"from": "public/light_logo.svg",
+				"to": "resources/public/light_logo.svg"
+			}
 		],
 		"win": {
 			"publisherName": [
