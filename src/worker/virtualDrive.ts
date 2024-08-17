@@ -110,6 +110,36 @@ export class VirtualDrive {
 	public async rcloneArgs(): Promise<string[]> {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
+		const excludePatterns = [
+			// macOS temporary files and folders
+			".DS_Store",
+			"._*",
+			".Trashes/**",
+			".Spotlight-V100/**",
+			".TemporaryItems/**",
+			// Windows temporary files and folders
+			"*.tmp",
+			"~*",
+			"Thumbs.db",
+			"desktop.ini",
+			"$RECYCLE.BIN/**",
+			"System Volume Information/**",
+			"Temp/**",
+			"AppData/Local/Temp/**",
+			// Linux temporary files and folders
+			"*.swp",
+			"*.temp",
+			".*.swx",
+			"/tmp/**",
+			"/var/tmp/**",
+			// Other common exclusions
+			"**/.cache/**",
+			"**/Cache/**",
+			"**/.npm/_cacache/**"
+		]
+
+		const excludeArgs = excludePatterns.map(pattern => `--exclude "${pattern}"`)
+
 		return [
 			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePathForCmd(
 				desktopConfig.virtualDriveConfig.mountPoint
@@ -145,7 +175,8 @@ export class VirtualDrive {
 			"--vfs-read-ahead 16Mi",
 			"--vfs-read-chunk-size-limit 0",
 			"--cache-workers 8",
-			"--cache-rps -1"
+			"--cache-rps -1",
+			...excludeArgs
 		]
 	}
 

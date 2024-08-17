@@ -18,6 +18,8 @@ if (IS_ELECTRON) {
 	// Ref: https://github.com/electron/electron/issues/28422
 	app?.commandLine.appendSwitch("enable-experimental-web-platform-features")
 	app?.commandLine.appendSwitch("disable-renderer-backgrounding")
+	app?.commandLine.appendSwitch("js-flags", "--expose-gc --max-old-space-size=16384")
+	app?.commandLine.appendSwitch("no-proxy-server")
 }
 
 /**
@@ -174,12 +176,12 @@ export class FilenDesktop {
 		}
 
 		this.launcherWindow = new BrowserWindow({
-			width: 250,
-			height: 250,
+			width: 220,
+			height: 220,
 			frame: false,
 			title: "Filen",
-			minWidth: 250,
-			minHeight: 250,
+			minWidth: 220,
+			minHeight: 220,
 			icon: getAppIcon(),
 			skipTaskbar: true,
 			backgroundColor: "rgba(0, 0, 0, 0)",
