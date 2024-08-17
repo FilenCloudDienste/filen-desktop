@@ -116,6 +116,9 @@
 				"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 			}
 		],
+		"extraResources": [
+			"public/**/*"
+		],
 		"win": {
 			"publisherName": [
 				"Filen Cloud Dienste UG (haftungsbeschränkt)"
