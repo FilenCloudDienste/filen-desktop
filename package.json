@@ -68,7 +68,7 @@
 		"@filen/s3": "^0.2.24",
 		"@filen/sdk": "^0.1.151",
 		"@filen/sync": "^0.1.49",
-		"@filen/web": "^0.1.19",
+		"@filen/web": "^0.1.20",
 		"@filen/webdav": "^0.2.29",
 		"axios": "^1.7.2",
 		"diskusage-ng": "^1.0.4",
