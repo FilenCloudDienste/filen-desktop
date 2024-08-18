@@ -387,3 +387,35 @@ export function deserializeError(serializedError: SerializedError): Error {
 
 	return error
 }
+
+export async function isProcessRunning(processName: string): Promise<boolean> {
+	return await new Promise<boolean>((resolve, reject) => {
+		let command = ""
+
+		if (process.platform === "win32") {
+			command = `tasklist /FI "IMAGENAME eq ${processName}"`
+		} else if (process.platform === "darwin" || process.platform === "linux") {
+			command = `pgrep -f ${processName}`
+		} else {
+			reject(false)
+
+			return
+		}
+
+		exec(command, (err, stdout, stderr) => {
+			if (err) {
+				reject(false)
+
+				return
+			}
+
+			if (stderr) {
+				reject(false)
+
+				return
+			}
+
+			resolve(stdout.trim().length > 0)
+		})
+	})
+}

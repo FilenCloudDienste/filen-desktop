@@ -1,13 +1,14 @@
 import { Worker as WorkerThread } from "worker_threads"
 import pathModule from "path"
 import { waitForConfig } from "../config"
-import { httpHealthCheck, checkIfMountExists, deserializeError } from "../utils"
+import { httpHealthCheck, checkIfMountExists, deserializeError, isProcessRunning } from "../utils"
 import { app } from "electron"
 import type FilenDesktop from ".."
 import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
 import fs from "fs-extra"
 import { Semaphore } from "../semaphore"
+import { rcloneBinaryName } from "./virtualDrive"
 
 export class Worker {
 	private worker: WorkerThread | null = null
@@ -188,7 +189,7 @@ export class Worker {
 		try {
 			const desktopConfig = await waitForConfig()
 
-			if (!(await checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint))) {
+			if (!(await checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)) || !(await isProcessRunning(rcloneBinaryName))) {
 				return false
 			}
 

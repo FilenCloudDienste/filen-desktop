@@ -12,7 +12,8 @@ import {
 	isWinFSPInstalled,
 	killProcessByPid,
 	execCommandSudo,
-	isFUSEInstalledOnLinux
+	isFUSEInstalledOnLinux,
+	isProcessRunning
 } from "../utils"
 import WebDAVServer from "@filen/webdav"
 import { type ChildProcess, spawn } from "child_process"
@@ -20,6 +21,11 @@ import findFreePorts from "find-free-ports"
 import type Worker from "./worker"
 import { Semaphore } from "../semaphore"
 import writeFileAtomic from "write-file-atomic"
+
+export const RCLONE_VERSION = "v1.67.0"
+export const rcloneBinaryName = `filen_rclone_${process.platform}_${process.arch}_${RCLONE_VERSION}${
+	process.platform === "win32" ? ".exe" : ""
+}`
 
 export class VirtualDrive {
 	private worker: Worker
@@ -29,9 +35,8 @@ export class VirtualDrive {
 	public webdavPassword: string = "admin"
 	public webdavPort: number = 1905
 	public webdavEndpoint: string = "http://127.0.0.1:1905"
-	public rcloneBinaryName: string = `filen_rclone_${process.platform}_${process.arch}${process.platform === "win32" ? ".exe" : ""}`
 	public active: boolean = false
-	public storedBinaryPath = pathModule.join(__dirname, "..", "..", "bin", "rclone", this.rcloneBinaryName)
+	public storedBinaryPath = pathModule.join(__dirname, "..", "..", "bin", "rclone", rcloneBinaryName)
 	public stopMutex = new Semaphore(1)
 	public startMutex = new Semaphore(1)
 
@@ -71,13 +76,15 @@ export class VirtualDrive {
 		binary: string
 		config: string
 		cache: string
+		log: string
 	}> {
 		const desktopConfig = await this.worker.waitForConfig()
 
 		return {
-			binary: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, this.rcloneBinaryName),
+			binary: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, rcloneBinaryName),
 			cache: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"),
-			config: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf")
+			config: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf"),
+			log: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.log")
 		}
 	}
 
@@ -110,35 +117,7 @@ export class VirtualDrive {
 	public async rcloneArgs(): Promise<string[]> {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
-		const excludePatterns = [
-			// macOS temporary files and folders
-			".DS_Store",
-			"._*",
-			".Trashes/**",
-			".Spotlight-V100/**",
-			".TemporaryItems/**",
-			// Windows temporary files and folders
-			"*.tmp",
-			"~*",
-			"Thumbs.db",
-			"desktop.ini",
-			"$RECYCLE.BIN/**",
-			"System Volume Information/**",
-			"Temp/**",
-			"AppData/Local/Temp/**",
-			// Linux temporary files and folders
-			"*.swp",
-			"*.temp",
-			".*.swx",
-			"/tmp/**",
-			"/var/tmp/**",
-			// Other common exclusions
-			"**/.cache/**",
-			"**/Cache/**",
-			"**/.npm/_cacache/**"
-		]
-
-		const excludeArgs = excludePatterns.map(pattern => `--exclude "${pattern}"`)
+		const excludePatterns = [".DS_Store", "._*", "*.tmp", "~*", "Thumbs.db", "desktop.ini", "*.temp"]
 
 		return [
 			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePathForCmd(
@@ -148,10 +127,9 @@ export class VirtualDrive {
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
 			"--devname Filen",
-			"--volname Filen",
 			`--vfs-cache-max-size ${desktopConfig.virtualDriveConfig.cacheSizeInGi}Gi`,
 			"--vfs-cache-min-free-space 5Gi",
-			"--vfs-cache-max-age 3h",
+			"--vfs-cache-max-age 168h",
 			"--vfs-cache-poll-interval 1m",
 			"--dir-cache-time 1m",
 			"--cache-info-age 1m",
@@ -167,28 +145,35 @@ export class VirtualDrive {
 			"--use-mmap",
 			"--webdav-pacer-min-sleep 1ms",
 			"--disable-http2",
-			"--file-perms 0640",
-			"--dir-perms 0750",
+			"--file-perms 0666",
+			"--dir-perms 0777",
 			"--use-server-modtime",
-			"--vfs-read-chunk-size 16Mi",
-			"--buffer-size 16Mi",
-			"--vfs-read-ahead 16Mi",
+			"--vfs-read-chunk-size 128Mi",
+			"--buffer-size 64Mi",
+			"--vfs-read-ahead 128Mi",
 			"--vfs-read-chunk-size-limit 0",
 			"--cache-workers 8",
 			"--cache-rps -1",
-			...excludeArgs
+			`--log-file "${paths.log}"`,
+			...(process.platform === "win32"
+				? // eslint-disable-next-line quotes
+				  ['-o FileSecurity="D:P(A;;FA;;;WD)"', "--network-mode", "--volname \\\\Filen\\Filen"]
+				: ["--volname Filen"]),
+			...(process.platform === "darwin" ? ["--no-unicode-normalization false"] : []),
+			...excludePatterns.map(pattern => `--exclude "${pattern}"`)
 		]
 	}
 
 	public async isMountActuallyActive(): Promise<boolean> {
 		try {
 			const desktopConfig = await this.worker.waitForConfig()
-			const [mountExists, webdavOnline] = await Promise.all([
+			const [mountExists, webdavOnline, rcloneRunning] = await Promise.all([
 				checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint),
-				this.isWebDAVOnline()
+				this.isWebDAVOnline(),
+				isProcessRunning(rcloneBinaryName)
 			])
 
-			if (!mountExists || !webdavOnline) {
+			if (!mountExists || !webdavOnline || !rcloneRunning) {
 				return false
 			}
 
@@ -216,6 +201,14 @@ export class VirtualDrive {
 		}
 
 		await fs.ensureDir(paths.cache)
+
+		if (await fs.exists(paths.log)) {
+			const logStats = await fs.stat(paths.log)
+
+			if (logStats.size > 1024 * 1024 * 10) {
+				await fs.unlink(paths.log)
+			}
+		}
 
 		const args = await this.rcloneArgs()
 
@@ -255,7 +248,7 @@ export class VirtualDrive {
 
 			this.rcloneProcess = spawn(this.normalizePathForCmd(paths.binary), args, {
 				stdio: "ignore",
-				shell: true,
+				shell: process.platform === "win32" ? "cmd.exe" : "/bin/sh",
 				detached: false
 			})
 
@@ -321,7 +314,7 @@ export class VirtualDrive {
 			}
 		}
 
-		await killProcessByName(this.rcloneBinaryName).catch(() => {})
+		await killProcessByName(rcloneBinaryName).catch(() => {})
 
 		if (process.platform === "linux" || process.platform === "darwin") {
 			const desktopConfig = await this.worker.waitForConfig()
