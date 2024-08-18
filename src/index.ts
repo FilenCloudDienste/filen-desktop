@@ -176,12 +176,12 @@ export class FilenDesktop {
 		}
 
 		this.launcherWindow = new BrowserWindow({
-			width: 220,
-			height: 220,
+			width: 200,
+			height: 200,
 			frame: false,
 			title: "Filen",
-			minWidth: 220,
-			minHeight: 220,
+			minWidth: 200,
+			minHeight: 200,
 			icon: getAppIcon(),
 			skipTaskbar: true,
 			backgroundColor: "rgba(0, 0, 0, 0)",

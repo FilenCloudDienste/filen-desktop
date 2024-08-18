@@ -22,7 +22,7 @@ import type Worker from "./worker"
 import { Semaphore } from "../semaphore"
 import writeFileAtomic from "write-file-atomic"
 
-export const RCLONE_VERSION = "v1.67.0"
+export const RCLONE_VERSION = "1670"
 export const rcloneBinaryName = `filen_rclone_${process.platform}_${process.arch}_${RCLONE_VERSION}${
 	process.platform === "win32" ? ".exe" : ""
 }`
@@ -131,19 +131,16 @@ export class VirtualDrive {
 			"--vfs-cache-min-free-space 5Gi",
 			"--vfs-cache-max-age 168h",
 			"--vfs-cache-poll-interval 1m",
-			"--dir-cache-time 1m",
+			"--dir-cache-time 30s",
 			"--cache-info-age 1m",
 			"--vfs-block-norm-dupes",
 			"--noappledouble",
 			"--noapplexattr",
-			"--vfs-refresh",
 			"--no-gzip-encoding",
-			"--checkers 16",
-			"--transfers 8",
-			"--low-level-retries 3",
-			"--retries 3",
+			"--transfers 4",
+			"--low-level-retries 4",
+			"--retries 4",
 			"--use-mmap",
-			"--webdav-pacer-min-sleep 1ms",
 			"--disable-http2",
 			"--file-perms 0666",
 			"--dir-perms 0777",
@@ -157,9 +154,8 @@ export class VirtualDrive {
 			`--log-file "${paths.log}"`,
 			...(process.platform === "win32"
 				? // eslint-disable-next-line quotes
-				  ['-o FileSecurity="D:P(A;;FA;;;WD)"', "--network-mode", "--volname \\\\Filen\\Filen"]
+				  ['-o FileSecurity="D:P(A;;FA;;;WD)"', "--network-mode", "--volname \\\\server\\filen"]
 				: ["--volname Filen"]),
-			...(process.platform === "darwin" ? ["--no-unicode-normalization false"] : []),
 			...excludePatterns.map(pattern => `--exclude "${pattern}"`)
 		]
 	}
@@ -325,6 +321,8 @@ export class VirtualDrive {
 				await execCommand(umountCmd).catch(() => {})
 			}
 
+			await new Promise<void>(resolve => setTimeout(resolve, 1000))
+
 			listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
 
 			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
@@ -345,7 +343,7 @@ export class VirtualDrive {
 		} catch (e) {
 			this.worker.logger.log("error", e, "virtualDrive")
 		} finally {
-			await new Promise<void>(resolve => setTimeout(resolve, 15000))
+			await new Promise<void>(resolve => setTimeout(resolve, 30000))
 
 			this.monitor()
 		}
