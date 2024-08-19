@@ -117,7 +117,34 @@ export class VirtualDrive {
 	public async rcloneArgs(): Promise<string[]> {
 		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
 
-		const excludePatterns = [".DS_Store", "._*", "*.tmp", "~*", "Thumbs.db", "desktop.ini", "*.temp"]
+		const excludePatterns = [
+			// macOS temporary files and folders
+			".DS_Store",
+			"._*",
+			".Trashes/**",
+			".Spotlight-V100/**",
+			".TemporaryItems/**",
+			// Windows temporary files and folders
+			"*.tmp",
+			"~*",
+			"Thumbs.db",
+			"desktop.ini",
+			"$RECYCLE.BIN/**",
+			"System Volume Information/**",
+			"Temp/**",
+			"AppData/Local/Temp/**",
+			// Linux temporary files and folders
+			".Trash*",
+			"*.swp",
+			"*.temp",
+			".*.swx",
+			"/tmp/**",
+			"/var/tmp/**",
+			// Other common exclusions
+			"**/.cache/**",
+			"**/Cache/**",
+			"**/.npm/_cacache/**"
+		]
 
 		return [
 			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePathForCmd(
@@ -146,11 +173,9 @@ export class VirtualDrive {
 			"--dir-perms 0777",
 			"--use-server-modtime",
 			"--vfs-read-chunk-size 128Mi",
-			"--buffer-size 64Mi",
+			"--buffer-size 32Mi",
 			"--vfs-read-ahead 128Mi",
 			"--vfs-read-chunk-size-limit 0",
-			"--cache-workers 8",
-			"--cache-rps -1",
 			`--log-file "${paths.log}"`,
 			...(process.platform === "win32"
 				? // eslint-disable-next-line quotes
