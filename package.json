@@ -51,7 +51,7 @@
 		"@types/uuid": "^9.0.8",
 		"@types/write-file-atomic": "^4.0.3",
 		"@typescript-eslint/eslint-plugin": "^6.20.0",
-		"@typescript-eslint/parser": "^6.20.0",
+		"@typescript-eslint/parser": "^8.2.0",
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
 		"electron": "^31.3.1",
