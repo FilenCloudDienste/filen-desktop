@@ -35,6 +35,10 @@ export class Worker {
 			try {
 				e.preventDefault()
 
+				setTimeout(() => {
+					app.exit(0)
+				}, 60000)
+
 				await this.stop()
 				await new Promise<void>(resolve => setTimeout(resolve, 1000))
 			} catch {

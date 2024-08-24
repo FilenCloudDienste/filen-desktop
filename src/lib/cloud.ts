@@ -229,7 +229,8 @@ export class Cloud {
 		dontEmitEvents,
 		name,
 		pauseSignal,
-		abortSignal
+		abortSignal,
+		linkKey
 	}: {
 		uuid: string
 		type?: DirDownloadType
@@ -242,6 +243,7 @@ export class Cloud {
 		name: string
 		pauseSignal?: PauseSignal
 		abortSignal?: AbortSignal
+		linkKey?: string
 	}): Promise<string> {
 		const dirnameWritable = await this.desktop.lib.fs.isPathWritable(pathModule.dirname(to))
 
@@ -276,7 +278,8 @@ export class Cloud {
 				linkUUID,
 				linkHasPassword,
 				linkPassword,
-				linkSalt
+				linkSalt,
+				linkKey
 			})
 
 			for (const path in tree) {
@@ -297,6 +300,7 @@ export class Cloud {
 				linkUUID,
 				pauseSignal,
 				abortSignal,
+				linkKey,
 				onStarted: () => {
 					if (dontEmitEvents) {
 						return
@@ -435,7 +439,8 @@ export class Cloud {
 		directoryId,
 		pauseSignal,
 		abortSignal,
-		dontEmitQueuedEvent
+		dontEmitQueuedEvent,
+		linkKey
 	}: {
 		items: DriveCloudItemWithPath[]
 		type?: DirDownloadType
@@ -450,6 +455,7 @@ export class Cloud {
 		pauseSignal?: PauseSignal
 		abortSignal?: AbortSignal
 		dontEmitQueuedEvent?: boolean
+		linkKey?: string
 	}): Promise<string> {
 		const dirnameWritable = await this.desktop.lib.fs.isPathWritable(pathModule.dirname(to))
 
@@ -482,7 +488,8 @@ export class Cloud {
 								linkHasPassword,
 								linkPassword,
 								linkSalt,
-								linkUUID
+								linkUUID,
+								linkKey
 							})
 								.then(tree => {
 									for (const path in tree) {
@@ -715,7 +722,8 @@ export class Cloud {
 		linkHasPassword,
 		linkPassword,
 		linkSalt,
-		skipCache
+		skipCache,
+		linkKey
 	}: {
 		uuid: string
 		type?: DirDownloadType
@@ -724,8 +732,18 @@ export class Cloud {
 		linkPassword?: string
 		linkSalt?: string
 		skipCache?: boolean
+		linkKey?: string
 	}): Promise<Record<string, CloudItemTree>> {
-		return await this.desktop.sdk.cloud().getDirectoryTree({ uuid, type, linkUUID, linkHasPassword, linkPassword, linkSalt, skipCache })
+		return await this.desktop.sdk.cloud().getDirectoryTree({
+			uuid,
+			type,
+			linkUUID,
+			linkHasPassword,
+			linkPassword,
+			linkSalt,
+			skipCache,
+			linkKey
+		})
 	}
 }
 

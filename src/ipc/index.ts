@@ -43,6 +43,7 @@ export type IPCDownloadDirectoryParams = {
 	linkPassword?: string
 	linkSalt?: string
 	dontEmitEvents?: boolean
+	linkKey?: string
 }
 
 export type IPCDownloadMultipleFilesAndDirectoriesParams = {
@@ -56,6 +57,7 @@ export type IPCDownloadMultipleFilesAndDirectoriesParams = {
 	to: string
 	name: string
 	dontEmitQueuedEvent?: boolean
+	linkKey?: string
 }
 
 export type IPCShowSaveDialogResult =
@@ -522,7 +524,7 @@ export class IPC {
 			"downloadDirectory",
 			async (
 				_,
-				{ uuid, name, to, type, linkUUID, linkHasPassword, linkPassword, linkSalt }: IPCDownloadDirectoryParams
+				{ uuid, name, to, type, linkUUID, linkHasPassword, linkPassword, linkSalt, linkKey }: IPCDownloadDirectoryParams
 			): Promise<string> => {
 				await waitForConfig()
 
@@ -545,7 +547,8 @@ export class IPC {
 						to,
 						type,
 						pauseSignal: this.pauseSignals[uuid],
-						abortSignal: this.abortControllers[uuid]!.signal
+						abortSignal: this.abortControllers[uuid]!.signal,
+						linkKey
 					})
 				} catch (e) {
 					if (e instanceof DOMException && e.name === "AbortError") {
@@ -577,7 +580,17 @@ export class IPC {
 			"downloadMultipleFilesAndDirectories",
 			async (
 				_,
-				{ items, to, type, linkUUID, linkHasPassword, linkPassword, linkSalt, name }: IPCDownloadMultipleFilesAndDirectoriesParams
+				{
+					items,
+					to,
+					type,
+					linkUUID,
+					linkHasPassword,
+					linkPassword,
+					linkSalt,
+					name,
+					linkKey
+				}: IPCDownloadMultipleFilesAndDirectoriesParams
 			): Promise<string> => {
 				await waitForConfig()
 
@@ -606,7 +619,8 @@ export class IPC {
 						name,
 						directoryId,
 						pauseSignal: this.pauseSignals[directoryId],
-						abortSignal: this.abortControllers[directoryId]!.signal
+						abortSignal: this.abortControllers[directoryId]!.signal,
+						linkKey
 					})
 				} catch (e) {
 					if (e instanceof DOMException && e.name === "AbortError") {
