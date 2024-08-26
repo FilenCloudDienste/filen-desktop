@@ -91,6 +91,10 @@ export type WorkerInvokeChannel =
 	| "syncResetTaskErrors"
 	| "syncToggleLocalTrash"
 	| "syncResetLocalTreeErrors"
+	| "restartHTTP"
+	| "startHTTP"
+	| "isHTTPActive"
+	| "stopHTTP"
 
 export type WorkerMessage =
 	| {

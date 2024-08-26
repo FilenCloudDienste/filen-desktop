@@ -11,6 +11,7 @@ import Sync from "./sync"
 import FilenSDK from "@filen/sdk"
 import { Semaphore } from "../semaphore"
 import Logger from "../lib/logger"
+import HTTP from "./http"
 
 export class Worker {
 	public desktopConfig: FilenDesktopConfig | null = null
@@ -18,6 +19,7 @@ export class Worker {
 	private s3: S3
 	private virtualDrive: VirtualDrive
 	private sync: Sync
+	private http: HTTP
 	private sdk: FilenSDK | null = null
 	private readonly sdkMutex = new Semaphore(1)
 	public readonly logger: Logger
@@ -31,17 +33,18 @@ export class Worker {
 		this.s3 = new S3(this)
 		this.virtualDrive = new VirtualDrive(this)
 		this.sync = new Sync(this)
+		this.http = new HTTP(this)
 		this.logger = new Logger(false, true)
 	}
 
 	public async getSDKInstance(): Promise<FilenSDK> {
+		if (this.sdk) {
+			return this.sdk
+		}
+
 		await this.sdkMutex.acquire()
 
 		try {
-			if (this.sdk) {
-				return this.sdk
-			}
-
 			const desktopConfig = await this.waitForConfig()
 
 			this.sdk = new FilenSDK({
@@ -388,6 +391,25 @@ export class Worker {
 					}
 
 					this.invokeResponse(message.data.id, message.data.channel)
+				} else if (message.data.channel === "startHTTP" || message.data.channel === "restartHTTP") {
+					try {
+						await this.http.stop()
+						await this.http.start()
+
+						this.invokeResponse(message.data.id, message.data.channel)
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
+					}
+				} else if (message.data.channel === "stopHTTP") {
+					try {
+						await this.http.stop()
+
+						this.invokeResponse(message.data.id, message.data.channel)
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
+					}
+				} else if (message.data.channel === "isHTTPActive") {
+					this.invokeResponse(message.data.id, message.data.channel, this.http.active)
 				} else {
 					this.invokeError(message.data.id, message.data.channel, new Error(`Channel ${message.data.channel} not found.`))
 				}
@@ -396,7 +418,7 @@ export class Worker {
 	}
 
 	public async stop(): Promise<void> {
-		// We only need to cleanup the virtual drive rclone instance, everything else (webdav, s3, sync) gets killed automatically
+		// We only need to cleanup the virtual drive rclone instance, everything else (webdav, s3, sync, http) gets killed automatically
 		await this.virtualDrive.stop()
 	}
 }
@@ -409,6 +431,16 @@ worker
 		parentPort?.postMessage({
 			type: "started"
 		} satisfies WorkerMessage)
+
+		setInterval(() => {
+			try {
+				if (typeof global !== "undefined" && typeof global.gc === "function") {
+					global.gc()
+				}
+			} catch {
+				// Noop
+			}
+		}, 60000)
 	})
 	.catch(err => {
 		parentPort?.postMessage({

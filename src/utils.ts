@@ -419,3 +419,34 @@ export async function isProcessRunning(processName: string): Promise<boolean> {
 		})
 	})
 }
+
+/**
+ * Parse the requested byte range from the header.
+ *
+ * @export
+ * @param {string} range
+ * @param {number} totalLength
+ * @returns {({ start: number; end: number } | null)}
+ */
+export function parseByteRange(range: string, totalLength: number): { start: number; end: number } | null {
+	const [unit, rangeValue] = range.split("=")
+
+	if (unit !== "bytes" || !rangeValue) {
+		return null
+	}
+
+	const [startStr, endStr] = rangeValue.split("-")
+
+	if (!startStr) {
+		return null
+	}
+
+	const start = parseInt(startStr, 10)
+	const end = endStr ? parseInt(endStr, 10) : totalLength - 1
+
+	if (isNaN(start) || isNaN(end) || start < 0 || end >= totalLength || start > end) {
+		return null
+	}
+
+	return { start, end }
+}

@@ -18,7 +18,7 @@ if (IS_ELECTRON) {
 	// Ref: https://github.com/electron/electron/issues/28422
 	app?.commandLine.appendSwitch("enable-experimental-web-platform-features")
 	app?.commandLine.appendSwitch("disable-renderer-backgrounding")
-	app?.commandLine.appendSwitch("js-flags", "--expose-gc --max-old-space-size=16384")
+	app?.commandLine.appendSwitch("js-flags", "--expose-gc --max-old-space-size=8192")
 	app?.commandLine.appendSwitch("no-proxy-server")
 }
 
@@ -152,15 +152,25 @@ export class FilenDesktop {
 
 			this.destroyLauncherWindow()
 
-			this.logger.log("info", "Starting sync inside worker")
-
-			await this.worker.invoke("restartSync")
-
-			this.logger.log("info", "Started")
-
 			setTimeout(() => {
 				this.updater.initialize()
 			}, 15000)
+
+			setInterval(() => {
+				try {
+					if (typeof global !== "undefined" && typeof global.gc === "function") {
+						global.gc()
+					}
+				} catch {
+					// Noop
+				}
+			}, 60000)
+
+			this.logger.log("info", "Starting sync and http inside worker")
+
+			await Promise.all([this.worker.invoke("restartSync"), this.worker.invoke("restartHTTP")])
+
+			this.logger.log("info", "Started")
 		} catch (e) {
 			this.logger.log("error", e)
 

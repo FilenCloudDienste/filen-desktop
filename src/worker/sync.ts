@@ -60,6 +60,7 @@ export class Sync {
 			this.active = true
 		} catch (e) {
 			this.worker.logger.log("error", e, "sync")
+			this.worker.logger.log("error", e)
 
 			await this.stop()
 

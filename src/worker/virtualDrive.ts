@@ -154,33 +154,36 @@ export class VirtualDrive {
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
 			"--devname Filen",
+			"--volname Filen",
 			`--vfs-cache-max-size ${desktopConfig.virtualDriveConfig.cacheSizeInGi}Gi`,
 			"--vfs-cache-min-free-space 5Gi",
-			"--vfs-cache-max-age 168h",
+			"--vfs-cache-max-age 720h",
 			"--vfs-cache-poll-interval 1m",
 			"--dir-cache-time 30s",
 			"--cache-info-age 1m",
 			"--vfs-block-norm-dupes",
 			"--noappledouble",
 			"--noapplexattr",
-			"--no-gzip-encoding",
-			"--transfers 4",
-			"--low-level-retries 4",
-			"--retries 4",
+			//"--no-gzip-encoding",
+			"--low-level-retries 10",
+			"--retries 10",
 			"--use-mmap",
-			"--disable-http2",
+			//"--disable-http2",
 			"--file-perms 0666",
 			"--dir-perms 0777",
 			"--use-server-modtime",
-			"--vfs-read-chunk-size 128Mi",
-			"--buffer-size 32Mi",
-			"--vfs-read-ahead 128Mi",
-			"--vfs-read-chunk-size-limit 0",
+			//"--vfs-read-chunk-size 128Mi",
+			//"--buffer-size 32Mi",
+			//"--vfs-read-ahead 128Mi",
+			//"--vfs-read-chunk-size-limit 0",
+			//"--no-checksum",
+			"--transfers 10",
+			//"--vfs-fast-fingerprint",
 			`--log-file "${paths.log}"`,
 			...(process.platform === "win32"
 				? // eslint-disable-next-line quotes
-				  ['-o FileSecurity="D:P(A;;FA;;;WD)"', "--network-mode", "--volname \\\\server\\filen"]
-				: ["--volname Filen"]),
+				  ['-o FileSecurity="D:P(A;;FA;;;WD)"']
+				: []),
 			...excludePatterns.map(pattern => `--exclude "${pattern}"`)
 		]
 	}
@@ -367,6 +370,7 @@ export class VirtualDrive {
 			}
 		} catch (e) {
 			this.worker.logger.log("error", e, "virtualDrive")
+			this.worker.logger.log("error", e)
 		} finally {
 			await new Promise<void>(resolve => setTimeout(resolve, 30000))
 
@@ -458,6 +462,7 @@ export class VirtualDrive {
 			this.active = true
 		} catch (e) {
 			this.worker.logger.log("error", e, "virtualDrive")
+			this.worker.logger.log("error", e)
 
 			await this.stop()
 
@@ -484,6 +489,7 @@ export class VirtualDrive {
 			this.active = false
 		} catch (e) {
 			this.worker.logger.log("error", e, "virtualDrive")
+			this.worker.logger.log("error", e)
 
 			throw e
 		} finally {

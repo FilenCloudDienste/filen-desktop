@@ -67,6 +67,7 @@ export class WebDAV {
 			this.active = true
 		} catch (e) {
 			this.worker.logger.log("error", e, "webdav")
+			this.worker.logger.log("error", e)
 
 			await this.stop()
 
@@ -94,6 +95,7 @@ export class WebDAV {
 			this.active = false
 		} catch (e) {
 			this.worker.logger.log("error", e, "webdav")
+			this.worker.logger.log("error", e)
 
 			throw e
 		} finally {

@@ -93,7 +93,8 @@ export class Worker {
 
 				this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"), {
 					resourceLimits: {
-						maxOldGenerationSizeMb: 8192
+						maxOldGenerationSizeMb: 8192,
+						maxYoungGenerationSizeMb: 8192
 					}
 				})
 

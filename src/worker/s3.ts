@@ -60,6 +60,7 @@ export class S3 {
 			this.active = true
 		} catch (e) {
 			this.worker.logger.log("error", e, "s3")
+			this.worker.logger.log("error", e)
 
 			await this.stop()
 
@@ -87,6 +88,7 @@ export class S3 {
 			this.active = false
 		} catch (e) {
 			this.worker.logger.log("error", e, "s3")
+			this.worker.logger.log("error", e)
 
 			throw e
 		} finally {
