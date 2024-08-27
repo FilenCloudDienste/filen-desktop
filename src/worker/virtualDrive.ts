@@ -353,8 +353,9 @@ export class VirtualDrive {
 
 		if (process.platform === "linux" || process.platform === "darwin") {
 			const desktopConfig = await this.worker.waitForConfig()
-			const umountCmd = `umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
-			let listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
+			const umountCmd = `umount -f -l ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
+			const listCmd = `mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`
+			let listedMounts = await execCommand(listCmd)
 
 			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
 				await execCommand(umountCmd).catch(() => {})
@@ -362,7 +363,7 @@ export class VirtualDrive {
 
 			await new Promise<void>(resolve => setTimeout(resolve, 1000))
 
-			listedMounts = await execCommand(`mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`)
+			listedMounts = await execCommand(listCmd)
 
 			if (listedMounts.length > 0 && listedMounts.includes(this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint))) {
 				await execCommandSudo(umountCmd).catch(() => {})

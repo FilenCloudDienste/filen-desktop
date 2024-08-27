@@ -61,14 +61,14 @@ export class Worker {
 
 	public async waitForConfig(): Promise<FilenDesktopConfig> {
 		return new Promise<FilenDesktopConfig>(resolve => {
-			if (this.desktopConfig) {
+			if (this.desktopConfig && this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32) {
 				resolve(this.desktopConfig)
 
 				return
 			}
 
 			const wait = setInterval(() => {
-				if (this.desktopConfig) {
+				if (this.desktopConfig && this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32) {
 					clearInterval(wait)
 
 					resolve(this.desktopConfig)

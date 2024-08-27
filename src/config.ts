@@ -8,14 +8,14 @@ export function setConfig(config: FilenDesktopConfig): void {
 
 export function waitForConfig(): Promise<FilenDesktopConfig> {
 	return new Promise<FilenDesktopConfig>(resolve => {
-		if (CONFIG) {
+		if (CONFIG && CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32) {
 			resolve(CONFIG)
 
 			return
 		}
 
 		const wait = setInterval(() => {
-			if (CONFIG) {
+			if (CONFIG && CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32) {
 				clearInterval(wait)
 
 				resolve(CONFIG)
