@@ -91,26 +91,21 @@ export class Worker {
 			await new Promise<void>((resolve, reject) => {
 				this.desktop.logger.log("info", "Starting worker")
 
-				this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"), {
-					resourceLimits: {
-						maxOldGenerationSizeMb: 8192,
-						maxYoungGenerationSizeMb: 8192
-					}
-				})
+				this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"))
 
-				this.worker?.on("error", reject)
+				this.worker.on("error", reject)
 
 				if (isDev) {
-					this.worker?.stderr.on("data", chunk => {
+					this.worker.stderr.on("data", chunk => {
 						console.log("worker stderr", chunk.toString("utf-8"))
 					})
 
-					this.worker?.stdout.on("data", chunk => {
+					this.worker.stdout.on("data", chunk => {
 						console.log("worker stdout", chunk.toString("utf-8"))
 					})
 				}
 
-				this.worker?.on("message", async (message: WorkerMessage) => {
+				this.worker.on("message", async (message: WorkerMessage) => {
 					if (message.type === "error") {
 						this.desktop.logger.log("error", deserializeError(message.data.error), "workerError")
 

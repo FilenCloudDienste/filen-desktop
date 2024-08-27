@@ -137,7 +137,15 @@ export class Updater {
 
 		this.desktop.logger.log("info", "Installing update")
 
-		await this.desktop.worker.stop()
+		app.removeAllListeners("window-all-closed")
+		app.removeAllListeners("will-quit")
+
+		await this.desktop.worker.stop().catch(err => {
+			this.desktop.logger.log("error", err, "updater.installUpdate")
+			this.desktop.logger.log("error", err)
+		})
+
+		await new Promise<void>(resolve => setTimeout(resolve, 1000))
 
 		for (const window of BrowserWindow.getAllWindows()) {
 			window.destroy()

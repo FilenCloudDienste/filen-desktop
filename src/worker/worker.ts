@@ -423,24 +423,12 @@ export class Worker {
 	}
 }
 
-const worker = new Worker()
-
-worker
+new Worker()
 	.start()
 	.then(() => {
 		parentPort?.postMessage({
 			type: "started"
 		} satisfies WorkerMessage)
-
-		setInterval(() => {
-			try {
-				if (typeof global !== "undefined" && typeof global.gc === "function") {
-					global.gc()
-				}
-			} catch {
-				// Noop
-			}
-		}, 60000)
 	})
 	.catch(err => {
 		parentPort?.postMessage({

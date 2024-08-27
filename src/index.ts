@@ -18,8 +18,6 @@ if (IS_ELECTRON) {
 	// Ref: https://github.com/electron/electron/issues/28422
 	app?.commandLine.appendSwitch("enable-experimental-web-platform-features")
 	app?.commandLine.appendSwitch("disable-renderer-backgrounding")
-	app?.commandLine.appendSwitch("js-flags", "--expose-gc --max-old-space-size=8192")
-	app?.commandLine.appendSwitch("no-proxy-server")
 }
 
 /**
@@ -156,16 +154,6 @@ export class FilenDesktop {
 				this.updater.initialize()
 			}, 15000)
 
-			setInterval(() => {
-				try {
-					if (typeof global !== "undefined" && typeof global.gc === "function") {
-						global.gc()
-					}
-				} catch {
-					// Noop
-				}
-			}, 60000)
-
 			this.logger.log("info", "Starting sync and http inside worker")
 
 			await Promise.all([this.worker.invoke("restartSync"), this.worker.invoke("restartHTTP")])
@@ -199,7 +187,10 @@ export class FilenDesktop {
 			center: true,
 			alwaysOnTop: true,
 			show: false,
-			resizable: false
+			resizable: false,
+			webPreferences: {
+				devTools: false
+			}
 		})
 
 		await this.launcherWindow.loadFile(pathModule.join("..", "public", "launcher.html"))
@@ -244,7 +235,8 @@ export class FilenDesktop {
 				autoplayPolicy: "no-user-gesture-required",
 				contextIsolation: true,
 				experimentalFeatures: true,
-				preload: isDev ? pathModule.join(__dirname, "..", "dist", "preload.js") : pathModule.join(__dirname, "preload.js")
+				preload: isDev ? pathModule.join(__dirname, "..", "dist", "preload.js") : pathModule.join(__dirname, "preload.js"),
+				devTools: isDev
 			}
 		})
 

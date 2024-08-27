@@ -115,7 +115,11 @@ export class VirtualDrive {
 	}
 
 	public async rcloneArgs(): Promise<string[]> {
-		const [desktopConfig, paths] = await Promise.all([this.worker.waitForConfig(), this.paths()])
+		const [desktopConfig, paths, availableCacheSize] = await Promise.all([
+			this.worker.waitForConfig(),
+			this.paths(),
+			this.worker.virtualDriveAvailableCacheSize()
+		])
 
 		const excludePatterns = [
 			// macOS temporary files and folders
@@ -146,6 +150,12 @@ export class VirtualDrive {
 			"**/.npm/_cacache/**"
 		]
 
+		const availableCacheSizeGib = Math.floor(availableCacheSize / (1024 / 1024 / 1024))
+		const cacheSize =
+			desktopConfig.virtualDriveConfig.cacheSizeInGi >= availableCacheSizeGib
+				? availableCacheSizeGib
+				: desktopConfig.virtualDriveConfig.cacheSizeInGi
+
 		return [
 			`${process.platform === "win32" || process.platform === "linux" ? "mount" : "nfsmount"} Filen: ${this.normalizePathForCmd(
 				desktopConfig.virtualDriveConfig.mountPoint
@@ -153,36 +163,37 @@ export class VirtualDrive {
 			`--config "${paths.config}"`,
 			"--vfs-cache-mode full",
 			`--cache-dir "${paths.cache}"`,
-			"--devname Filen",
-			"--volname Filen",
-			`--vfs-cache-max-size ${desktopConfig.virtualDriveConfig.cacheSizeInGi}Gi`,
+			`--vfs-cache-max-size ${cacheSize}Gi`,
 			"--vfs-cache-min-free-space 5Gi",
 			"--vfs-cache-max-age 720h",
 			"--vfs-cache-poll-interval 1m",
-			"--dir-cache-time 30s",
+			"--dir-cache-time 1m",
 			"--cache-info-age 1m",
-			"--vfs-block-norm-dupes",
+			// Already present in the SDK fs() class
+			//"--vfs-block-norm-dupes",
 			"--noappledouble",
 			"--noapplexattr",
-			//"--no-gzip-encoding",
+			"--no-gzip-encoding",
 			"--low-level-retries 10",
 			"--retries 10",
 			"--use-mmap",
-			//"--disable-http2",
+			"--disable-http2",
 			"--file-perms 0666",
 			"--dir-perms 0777",
 			"--use-server-modtime",
-			//"--vfs-read-chunk-size 128Mi",
-			//"--buffer-size 32Mi",
-			//"--vfs-read-ahead 128Mi",
-			//"--vfs-read-chunk-size-limit 0",
-			//"--no-checksum",
-			"--transfers 10",
-			//"--vfs-fast-fingerprint",
+			"--vfs-read-chunk-size 128Mi",
+			"--buffer-size 0",
+			"--vfs-read-ahead 1024Mi",
+			"--vfs-read-chunk-size-limit 0",
+			"--no-checksum",
+			"--transfers 16",
+			"--vfs-fast-fingerprint",
 			`--log-file "${paths.log}"`,
+			"--devname Filen",
+			...(process.platform === "win32" || process.platform === "darwin" ? ["--volname \\\\Filen\\Filen"] : []),
 			...(process.platform === "win32"
 				? // eslint-disable-next-line quotes
-				  ['-o FileSecurity="D:P(A;;FA;;;WD)"']
+				  ['-o FileSecurity="D:P(A;;FA;;;WD)"', "--network-mode"]
 				: []),
 			...excludePatterns.map(pattern => `--exclude "${pattern}"`)
 		]
