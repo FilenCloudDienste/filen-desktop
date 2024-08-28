@@ -193,7 +193,7 @@ export class VirtualDrive {
 			"--vfs-fast-fingerprint",
 			`--log-file "${paths.log}"`,
 			"--devname Filen",
-			...(process.platform === "win32" || process.platform === "darwin" ? ["--volname \\\\Filen\\Filen"] : []),
+			...(process.platform === "win32" ? ["--volname \\\\Filen\\Filen"] : ["--volname Filen"]),
 			...(process.platform === "win32"
 				? // eslint-disable-next-line quotes
 				  ['-o FileSecurity="D:P(A;;FA;;;WD)"', "--network-mode"]
@@ -282,7 +282,7 @@ export class VirtualDrive {
 
 					reject(e)
 				}
-			}, 15000)
+			}, 30000)
 
 			this.rcloneProcess = spawn(this.normalizePathForCmd(paths.binary), args, {
 				stdio: "ignore",
@@ -390,7 +390,7 @@ export class VirtualDrive {
 			this.worker.logger.log("error", e, "virtualDrive")
 			this.worker.logger.log("error", e)
 		} finally {
-			await new Promise<void>(resolve => setTimeout(resolve, 30000))
+			await new Promise<void>(resolve => setTimeout(resolve, 15000))
 
 			this.monitor()
 		}

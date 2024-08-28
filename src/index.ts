@@ -176,6 +176,7 @@ export class FilenDesktop {
 			icon: getAppIcon(),
 			skipTaskbar: true,
 			backgroundColor: "rgba(0, 0, 0, 0)",
+			transparent: true,
 			hasShadow: true,
 			center: true,
 			alwaysOnTop: true,
@@ -212,8 +213,8 @@ export class FilenDesktop {
 			height: 720,
 			frame: false,
 			title: "Filen",
-			minWidth: 1280,
-			minHeight: 720,
+			minWidth: 1024,
+			minHeight: 576,
 			titleBarStyle: "hidden",
 			icon: getAppIcon(),
 			trafficLightPosition: {
@@ -229,19 +230,18 @@ export class FilenDesktop {
 				contextIsolation: true,
 				experimentalFeatures: true,
 				preload: isDev ? pathModule.join(__dirname, "..", "dist", "preload.js") : pathModule.join(__dirname, "preload.js"),
-				devTools: true // isDev
+				devTools: isDev
 			}
 		})
 
-		if (process.platform !== "linux") {
-			this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
-			this.tray.setContextMenu(null)
-			this.tray.setToolTip("Filen")
+		this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
 
-			this.tray.on("click", () => {
-				this.driveWindow?.show()
-			})
-		}
+		this.tray.setContextMenu(null)
+		this.tray.setToolTip("Filen")
+
+		this.tray.on("click", () => {
+			this.driveWindow?.show()
+		})
 
 		if (process.platform === "win32") {
 			this.driveWindow.setThumbarButtons([])
