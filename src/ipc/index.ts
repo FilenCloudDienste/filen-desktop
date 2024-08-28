@@ -16,7 +16,8 @@ import {
 	isUnixMountPointValid,
 	isUnixMountPointEmpty,
 	type SerializedError,
-	isFUSEInstalledOnLinux
+	isFUSEInstalledOnLinux,
+	getDiskType
 } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
@@ -429,6 +430,10 @@ export class IPC {
 			})
 
 			return dir.length
+		})
+
+		ipcMain.handle("getDiskType", async (_, path: string) => {
+			return await getDiskType(path)
 		})
 	}
 

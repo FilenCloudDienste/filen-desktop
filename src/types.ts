@@ -45,6 +45,8 @@ export type FilenDesktopConfig = {
 		mountPoint: string
 		localDirPath: string
 		cacheSizeInGi: number
+		cachePath?: string
+		readOnly: boolean
 	}
 	syncConfig: {
 		enabled: boolean

@@ -450,3 +450,125 @@ export function parseByteRange(range: string, totalLength: number): { start: num
 
 	return { start, end }
 }
+
+export type DriveInfo = {
+	isPhysical: boolean
+	isExternal: boolean
+}
+
+export type LinuxDrive = {
+	name: string
+	type: string
+	mountpoint?: string
+	fstype?: string
+	model?: string
+	serial?: string
+	size?: string
+	state?: string
+	rota?: boolean
+	children?: LinuxDrive[]
+}
+
+export async function getDiskType(filePath: string): Promise<DriveInfo | null> {
+	const normalizedPath = pathModule.resolve(filePath)
+
+	if (process.platform === "win32") {
+		return await getDiskTypeWindows(normalizedPath)
+	} else if (process.platform === "darwin") {
+		return await getDiskTypeMacOS(normalizedPath)
+	} else if (process.platform === "linux") {
+		return await getDiskTypeLinux(normalizedPath)
+	} else {
+		throw new Error(`Unsupported platform: ${process.platform}`)
+	}
+}
+
+export async function getDiskTypeWindows(filePath: string): Promise<DriveInfo | null> {
+	const driveLetter = pathModule.parse(filePath).root.replace("\\", "")
+	const command = `wmic logicaldisk where "DeviceID='${driveLetter}'" get Description, VolumeName, FileSystem, DriveType`
+
+	const stdout = await execCommand(command)
+	const outputLines = stdout.trim().split("\n")
+
+	if (!outputLines[1]) {
+		return null
+	}
+
+	const driveData = outputLines.length > 1 ? outputLines[1].trim().split(/\s+/) : []
+
+	const driveType = driveData[3] // Assuming DriveType is in the 4th column
+
+	if (!driveType) {
+		return null
+	}
+
+	const isPhysical = driveType === "3"
+	const isExternal = driveType === "2"
+
+	return {
+		isPhysical,
+		isExternal
+	}
+}
+
+async function getDiskTypeMacOS(filePath: string): Promise<DriveInfo | null> {
+	try {
+		const mountOutput = await execCommand(`df "${filePath}" | tail -1 | awk '{print $1}'`)
+
+		if (!mountOutput || mountOutput.length <= 0) {
+			return null
+		}
+
+		const volumePath = mountOutput.trim()
+		const stdout = await execCommand(`diskutil info "${volumePath}"`)
+		const isInternal = stdout.includes("Internal: Yes")
+		const isExternal = stdout.includes("Internal: No")
+
+		return {
+			isPhysical: isInternal,
+			isExternal: isExternal
+		}
+	} catch {
+		return null
+	}
+}
+
+async function getDiskTypeLinux(filePath: string): Promise<DriveInfo | null> {
+	try {
+		const stdout = await execCommand("lsblk -o NAME,TYPE,MOUNTPOINT,FSTYPE,MODEL,SERIAL,SIZE,STATE,ROTA --json")
+		const drives: { blockdevices: LinuxDrive[] } = JSON.parse(stdout)
+		const targetDrive = findLinuxDiskByPath(drives.blockdevices, filePath)
+
+		if (!targetDrive) {
+			return null
+		}
+
+		const isPhysical = targetDrive.type === "disk"
+		const isExternal = !isPhysical
+
+		return {
+			isPhysical,
+			isExternal
+		}
+	} catch {
+		return null
+	}
+}
+
+export function findLinuxDiskByPath(drives: LinuxDrive[], filePath: string): LinuxDrive | null {
+	for (const drive of drives) {
+		if (drive.mountpoint && filePath.startsWith(drive.mountpoint)) {
+			return drive
+		}
+
+		if (drive.children) {
+			const childDrive = findLinuxDiskByPath(drive.children, filePath)
+
+			if (childDrive) {
+				return childDrive
+			}
+		}
+	}
+
+	return null
+}

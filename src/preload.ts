@@ -12,6 +12,7 @@ import {
 } from "./ipc"
 import { type FilenDesktopConfig } from "./types"
 import { type SyncMode } from "@filen/sync/dist/types"
+import { type DriveInfo } from "./utils"
 
 const env = {
 	isBrowser:
@@ -106,6 +107,7 @@ export type DesktopAPI = {
 	getLocalDirectoryItemCount: (path: string) => Promise<number>
 	getAutoLaunch: () => Promise<LoginItemSettings>
 	isFUSEInstalledOnLinux: () => Promise<boolean>
+	getDiskType: (path: string) => Promise<DriveInfo | null>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -200,6 +202,7 @@ if (env.isBrowser || env.isElectron) {
 		restartWorker: () => ipcRenderer.invoke("restartWorker"),
 		getLocalDirectoryItemCount: path => ipcRenderer.invoke("getLocalDirectoryItemCount", path),
 		getAutoLaunch: () => ipcRenderer.invoke("getAutoLaunch"),
-		isFUSEInstalledOnLinux: () => ipcRenderer.invoke("isFUSEInstalledOnLinux")
+		isFUSEInstalledOnLinux: () => ipcRenderer.invoke("isFUSEInstalledOnLinux"),
+		getDiskType: path => ipcRenderer.invoke("getDiskType", path)
 	} satisfies DesktopAPI)
 }

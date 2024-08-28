@@ -82,7 +82,9 @@ export class VirtualDrive {
 
 		return {
 			binary: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, rcloneBinaryName),
-			cache: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"),
+			cache: desktopConfig.virtualDriveConfig.cachePath
+				? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache")
+				: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"),
 			config: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.conf"),
 			log: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "rclone.log")
 		}
@@ -162,6 +164,7 @@ export class VirtualDrive {
 			)}`,
 			`--config "${paths.config}"`,
 			"--vfs-cache-mode full",
+			...(desktopConfig.virtualDriveConfig.readOnly ? ["--read-only"] : []),
 			`--cache-dir "${paths.cache}"`,
 			`--vfs-cache-max-size ${cacheSize}Gi`,
 			"--vfs-cache-min-free-space 5Gi",

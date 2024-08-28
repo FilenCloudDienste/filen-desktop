@@ -79,11 +79,14 @@ export class Worker {
 
 	public async virtualDriveAvailableCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
+		const cachePath = desktopConfig.virtualDriveConfig.cachePath
+			? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache")
+			: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")
 
-		await fs.ensureDir(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"))
+		await fs.ensureDir(cachePath)
 
 		return await new Promise<number>((resolve, reject) => {
-			diskusage(desktopConfig.virtualDriveConfig.localDirPath, (err, usage) => {
+			diskusage(cachePath, (err, usage) => {
 				if (err) {
 					reject(err)
 
@@ -97,10 +100,13 @@ export class Worker {
 
 	public async virtualDriveCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
+		const cachePath = desktopConfig.virtualDriveConfig.cachePath
+			? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache")
+			: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")
 
-		await fs.ensureDir(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"))
+		await fs.ensureDir(cachePath)
 
-		const dir = await fs.readdir(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"), {
+		const dir = await fs.readdir(cachePath, {
 			recursive: true,
 			encoding: "utf-8"
 		})
@@ -109,7 +115,7 @@ export class Worker {
 		await promiseAllChunked(
 			dir.map(async entry => {
 				try {
-					const stat = await fs.stat(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache", entry))
+					const stat = await fs.stat(pathModule.join(cachePath, entry))
 
 					if (stat.isFile()) {
 						total += stat.size
@@ -131,8 +137,11 @@ export class Worker {
 
 	public async virtualDriveCleanupCache(): Promise<void> {
 		const desktopConfig = await this.waitForConfig()
+		const cachePath = desktopConfig.virtualDriveConfig.cachePath
+			? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache")
+			: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")
 
-		await fs.emptyDir(pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache"))
+		await fs.emptyDir(cachePath)
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
