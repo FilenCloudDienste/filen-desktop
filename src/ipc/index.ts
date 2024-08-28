@@ -213,6 +213,7 @@ export class IPC {
 			this.didCallRestart = true
 
 			app.relaunch()
+			app.exit(0)
 		})
 
 		ipcMain.handle("setConfig", async (_, config: FilenDesktopConfig): Promise<void> => {
