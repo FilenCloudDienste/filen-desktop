@@ -258,15 +258,21 @@ export async function checkIfMountExists(mountPoint: string): Promise<boolean> {
 
 export async function execCommand(command: string, trimStdOut: boolean = true): Promise<string> {
 	return new Promise((resolve, reject) => {
-		exec(command, (err, stdout, stderr) => {
-			if (err || stderr) {
-				reject(err ? err : new Error(stderr))
+		exec(
+			command,
+			{
+				shell: process.platform === "win32" ? "cmd.exe" : "/bin/sh"
+			},
+			(err, stdout, stderr) => {
+				if (err || stderr) {
+					reject(err ? err : new Error(stderr))
 
-				return
+					return
+				}
+
+				resolve(trimStdOut ? stdout.trim() : stdout)
 			}
-
-			resolve(trimStdOut ? stdout.trim() : stdout)
-		})
+		)
 	})
 }
 
@@ -484,26 +490,24 @@ export async function getDiskType(filePath: string): Promise<DriveInfo | null> {
 }
 
 export async function getDiskTypeWindows(filePath: string): Promise<DriveInfo | null> {
-	const driveLetter = pathModule.parse(filePath).root.replace("\\", "")
-	const command = `wmic logicaldisk where "DeviceID='${driveLetter}'" get Description, VolumeName, FileSystem, DriveType`
+	const driveLetter = pathModule.parse(filePath).root.split("\\").join("")
+	const command = `wmic logicaldisk where "DeviceID='${driveLetter}'" get DriveType`
 
 	const stdout = await execCommand(command)
-	const outputLines = stdout.trim().split("\n")
+	const lines = stdout.trim().split("\n")
 
-	if (!outputLines[1]) {
+	if (lines.length < 2 || !lines[1]) {
 		return null
 	}
 
-	const driveData = outputLines.length > 1 ? outputLines[1].trim().split(/\s+/) : []
-
-	const driveType = driveData[3] // Assuming DriveType is in the 4th column
+	const driveType = lines[1].trim()
 
 	if (!driveType) {
 		return null
 	}
 
-	const isPhysical = driveType === "3"
-	const isExternal = driveType === "2"
+	const isPhysical = driveType.trim() === "3"
+	const isExternal = driveType.trim() === "2"
 
 	return {
 		isPhysical,
