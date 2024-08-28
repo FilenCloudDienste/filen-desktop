@@ -1,3 +1,4 @@
+/* eslint-disable no-unreachable */
 /* eslint-disable @typescript-eslint/no-var-requires */
 require("dotenv").config()
 const pathModule = require("path")

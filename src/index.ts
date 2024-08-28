@@ -229,7 +229,7 @@ export class FilenDesktop {
 				contextIsolation: true,
 				experimentalFeatures: true,
 				preload: isDev ? pathModule.join(__dirname, "..", "dist", "preload.js") : pathModule.join(__dirname, "preload.js"),
-				devTools: isDev
+				devTools: true // isDev
 			}
 		})
 
