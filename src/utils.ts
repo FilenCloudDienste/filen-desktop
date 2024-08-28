@@ -507,7 +507,7 @@ export async function getDiskTypeWindows(filePath: string): Promise<DriveInfo | 
 	}
 
 	const isPhysical = driveType.trim() === "3"
-	const isExternal = driveType.trim() === "2"
+	const isExternal = !isPhysical
 
 	return {
 		isPhysical,
@@ -524,9 +524,27 @@ async function getDiskTypeMacOS(filePath: string): Promise<DriveInfo | null> {
 		}
 
 		const volumePath = mountOutput.trim()
-		const stdout = await execCommand(`diskutil info "${volumePath}"`)
-		const isInternal = stdout.includes("Internal: Yes")
-		const isExternal = stdout.includes("Internal: No")
+		const stdout = await execCommand(`diskutil info -plist "${volumePath}"`)
+
+		if (stdout.length <= 0) {
+			return null
+		}
+
+		const lines = stdout.split("\n")
+		const internalKeyIndex = lines.findIndex(line => line.includes("<key>Internal</key>"))
+
+		if (internalKeyIndex === -1) {
+			return null
+		}
+
+		const internalValueLine = lines[internalKeyIndex + 1]
+
+		if (!internalValueLine || internalValueLine.length <= 0) {
+			return null
+		}
+
+		const isInternal = internalValueLine.includes("true")
+		const isExternal = !isInternal
 
 		return {
 			isPhysical: isInternal,

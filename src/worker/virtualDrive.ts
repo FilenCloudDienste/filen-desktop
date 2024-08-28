@@ -367,7 +367,7 @@ export class VirtualDrive {
 				await execCommand(umountCmd).catch(() => {})
 			}
 
-			await new Promise<void>(resolve => setTimeout(resolve, 1000))
+			await new Promise<void>(resolve => setTimeout(resolve, 250))
 
 			listedMounts = await execCommand(listCmd)
 
