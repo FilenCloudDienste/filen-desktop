@@ -356,7 +356,10 @@ export class VirtualDrive {
 
 		if (this.worker.isAuthed() && (process.platform === "linux" || process.platform === "darwin")) {
 			const desktopConfig = await this.worker.waitForConfig()
-			const umountCmd = `umount -f -l ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
+			const umountCmd =
+				process.platform === "darwin"
+					? `umount -f ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
+					: `umount -f -l ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
 			const listCmd = `mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`
 			let listedMounts = await execCommand(listCmd)
 
