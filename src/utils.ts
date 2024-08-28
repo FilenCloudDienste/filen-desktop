@@ -565,7 +565,9 @@ async function getDiskTypeLinux(filePath: string): Promise<DriveInfo | null> {
 			return null
 		}
 
-		const isPhysical = targetDrive.type === "disk"
+		const isPhysical =
+			targetDrive.type === "disk" ||
+			["ext2", "ext3", "ext4", "xfs", "btrfs", "zfs", "reiserfs", "ntfs", "zfs_member"].includes(targetDrive.fstype ?? "")
 		const isExternal = !isPhysical
 
 		return {
