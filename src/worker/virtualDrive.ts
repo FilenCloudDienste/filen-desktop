@@ -354,7 +354,7 @@ export class VirtualDrive {
 
 		await killProcessByName(rcloneBinaryName).catch(() => {})
 
-		if (process.platform === "linux" || process.platform === "darwin") {
+		if (this.worker.isAuthed() && (process.platform === "linux" || process.platform === "darwin")) {
 			const desktopConfig = await this.worker.waitForConfig()
 			const umountCmd = `umount -f -l ${this.normalizePathForCmd(desktopConfig.virtualDriveConfig.mountPoint)}`
 			const listCmd = `mount -t ${process.platform === "linux" ? "fuse.rclone" : "nfs"}`

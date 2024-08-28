@@ -24,4 +24,12 @@ export function waitForConfig(): Promise<FilenDesktopConfig> {
 	})
 }
 
+export function isAuthed(): boolean {
+	if (!CONFIG) {
+		return false
+	}
+
+	return CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32 ? true : false
+}
+
 export default CONFIG

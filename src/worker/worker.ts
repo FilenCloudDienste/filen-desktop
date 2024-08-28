@@ -77,6 +77,14 @@ export class Worker {
 		})
 	}
 
+	public isAuthed(): boolean {
+		if (!this.desktopConfig) {
+			return false
+		}
+
+		return this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32 ? true : false
+	}
+
 	public async virtualDriveAvailableCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
 		const cachePath = desktopConfig.virtualDriveConfig.cachePath
@@ -427,8 +435,10 @@ export class Worker {
 	}
 
 	public async stop(): Promise<void> {
-		// We only need to cleanup the virtual drive rclone instance, everything else (webdav, s3, sync, http) gets killed automatically
-		await this.virtualDrive.stop()
+		if (this.isAuthed()) {
+			// We only need to cleanup the virtual drive rclone instance, everything else (webdav, s3, sync, http) gets killed automatically
+			await this.virtualDrive.stop()
+		}
 	}
 }
 

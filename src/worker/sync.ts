@@ -22,9 +22,11 @@ export class Sync {
 
 				if (desktopConfig.syncConfig.syncPairs.length > 0) {
 					resolve()
+
+					return
 				}
 
-				await new Promise<void>(resolve => setTimeout(resolve, 100))
+				await new Promise<void>(resolve => setTimeout(resolve, 1000))
 
 				wait()
 			}

@@ -1,17 +1,17 @@
-import { app, BrowserWindow, shell, protocol, Tray, nativeTheme, dialog } from "electron"
+import { app, BrowserWindow, shell, Tray, nativeTheme, dialog } from "electron"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
 import { waitForConfig } from "./config"
 import Cloud from "./lib/cloud"
 import FS from "./lib/fs"
-import url from "url"
 import { IS_ELECTRON } from "./constants"
 import Worker from "./worker"
 import { getAppIcon, getTrayIcon, getOverlayIcon } from "./assets"
 import Updater from "./lib/updater"
 import isDev from "./isDev"
 import Logger from "./lib/logger"
+import serveProd from "./lib/serve"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -44,6 +44,7 @@ export class FilenDesktop {
 	public updater: Updater
 	public logger: Logger
 	public isUnityRunning: boolean = process.platform === "linux" ? app.isUnityRunning() : false
+	public serve: (window: BrowserWindow) => Promise<void>
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -53,6 +54,7 @@ export class FilenDesktop {
 	 * @public
 	 */
 	public constructor() {
+		this.serve = serveProd()
 		this.sdk = new FilenSDK()
 		this.ipc = new IPC(this)
 		this.lib = {
@@ -125,15 +127,6 @@ export class FilenDesktop {
 			if (process.platform === "win32") {
 				app.setUserTasks([])
 			}
-
-			// Handle frontend bundle loading in production via file://
-			protocol.interceptFileProtocol("file", (req, callback) => {
-				const url = req.url.slice(7)
-
-				callback({
-					path: pathModule.join(__dirname, "..", "node_modules", "@filen/web", "dist", url)
-				})
-			})
 
 			app.on("activate", () => {
 				if (BrowserWindow.getAllWindows().length === 0) {
@@ -289,15 +282,11 @@ export class FilenDesktop {
 			}
 		})
 
-		await this.driveWindow.loadURL(
-			!isDev
-				? url.format({
-						pathname: "index.html",
-						protocol: "file",
-						slashes: true
-				  })
-				: "http://localhost:5173"
-		)
+		if (isDev) {
+			await this.driveWindow.loadURL("http://localhost:5173")
+		} else {
+			await this.serve(this.driveWindow)
+		}
 
 		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden")) {
 			this.driveWindow.show()
