@@ -1,14 +1,14 @@
 import { Worker as WorkerThread } from "worker_threads"
 import pathModule from "path"
 import { waitForConfig } from "../config"
-import { httpHealthCheck, checkIfMountExists, deserializeError, isProcessRunning } from "../utils"
+import { httpHealthCheck, deserializeError, isProcessRunning } from "../utils"
 import { app } from "electron"
 import type FilenDesktop from ".."
 import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
 import fs from "fs-extra"
 import { Semaphore } from "../semaphore"
-import { rcloneBinaryName } from "./virtualDrive"
+import { rcloneBinaryName, checkIfMountExists } from "@filen/virtual-drive"
 
 export class Worker {
 	private worker: WorkerThread | null = null

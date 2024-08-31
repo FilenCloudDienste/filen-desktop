@@ -7,18 +7,7 @@ import { type DirDownloadType } from "@filen/sdk/dist/types/api/v3/dir/download"
 import pathModule from "path"
 import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
-import {
-	getExistingDrives,
-	isPortInUse,
-	getAvailableDriveLetters,
-	canStartServerOnIPAndPort,
-	isWinFSPInstalled,
-	isUnixMountPointValid,
-	isUnixMountPointEmpty,
-	type SerializedError,
-	isFUSEInstalledOnLinux,
-	getDiskType
-} from "../utils"
+import { isPortInUse, canStartServerOnIPAndPort, type SerializedError, getDiskType } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
@@ -26,6 +15,14 @@ import { DISALLOWED_SYNC_DIRS } from "../constants"
 import os from "os"
 import { zip } from "zip-a-folder"
 import { filenLogsPath } from "../lib/logger"
+import {
+	getExistingDrives,
+	getAvailableDriveLetters,
+	isUnixMountPointValid,
+	isUnixMountPointEmpty,
+	isWinFSPInstalled,
+	isFUSEInstalledOnLinux
+} from "@filen/virtual-drive"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem

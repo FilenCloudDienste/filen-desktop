@@ -25,7 +25,7 @@
 		"build:mac": "npm run build && electron-builder -m --publish never",
 		"build:win": "npm run build && electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
-		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest"
+		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest @filen/virtual-drive@latest"
 	},
 	"repository": {
 		"type": "git",
@@ -70,6 +70,7 @@
 		"@filen/s3": "^0.2.29",
 		"@filen/sdk": "^0.1.163",
 		"@filen/sync": "^0.1.55",
+		"@filen/virtual-drive": "^0.1.4",
 		"@filen/web": "^0.1.29",
 		"@filen/webdav": "^0.2.37",
 		"axios": "^1.7.2",
@@ -83,7 +84,6 @@
 		"mime-types": "^2.1.35",
 		"pino": "^9.3.2",
 		"rotating-file-stream": "^3.2.3",
-		"sudo-prompt": "^9.2.1",
 		"typed-emitter": "^2.1.0",
 		"uuid": "^9.0.1",
 		"write-file-atomic": "^5.0.1",
