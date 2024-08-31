@@ -23,9 +23,10 @@ A clear and concise description of what you expected to happen.
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
 
-**Desktop (please complete the following information):**
- - OS: [e.g. iOS]
+**OS (please complete the following information):**
+ - OS: [e.g. Windows, macOS, Ubuntu]
  - Hardware configuration [e.g. CPU, RAM, DISK]
+- Filesystem and Disk type used [e.g. SSD, NTFS, ext4]
 
 **Additional context**
 Add any other context about the problem here.
