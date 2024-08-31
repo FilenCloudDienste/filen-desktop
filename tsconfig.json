@@ -19,6 +19,6 @@
 	"ts-node": {
 		"files": true
 	},
-	"include": ["src", "index.d.ts"],
+	"include": ["src"],
 	"exclude": ["node_modules", "dist", "__tests__", "docs", ".github", "dev", ".vscode"]
 }
