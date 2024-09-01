@@ -16,7 +16,7 @@
 			}
 
 			@media (prefers-color-scheme: light) {
-				body {
+				.container {
 					background-color: var(--bg-color-light);
 					border: 1px solid var(--border-color-light);
 				}
@@ -27,7 +27,7 @@
 			}
 
 			@media (prefers-color-scheme: dark) {
-				body {
+				.container {
 					background-color: var(--bg-color-dark);
 					border: 1px solid var(--border-color-dark);
 				}
@@ -47,6 +47,19 @@
 				align-items: center;
 				font-family: Arial, sans-serif;
 				overflow: hidden;
+				background-color: transparent;
+			}
+
+			.container {
+				height: 100%;
+				width: 100%;
+				margin: 0;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-family: Arial, sans-serif;
+				overflow: hidden;
+				border-radius: 10px;
 			}
 
 			.logo {
@@ -75,6 +88,8 @@
 		</style>
 	</head>
 	<body>
-		<div class="logo"></div>
+		<div class="container">
+			<div class="logo"></div>
+		</div>
 	</body>
 </html>

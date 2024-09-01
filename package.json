@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.14",
-	"buildNumber": 314,
+	"version": "3.0.15",
+	"buildNumber": 315,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
