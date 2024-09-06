@@ -12,6 +12,7 @@ import Updater from "./lib/updater"
 import isDev from "./isDev"
 import Logger from "./lib/logger"
 import serveProd from "./lib/serve"
+import WindowState from "./lib/windowState"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -45,6 +46,7 @@ export class FilenDesktop {
 	public logger: Logger
 	public isUnityRunning: boolean = process.platform === "linux" ? app.isUnityRunning() : false
 	public serve: (window: BrowserWindow) => Promise<void>
+	public windowState: WindowState
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -55,6 +57,7 @@ export class FilenDesktop {
 	 */
 	public constructor() {
 		this.serve = serveProd()
+		this.windowState = new WindowState()
 		this.sdk = new FilenSDK()
 		this.ipc = new IPC(this)
 		this.lib = {
@@ -208,9 +211,13 @@ export class FilenDesktop {
 			return
 		}
 
+		const state = await this.windowState.get()
+
 		this.driveWindow = new BrowserWindow({
-			width: 1280,
-			height: 720,
+			width: state ? state.width : 1280,
+			height: state ? state.height : 720,
+			x: state ? state.x : undefined,
+			y: state ? state.y : undefined,
 			frame: false,
 			title: "Filen",
 			minWidth: 1024,
@@ -233,6 +240,17 @@ export class FilenDesktop {
 				devTools: isDev
 			}
 		})
+
+		if (state) {
+			this.driveWindow.setBounds({
+				width: state.width,
+				height: state.height,
+				x: state.x,
+				y: state.y
+			})
+		}
+
+		this.windowState.manage(this.driveWindow)
 
 		this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
 

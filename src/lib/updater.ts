@@ -145,8 +145,6 @@ export class Updater {
 			this.desktop.logger.log("error", err)
 		})
 
-		await new Promise<void>(resolve => setTimeout(resolve, 1000))
-
 		for (const window of BrowserWindow.getAllWindows()) {
 			window.destroy()
 		}

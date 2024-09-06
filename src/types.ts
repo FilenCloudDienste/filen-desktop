@@ -97,6 +97,8 @@ export type WorkerInvokeChannel =
 	| "startHTTP"
 	| "isHTTPActive"
 	| "stopHTTP"
+	| "virtualDriveStats"
+	| "syncUpdatePairs"
 
 export type WorkerMessage =
 	| {

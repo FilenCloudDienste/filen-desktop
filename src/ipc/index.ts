@@ -21,7 +21,7 @@ import {
 	isUnixMountPointValid,
 	isUnixMountPointEmpty,
 	isWinFSPInstalled,
-	isFUSEInstalledOnLinux
+	isFUSE3InstalledOnLinux
 } from "@filen/virtual-drive"
 
 export type IPCDownloadFileParams = {
@@ -234,7 +234,10 @@ export class IPC {
 
 			setConfig(config)
 
-			await this.desktop.worker.invoke("setConfig", config)
+			await Promise.all([
+				this.desktop.worker.invoke("setConfig", config),
+				this.desktop.worker.invoke("syncUpdatePairs", { pairs: config.syncConfig.syncPairs })
+			])
 		})
 
 		ipcMain.handle("showSaveDialog", async (_, params?: IPCShowSaveDialogResultParams): Promise<IPCShowSaveDialogResult> => {
@@ -772,6 +775,10 @@ export class IPC {
 			return await this.desktop.worker.invoke("virtualDriveAvailableCacheSize")
 		})
 
+		ipcMain.handle("virtualDriveStats", async () => {
+			return await this.desktop.worker.invoke("virtualDriveStats")
+		})
+
 		ipcMain.handle("virtualDriveCacheSize", async () => {
 			return await this.desktop.worker.invoke("virtualDriveCacheSize")
 		})
@@ -796,12 +803,12 @@ export class IPC {
 			return await isWinFSPInstalled()
 		})
 
-		ipcMain.handle("isFUSEInstalledOnLinux", async () => {
+		ipcMain.handle("isFUSE3InstalledOnLinux", async () => {
 			if (process.platform !== "linux") {
 				return false
 			}
 
-			return await isFUSEInstalledOnLinux()
+			return await isFUSE3InstalledOnLinux()
 		})
 
 		ipcMain.handle("isUnixMountPointValid", async (_, path: string): Promise<boolean> => {
@@ -909,6 +916,10 @@ export class IPC {
 
 		ipcMain.handle("syncResetLocalTreeErrors", async (_, params) => {
 			await this.desktop.worker.invoke("syncResetLocalTreeErrors", params)
+		})
+
+		ipcMain.handle("syncUpdatePairs", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdatePairs", params)
 		})
 
 		ipcMain.handle("isAllowedToSyncDirectory", async (_, path: string) => {

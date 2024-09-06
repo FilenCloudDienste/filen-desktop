@@ -249,6 +249,23 @@ export class Worker {
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
+				} else if (message.data.channel === "virtualDriveStats") {
+					try {
+						if (!this.virtualDrive.virtualDrive) {
+							this.invokeResponse(message.data.id, message.data.channel, {
+								uploadsInProgress: 0,
+								uploadsQueued: 0,
+								erroredFiles: 0,
+								transfers: []
+							})
+						} else {
+							const stats = await this.virtualDrive.virtualDrive.getStats()
+
+							this.invokeResponse(message.data.id, message.data.channel, stats)
+						}
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
+					}
 				} else if (message.data.channel === "virtualDriveCacheSize") {
 					try {
 						const size = await this.virtualDriveCacheSize()
@@ -353,13 +370,17 @@ export class Worker {
 
 					this.invokeResponse(message.data.id, message.data.channel)
 				} else if (message.data.channel === "syncUpdateRemoved") {
-					if (this.sync.active && this.sync.sync) {
-						const { uuid, removed } = message.data.data
+					try {
+						if (this.sync.active && this.sync.sync) {
+							const { uuid, removed } = message.data.data
 
-						this.sync.sync.updateRemoved(uuid, removed)
+							await this.sync.sync.updateRemoved(uuid, removed)
+						}
+
+						this.invokeResponse(message.data.id, message.data.channel)
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-
-					this.invokeResponse(message.data.id, message.data.channel)
 				} else if (message.data.channel === "syncPauseTransfer") {
 					if (this.sync.active && this.sync.sync) {
 						const { uuid, relativePath, type } = message.data.data
@@ -400,6 +421,18 @@ export class Worker {
 					}
 
 					this.invokeResponse(message.data.id, message.data.channel)
+				} else if (message.data.channel === "syncUpdatePairs") {
+					try {
+						if (this.sync.active && this.sync.sync) {
+							const { pairs } = message.data.data
+
+							await this.sync.sync.updateSyncPairs(pairs)
+						}
+
+						this.invokeResponse(message.data.id, message.data.channel)
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
+					}
 				} else if (message.data.channel === "syncToggleLocalTrash") {
 					if (this.sync.active && this.sync.sync) {
 						const { uuid, enabled } = message.data.data
@@ -410,7 +443,7 @@ export class Worker {
 					this.invokeResponse(message.data.id, message.data.channel)
 				} else if (message.data.channel === "startHTTP" || message.data.channel === "restartHTTP") {
 					try {
-						await this.http.stop()
+						await this.http.stop(true)
 						await this.http.start()
 
 						this.invokeResponse(message.data.id, message.data.channel)
@@ -419,7 +452,7 @@ export class Worker {
 					}
 				} else if (message.data.channel === "stopHTTP") {
 					try {
-						await this.http.stop()
+						await this.http.stop(true)
 
 						this.invokeResponse(message.data.id, message.data.channel)
 					} catch (e) {

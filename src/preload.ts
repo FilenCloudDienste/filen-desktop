@@ -11,8 +11,9 @@ import {
 	type IPCSelectDirectoryResult
 } from "./ipc"
 import { type FilenDesktopConfig } from "./types"
-import { type SyncMode } from "@filen/sync/dist/types"
+import { type SyncMode, type SyncPair } from "@filen/sync/dist/types"
 import { type DriveInfo } from "./utils"
+import { type GetStats } from "@filen/virtual-drive/dist/types"
 
 const env = {
 	isBrowser:
@@ -106,8 +107,10 @@ export type DesktopAPI = {
 	restartWorker: () => Promise<void>
 	getLocalDirectoryItemCount: (path: string) => Promise<number>
 	getAutoLaunch: () => Promise<LoginItemSettings>
-	isFUSEInstalledOnLinux: () => Promise<boolean>
+	isFUSE3InstalledOnLinux: () => Promise<boolean>
 	getDiskType: (path: string) => Promise<DriveInfo | null>
+	virtualDriveStats: () => Promise<GetStats>
+	syncUpdatePairs: (params: { pairs: SyncPair[] }) => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -202,7 +205,9 @@ if (env.isBrowser || env.isElectron) {
 		restartWorker: () => ipcRenderer.invoke("restartWorker"),
 		getLocalDirectoryItemCount: path => ipcRenderer.invoke("getLocalDirectoryItemCount", path),
 		getAutoLaunch: () => ipcRenderer.invoke("getAutoLaunch"),
-		isFUSEInstalledOnLinux: () => ipcRenderer.invoke("isFUSEInstalledOnLinux"),
-		getDiskType: path => ipcRenderer.invoke("getDiskType", path)
+		isFUSE3InstalledOnLinux: () => ipcRenderer.invoke("isFUSE3InstalledOnLinux"),
+		getDiskType: path => ipcRenderer.invoke("getDiskType", path),
+		virtualDriveStats: () => ipcRenderer.invoke("virtualDriveStats"),
+		syncUpdatePairs: params => ipcRenderer.invoke("syncUpdatePairs", params)
 	} satisfies DesktopAPI)
 }

@@ -55,7 +55,12 @@ export class WebDAV {
 					  }
 					: undefined,
 				https: desktopConfig.webdavConfig.https,
-				authMode: desktopConfig.webdavConfig.proxyMode ? "basic" : desktopConfig.webdavConfig.authMode
+				authMode: desktopConfig.webdavConfig.proxyMode ? "basic" : desktopConfig.webdavConfig.authMode,
+				rateLimit: {
+					windowMs: 1000,
+					key: "username",
+					limit: 10000
+				}
 			})
 
 			await this.server.start()
@@ -88,7 +93,7 @@ export class WebDAV {
 			}
 
 			if ((await this.isOnline()) && this.server.serverInstance) {
-				await this.server.stop()
+				await this.server.stop(true)
 			}
 
 			this.server = null

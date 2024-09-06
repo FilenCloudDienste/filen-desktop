@@ -48,7 +48,12 @@ export class S3 {
 					secretKeyId: desktopConfig.s3Config.secretKeyId,
 					sdk
 				},
-				https: desktopConfig.s3Config.https
+				https: desktopConfig.s3Config.https,
+				rateLimit: {
+					windowMs: 1000,
+					limit: 10000,
+					key: "accessKeyId"
+				}
 			})
 
 			await this.server.start()
@@ -81,7 +86,7 @@ export class S3 {
 			}
 
 			if ((await this.isOnline()) && this.server.serverInstance) {
-				await this.server.stop()
+				await this.server.stop(true)
 			}
 
 			this.server = null

@@ -5,9 +5,11 @@ import http, { type IncomingMessage, type ServerResponse } from "http"
 import { isPortInUse, parseByteRange } from "../utils"
 import FilenSDK, { type FileEncryptionVersion } from "@filen/sdk"
 import mimeTypes from "mime-types"
-import { Readable } from "stream"
+import { Readable, type Duplex } from "stream"
 import { type ReadableStream as ReadableStreamWebType } from "stream/web"
 import cors from "cors"
+import { type Socket } from "net"
+import { v4 as uuidv4 } from "uuid"
 
 export class HTTP {
 	private worker: Worker
@@ -17,6 +19,7 @@ export class HTTP {
 	public stopMutex = new Semaphore(1)
 	public startMutex = new Semaphore(1)
 	public serverInstance: http.Server<typeof IncomingMessage, typeof ServerResponse> | null = null
+	public connections: Record<string, Socket | Duplex> = {}
 
 	public constructor(worker: Worker) {
 		this.worker = worker
@@ -175,6 +178,8 @@ export class HTTP {
 			const sdk = await this.worker.getSDKInstance()
 
 			await new Promise<void>(resolve => {
+				this.connections = {}
+
 				this.server.disable("x-powered-by")
 
 				this.server.use(cors())
@@ -182,9 +187,20 @@ export class HTTP {
 				this.server.get("/ping", this.ping)
 				this.server.get("/stream", (req, res) => this.stream(sdk, req, res))
 
-				this.serverInstance = http.createServer(this.server).listen(this.port, "127.0.0.1", () => {
-					resolve()
-				})
+				this.serverInstance = http
+					.createServer(this.server)
+					.listen(this.port, "127.0.0.1", () => {
+						resolve()
+					})
+					.on("connection", socket => {
+						const socketId = uuidv4()
+
+						this.connections[socketId] = socket
+
+						socket.once("close", () => {
+							delete this.connections[socketId]
+						})
+					})
 			})
 
 			this.active = true
@@ -200,7 +216,7 @@ export class HTTP {
 		}
 	}
 
-	public async stop(): Promise<void> {
+	public async stop(terminate: boolean = true): Promise<void> {
 		await this.stopMutex.acquire()
 
 		try {
@@ -220,6 +236,18 @@ export class HTTP {
 
 					resolve()
 				})
+
+				if (terminate) {
+					for (const socketId in this.connections) {
+						try {
+							this.connections[socketId]?.destroy()
+
+							delete this.connections[socketId]
+						} catch {
+							// Noop
+						}
+					}
+				}
 			})
 		} catch (e) {
 			this.worker.logger.log("error", e, "http.stop")
