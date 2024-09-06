@@ -71,7 +71,7 @@
 		"@filen/sdk": "^0.1.163",
 		"@filen/sync": "^0.1.57",
 		"@filen/virtual-drive": "^0.1.15",
-		"@filen/web": "^0.1.30",
+		"@filen/web": "^0.1.31",
 		"@filen/webdav": "^0.2.40",
 		"axios": "^1.7.2",
 		"cors": "^2.8.5",
