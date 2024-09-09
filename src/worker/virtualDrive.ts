@@ -1,4 +1,4 @@
-import FilenVirtualDrive from "@filen/virtual-drive"
+import FilenVirtualDrive from "@filen/network-drive"
 import type Worker from "./worker"
 import pathModule from "path"
 import { filenLogsPath } from "../lib/logger"

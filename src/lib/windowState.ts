@@ -55,7 +55,12 @@ export class WindowState {
 		try {
 			const statePath = this.getStatePath()
 
-			await fs.unlink(statePath)
+			await fs.rm(statePath, {
+				force: true,
+				maxRetries: 60 * 10,
+				recursive: true,
+				retryDelay: 100
+			})
 		} catch (e) {
 			console.error(e)
 		}

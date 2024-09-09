@@ -13,7 +13,7 @@ import {
 import { type FilenDesktopConfig } from "./types"
 import { type SyncMode, type SyncPair } from "@filen/sync/dist/types"
 import { type DriveInfo } from "./utils"
-import { type GetStats } from "@filen/virtual-drive/dist/types"
+import { type GetStats } from "@filen/network-drive/dist/types"
 
 const env = {
 	isBrowser:

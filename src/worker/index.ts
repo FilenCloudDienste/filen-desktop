@@ -8,7 +8,7 @@ import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
 import fs from "fs-extra"
 import { Semaphore } from "../semaphore"
-import { rcloneBinaryName, checkIfMountExists } from "@filen/virtual-drive"
+import { rcloneBinaryName, checkIfMountExists } from "@filen/network-drive"
 
 export class Worker {
 	private worker: WorkerThread | null = null

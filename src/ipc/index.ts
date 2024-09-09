@@ -22,7 +22,7 @@ import {
 	isUnixMountPointEmpty,
 	isWinFSPInstalled,
 	isFUSE3InstalledOnLinux
-} from "@filen/virtual-drive"
+} from "@filen/network-drive"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
