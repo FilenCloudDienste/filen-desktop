@@ -185,15 +185,15 @@ export class Worker {
 		})
 	}
 
-	public async isVirtualDriveMounted(): Promise<boolean> {
+	public async isNetworkDriveMounted(): Promise<boolean> {
 		try {
 			const desktopConfig = await waitForConfig()
 
-			if (!(await checkIfMountExists(desktopConfig.virtualDriveConfig.mountPoint)) || !(await isProcessRunning(rcloneBinaryName))) {
+			if (!(await checkIfMountExists(desktopConfig.networkDriveConfig.mountPoint)) || !(await isProcessRunning(rcloneBinaryName))) {
 				return false
 			}
 
-			const stat = await fs.stat(desktopConfig.virtualDriveConfig.mountPoint)
+			const stat = await fs.stat(desktopConfig.networkDriveConfig.mountPoint)
 
 			return process.platform === "darwin" || process.platform === "linux" ? stat.ino === 0 || stat.birthtimeMs === 0 : stat.ino === 1
 		} catch {

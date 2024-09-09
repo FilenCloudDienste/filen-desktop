@@ -2,7 +2,7 @@ import { parentPort, isMainThread } from "worker_threads"
 import { type FilenDesktopConfig, type WorkerMessage, type WorkerInvokeChannel } from "../types"
 import WebDAV from "./webdav"
 import S3 from "./s3"
-import VirtualDrive from "./virtualDrive"
+import NetworkDrive from "./networkDrive"
 import diskusage from "diskusage-ng"
 import { promiseAllChunked, serializeError } from "../utils"
 import pathModule from "path"
@@ -17,7 +17,7 @@ export class Worker {
 	public desktopConfig: FilenDesktopConfig | null = null
 	private webdav: WebDAV
 	private s3: S3
-	private virtualDrive: VirtualDrive
+	private networkDrive: NetworkDrive
 	private sync: Sync
 	private http: HTTP
 	private sdk: FilenSDK | null = null
@@ -31,7 +31,7 @@ export class Worker {
 
 		this.webdav = new WebDAV(this)
 		this.s3 = new S3(this)
-		this.virtualDrive = new VirtualDrive(this)
+		this.networkDrive = new NetworkDrive(this)
 		this.sync = new Sync(this)
 		this.http = new HTTP(this)
 		this.logger = new Logger(false, true)
@@ -85,11 +85,11 @@ export class Worker {
 		return this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32 ? true : false
 	}
 
-	public async virtualDriveAvailableCacheSize(): Promise<number> {
+	public async networkDriveAvailableCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
-		const cachePath = desktopConfig.virtualDriveConfig.cachePath
-			? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache")
-			: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")
+		const cachePath = desktopConfig.networkDriveConfig.cachePath
+			? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache")
+			: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
 
 		await fs.ensureDir(cachePath)
 
@@ -106,11 +106,11 @@ export class Worker {
 		})
 	}
 
-	public async virtualDriveCacheSize(): Promise<number> {
+	public async networkDriveCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
-		const cachePath = desktopConfig.virtualDriveConfig.cachePath
-			? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache", "vfs")
-			: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache", "vfs")
+		const cachePath = desktopConfig.networkDriveConfig.cachePath
+			? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache", "vfs")
+			: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache", "vfs")
 
 		if (!(await fs.exists(cachePath))) {
 			return 0
@@ -139,24 +139,24 @@ export class Worker {
 		return total
 	}
 
-	public async virtualDriveCleanupLocalDir(): Promise<void> {
+	public async networkDriveCleanupLocalDir(): Promise<void> {
 		const desktopConfig = await this.waitForConfig()
 
-		await fs.rm(desktopConfig.virtualDriveConfig.localDirPath, {
+		await fs.rm(desktopConfig.networkDriveConfig.localDirPath, {
 			force: true,
 			maxRetries: 60 * 10,
 			recursive: true,
 			retryDelay: 100
 		})
 
-		await fs.ensureDir(desktopConfig.virtualDriveConfig.localDirPath)
+		await fs.ensureDir(desktopConfig.networkDriveConfig.localDirPath)
 	}
 
-	public async virtualDriveCleanupCache(): Promise<void> {
+	public async networkDriveCleanupCache(): Promise<void> {
 		const desktopConfig = await this.waitForConfig()
-		const cachePath = desktopConfig.virtualDriveConfig.cachePath
-			? pathModule.join(desktopConfig.virtualDriveConfig.cachePath, "filenCache")
-			: pathModule.join(desktopConfig.virtualDriveConfig.localDirPath, "cache")
+		const cachePath = desktopConfig.networkDriveConfig.cachePath
+			? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache")
+			: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
 
 		await fs.rm(cachePath, {
 			force: true,
@@ -206,18 +206,18 @@ export class Worker {
 					await this.stop()
 
 					this.invokeResponse(message.data.id, message.data.channel)
-				} else if (message.data.channel === "startVirtualDrive" || message.data.channel === "restartVirtualDrive") {
+				} else if (message.data.channel === "startNetworkDrive" || message.data.channel === "restartNetworkDrive") {
 					try {
-						await this.virtualDrive.stop()
-						await this.virtualDrive.start()
+						await this.networkDrive.stop()
+						await this.networkDrive.start()
 
 						this.invokeResponse(message.data.id, message.data.channel)
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "stopVirtualDrive") {
+				} else if (message.data.channel === "stopNetworkDrive") {
 					try {
-						await this.virtualDrive.stop()
+						await this.networkDrive.stop()
 
 						this.invokeResponse(message.data.id, message.data.channel)
 					} catch (e) {
@@ -257,17 +257,17 @@ export class Worker {
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "virtualDriveAvailableCacheSize") {
+				} else if (message.data.channel === "networkDriveAvailableCacheSize") {
 					try {
-						const size = await this.virtualDriveAvailableCacheSize()
+						const size = await this.networkDriveAvailableCacheSize()
 
 						this.invokeResponse(message.data.id, message.data.channel, size)
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "virtualDriveStats") {
+				} else if (message.data.channel === "networkDriveStats") {
 					try {
-						if (!this.virtualDrive.virtualDrive) {
+						if (!this.networkDrive.networkDrive) {
 							this.invokeResponse(message.data.id, message.data.channel, {
 								uploadsInProgress: 0,
 								uploadsQueued: 0,
@@ -275,32 +275,32 @@ export class Worker {
 								transfers: []
 							})
 						} else {
-							const stats = await this.virtualDrive.virtualDrive.getStats()
+							const stats = await this.networkDrive.networkDrive.getStats()
 
 							this.invokeResponse(message.data.id, message.data.channel, stats)
 						}
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "virtualDriveCacheSize") {
+				} else if (message.data.channel === "networkDriveCacheSize") {
 					try {
-						const size = await this.virtualDriveCacheSize()
+						const size = await this.networkDriveCacheSize()
 
 						this.invokeResponse(message.data.id, message.data.channel, size)
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "virtualDriveCleanupCache") {
+				} else if (message.data.channel === "networkDriveCleanupCache") {
 					try {
-						await this.virtualDriveCleanupCache()
+						await this.networkDriveCleanupCache()
 
 						this.invokeResponse(message.data.id, message.data.channel)
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "virtualDriveCleanupLocalDir") {
+				} else if (message.data.channel === "networkDriveCleanupLocalDir") {
 					try {
-						await this.virtualDriveCleanupCache()
+						await this.networkDriveCleanupCache()
 
 						this.invokeResponse(message.data.id, message.data.channel)
 					} catch (e) {
@@ -329,8 +329,8 @@ export class Worker {
 					this.invokeResponse(message.data.id, message.data.channel, this.webdav.active)
 				} else if (message.data.channel === "isSyncActive") {
 					this.invokeResponse(message.data.id, message.data.channel, this.sync.active)
-				} else if (message.data.channel === "isVirtualDriveActive") {
-					this.invokeResponse(message.data.id, message.data.channel, this.virtualDrive.active)
+				} else if (message.data.channel === "isNetworkDriveActive") {
+					this.invokeResponse(message.data.id, message.data.channel, this.networkDrive.active)
 				} else if (message.data.channel === "syncResetCache") {
 					if (this.sync.active && this.sync.sync) {
 						const { uuid } = message.data.data
@@ -485,8 +485,8 @@ export class Worker {
 
 	public async stop(): Promise<void> {
 		if (this.isAuthed()) {
-			// We only need to cleanup the virtual drive rclone instance, everything else (webdav, s3, sync, http) gets killed automatically
-			await this.virtualDrive.stop()
+			// We only need to cleanup the network drive rclone instance, everything else (webdav, s3, sync, http) gets killed automatically
+			await this.networkDrive.stop()
 		}
 	}
 }

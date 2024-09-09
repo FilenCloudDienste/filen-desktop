@@ -40,7 +40,7 @@ export type FilenDesktopConfig = {
 		port: number
 		https: boolean
 	}
-	virtualDriveConfig: {
+	networkDriveConfig: {
 		enabled: boolean
 		mountPoint: string
 		localDirPath: string
@@ -58,9 +58,9 @@ export type FilenDesktopConfig = {
 export type SyncMessage = SyncSyncMessage
 
 export type WorkerInvokeChannel =
-	| "startVirtualDrive"
-	| "stopVirtualDrive"
-	| "restartVirtualDrive"
+	| "startNetworkDrive"
+	| "stopNetworkDrive"
+	| "restartNetworkDrive"
 	| "startS3"
 	| "stopS3"
 	| "restartS3"
@@ -69,17 +69,17 @@ export type WorkerInvokeChannel =
 	| "restartWebDAV"
 	| "setConfig"
 	| "stop"
-	| "virtualDriveAvailableCacheSize"
-	| "virtualDriveCacheSize"
-	| "virtualDriveCleanupLocalDir"
-	| "virtualDriveCleanupCache"
+	| "networkDriveAvailableCacheSize"
+	| "networkDriveCacheSize"
+	| "networkDriveCleanupLocalDir"
+	| "networkDriveCleanupCache"
 	| "startSync"
 	| "stopSync"
 	| "restartSync"
 	| "isS3Active"
 	| "isWebDAVActive"
 	| "isSyncActive"
-	| "isVirtualDriveActive"
+	| "isNetworkDriveActive"
 	| "syncUpdateRemoved"
 	| "syncUpdatePaused"
 	| "syncUpdateIgnorerContent"
@@ -97,7 +97,7 @@ export type WorkerInvokeChannel =
 	| "startHTTP"
 	| "isHTTPActive"
 	| "stopHTTP"
-	| "virtualDriveStats"
+	| "networkDriveStats"
 	| "syncUpdatePairs"
 
 export type WorkerMessage =

@@ -178,7 +178,7 @@ export class IPC {
 		this.cloud()
 		this.webdav()
 		this.s3()
-		this.virtualDrive()
+		this.networkDrive()
 		this.sync()
 	}
 
@@ -222,9 +222,9 @@ export class IPC {
 					metadataCache: true,
 					password: "redacted"
 				},
-				virtualDriveConfig: {
-					...config.virtualDriveConfig,
-					localDirPath: pathModule.join(app.getPath("userData"), "virtualDrive")
+				networkDriveConfig: {
+					...config.networkDriveConfig,
+					localDirPath: pathModule.join(app.getPath("userData"), "networkDrive")
 				},
 				syncConfig: {
 					...config.syncConfig,
@@ -750,49 +750,49 @@ export class IPC {
 	}
 
 	/**
-	 * Handle all Virtual Drive related invocations.
+	 * Handle all Network Drive related invocations.
 	 *
 	 * @private
 	 */
-	private virtualDrive(): void {
-		ipcMain.handle("startVirtualDrive", async () => {
-			await this.desktop.worker.invoke("startVirtualDrive")
+	private networkDrive(): void {
+		ipcMain.handle("startNetworkDrive", async () => {
+			await this.desktop.worker.invoke("startNetworkDrive")
 		})
 
-		ipcMain.handle("stopVirtualDrive", async () => {
-			await this.desktop.worker.invoke("stopVirtualDrive")
+		ipcMain.handle("stopNetworkDrive", async () => {
+			await this.desktop.worker.invoke("stopNetworkDrive")
 		})
 
-		ipcMain.handle("restartVirtualDrive", async () => {
-			await this.desktop.worker.invoke("restartVirtualDrive")
+		ipcMain.handle("restartNetworkDrive", async () => {
+			await this.desktop.worker.invoke("restartNetworkDrive")
 		})
 
-		ipcMain.handle("isVirtualDriveMounted", async () => {
-			return await this.desktop.worker.isVirtualDriveMounted()
+		ipcMain.handle("isNetworkDriveMounted", async () => {
+			return await this.desktop.worker.isNetworkDriveMounted()
 		})
 
-		ipcMain.handle("virtualDriveAvailableCache", async () => {
-			return await this.desktop.worker.invoke("virtualDriveAvailableCacheSize")
+		ipcMain.handle("networkDriveAvailableCache", async () => {
+			return await this.desktop.worker.invoke("networkDriveAvailableCacheSize")
 		})
 
-		ipcMain.handle("virtualDriveStats", async () => {
-			return await this.desktop.worker.invoke("virtualDriveStats")
+		ipcMain.handle("networkDriveStats", async () => {
+			return await this.desktop.worker.invoke("networkDriveStats")
 		})
 
-		ipcMain.handle("virtualDriveCacheSize", async () => {
-			return await this.desktop.worker.invoke("virtualDriveCacheSize")
+		ipcMain.handle("networkDriveCacheSize", async () => {
+			return await this.desktop.worker.invoke("networkDriveCacheSize")
 		})
 
-		ipcMain.handle("virtualDriveCleanupCache", async () => {
-			await this.desktop.worker.invoke("virtualDriveCleanupCache")
+		ipcMain.handle("networkDriveCleanupCache", async () => {
+			await this.desktop.worker.invoke("networkDriveCleanupCache")
 		})
 
-		ipcMain.handle("virtualDriveCleanupLocalDir", async () => {
-			await this.desktop.worker.invoke("virtualDriveCleanupLocalDir")
+		ipcMain.handle("networkDriveCleanupLocalDir", async () => {
+			await this.desktop.worker.invoke("networkDriveCleanupLocalDir")
 		})
 
-		ipcMain.handle("isVirtualDriveActive", async () => {
-			return await this.desktop.worker.invoke("isVirtualDriveActive")
+		ipcMain.handle("isNetworkDriveActive", async () => {
+			return await this.desktop.worker.invoke("isNetworkDriveActive")
 		})
 
 		ipcMain.handle("isWinFSPInstalled", async () => {
