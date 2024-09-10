@@ -190,6 +190,8 @@ export class FilenDesktop {
 			}
 		})
 
+		this.launcherWindow.setIcon(getAppIcon())
+
 		await this.launcherWindow.loadFile(pathModule.join("..", "public", "launcher.html"))
 
 		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden")) {

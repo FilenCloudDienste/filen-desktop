@@ -67,12 +67,12 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.5",
-		"@filen/s3": "^0.2.37",
-		"@filen/sdk": "^0.1.164",
-		"@filen/sync": "^0.1.58",
-		"@filen/web": "^0.1.34",
-		"@filen/webdav": "^0.2.48",
+		"@filen/network-drive": "^0.9.6",
+		"@filen/s3": "^0.2.38",
+		"@filen/sdk": "^0.1.165",
+		"@filen/sync": "^0.1.60",
+		"@filen/web": "^0.1.36",
+		"@filen/webdav": "^0.2.50",
 		"axios": "^1.7.2",
 		"cors": "^2.8.5",
 		"diskusage-ng": "^1.0.4",
