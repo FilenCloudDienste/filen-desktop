@@ -11,3 +11,4 @@ dist
 yalc.lock
 prod
 .env
+tsconfig.tsbuildinfo
