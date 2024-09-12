@@ -67,11 +67,11 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.8",
+		"@filen/network-drive": "^0.9.9",
 		"@filen/s3": "^0.2.38",
 		"@filen/sdk": "^0.1.165",
 		"@filen/sync": "^0.1.60",
-		"@filen/web": "^0.1.38",
+		"@filen/web": "^0.1.39",
 		"@filen/webdav": "^0.2.50",
 		"axios": "^1.7.2",
 		"cors": "^2.8.5",
