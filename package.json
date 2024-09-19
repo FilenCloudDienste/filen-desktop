@@ -70,7 +70,7 @@
 		"@filen/network-drive": "^0.9.15",
 		"@filen/s3": "^0.2.39",
 		"@filen/sdk": "^0.1.167",
-		"@filen/sync": "^0.1.64",
+		"@filen/sync": "^0.1.65",
 		"@filen/web": "^0.1.43",
 		"@filen/webdav": "^0.2.52",
 		"axios": "^1.7.2",
