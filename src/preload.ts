@@ -111,6 +111,7 @@ export type DesktopAPI = {
 	getDiskType: (path: string) => Promise<DriveInfo | null>
 	networkDriveStats: () => Promise<GetStats>
 	syncUpdatePairs: (params: { pairs: SyncPair[] }) => Promise<void>
+	isFUSETInstalledOnMacOS: () => Promise<boolean>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -206,6 +207,7 @@ if (env.isBrowser || env.isElectron) {
 		getLocalDirectoryItemCount: path => ipcRenderer.invoke("getLocalDirectoryItemCount", path),
 		getAutoLaunch: () => ipcRenderer.invoke("getAutoLaunch"),
 		isFUSE3InstalledOnLinux: () => ipcRenderer.invoke("isFUSE3InstalledOnLinux"),
+		isFUSETInstalledOnMacOS: () => ipcRenderer.invoke("isFUSETInstalledOnMacOS"),
 		getDiskType: path => ipcRenderer.invoke("getDiskType", path),
 		networkDriveStats: () => ipcRenderer.invoke("networkDriveStats"),
 		syncUpdatePairs: params => ipcRenderer.invoke("syncUpdatePairs", params)

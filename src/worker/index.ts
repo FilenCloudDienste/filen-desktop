@@ -8,7 +8,7 @@ import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
 import fs from "fs-extra"
 import { Semaphore } from "../semaphore"
-import { rcloneBinaryName, checkIfMountExists } from "@filen/network-drive"
+import { RCLONE_BINARY_NAME, checkIfMountExists } from "@filen/network-drive"
 
 export class Worker {
 	private worker: WorkerThread | null = null
@@ -40,13 +40,13 @@ export class Worker {
 				}, 60000)
 
 				await this.stop()
-				await new Promise<void>(resolve => setTimeout(resolve, 1000))
+				await new Promise<void>(resolve => setTimeout(resolve, 250))
 			} catch {
 				// Noop
 			} finally {
 				this.didQuitApp = true
 
-				app.exit(0)
+				app.quit()
 			}
 		})
 	}
@@ -189,13 +189,13 @@ export class Worker {
 		try {
 			const desktopConfig = await waitForConfig()
 
-			if (!(await checkIfMountExists(desktopConfig.networkDriveConfig.mountPoint)) || !(await isProcessRunning(rcloneBinaryName))) {
+			if (!(await checkIfMountExists(desktopConfig.networkDriveConfig.mountPoint)) || !(await isProcessRunning(RCLONE_BINARY_NAME))) {
 				return false
 			}
 
 			const stat = await fs.stat(desktopConfig.networkDriveConfig.mountPoint)
 
-			return process.platform === "darwin" || process.platform === "linux" ? stat.ino === 0 || stat.birthtimeMs === 0 : stat.ino === 1
+			return process.platform === "linux" ? stat.ino === 0 || stat.birthtimeMs === 0 : stat.ino === 1
 		} catch {
 			return false
 		}

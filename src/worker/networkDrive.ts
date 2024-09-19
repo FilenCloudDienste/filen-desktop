@@ -3,15 +3,36 @@ import type Worker from "./worker"
 import pathModule from "path"
 import { filenLogsPath } from "../lib/logger"
 
+/**
+ * NetworkDrive
+ *
+ * @export
+ * @class NetworkDrive
+ * @typedef {NetworkDrive}
+ */
 export class NetworkDrive {
 	private worker: Worker
 	public networkDrive: FilenNetworkDrive | null = null
 	public active: boolean = false
 
+	/**
+	 * Creates an instance of NetworkDrive.
+	 *
+	 * @constructor
+	 * @public
+	 * @param {Worker} worker
+	 */
 	public constructor(worker: Worker) {
 		this.worker = worker
 	}
 
+	/**
+	 * Start the network drive.
+	 *
+	 * @public
+	 * @async
+	 * @returns {Promise<void>}
+	 */
 	public async start(): Promise<void> {
 		await this.stop()
 
@@ -30,7 +51,9 @@ export class NetworkDrive {
 					: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache"),
 				logFilePath: pathModule.join(logDir, "rclone.log"),
 				readOnly: desktopConfig.networkDriveConfig.readOnly,
-				cacheSize: desktopConfig.networkDriveConfig.cacheSizeInGi
+				cacheSize: desktopConfig.networkDriveConfig.cacheSizeInGi,
+				tryToInstallDependenciesOnStart: true,
+				disableLogging: false
 			})
 
 			await this.networkDrive.start()
@@ -44,6 +67,13 @@ export class NetworkDrive {
 		}
 	}
 
+	/**
+	 * Stop the network drive.
+	 *
+	 * @public
+	 * @async
+	 * @returns {Promise<void>}
+	 */
 	public async stop(): Promise<void> {
 		if (!this.networkDrive) {
 			return

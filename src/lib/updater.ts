@@ -153,7 +153,7 @@ export class Updater {
 
 		if (process.platform === "win32") {
 			setTimeout(() => {
-				app?.exit(0)
+				app.quit()
 			}, 1000)
 		}
 	}

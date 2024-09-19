@@ -21,7 +21,8 @@ import {
 	isUnixMountPointValid,
 	isUnixMountPointEmpty,
 	isWinFSPInstalled,
-	isFUSE3InstalledOnLinux
+	isFUSE3InstalledOnLinux,
+	isFUSETInstalledOnMacOS
 } from "@filen/network-drive"
 
 export type IPCDownloadFileParams = {
@@ -210,7 +211,7 @@ export class IPC {
 			this.didCallRestart = true
 
 			app.relaunch()
-			app.exit(0)
+			app.quit()
 		})
 
 		ipcMain.handle("setConfig", async (_, config: FilenDesktopConfig): Promise<void> => {
@@ -809,6 +810,14 @@ export class IPC {
 			}
 
 			return await isFUSE3InstalledOnLinux()
+		})
+
+		ipcMain.handle("isFUSETInstalledOnMacOS", async () => {
+			if (process.platform !== "darwin") {
+				return false
+			}
+
+			return await isFUSETInstalledOnMacOS()
 		})
 
 		ipcMain.handle("isUnixMountPointValid", async (_, path: string): Promise<boolean> => {
