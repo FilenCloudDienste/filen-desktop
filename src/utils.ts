@@ -217,7 +217,10 @@ export function parseByteRange(range: string, totalLength: number): { start: num
 		return null
 	}
 
-	return { start, end }
+	return {
+		start,
+		end
+	}
 }
 
 export type DriveInfo = {
@@ -238,8 +241,11 @@ export type LinuxDrive = {
 	children?: LinuxDrive[]
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function getDiskType(filePath: string): Promise<DriveInfo | null> {
-	const normalizedPath = pathModule.resolve(filePath)
+	return null // Temporary disabled
+
+	/*const normalizedPath = pathModule.resolve(filePath)
 
 	if (process.platform === "win32") {
 		return await getDiskTypeWindows(normalizedPath)
@@ -249,7 +255,7 @@ export async function getDiskType(filePath: string): Promise<DriveInfo | null> {
 		return await getDiskTypeLinux(normalizedPath)
 	} else {
 		throw new Error(`Unsupported platform: ${process.platform}`)
-	}
+	}*/
 }
 
 export async function getDiskTypeWindows(filePath: string): Promise<DriveInfo | null> {
@@ -278,7 +284,7 @@ export async function getDiskTypeWindows(filePath: string): Promise<DriveInfo | 
 	}
 }
 
-async function getDiskTypeMacOS(filePath: string): Promise<DriveInfo | null> {
+export async function getDiskTypeMacOS(filePath: string): Promise<DriveInfo | null> {
 	try {
 		const mountOutput = await execCommand(`df "${filePath}" | tail -1 | awk '{print $1}'`)
 
@@ -318,7 +324,7 @@ async function getDiskTypeMacOS(filePath: string): Promise<DriveInfo | null> {
 	}
 }
 
-async function getDiskTypeLinux(filePath: string): Promise<DriveInfo | null> {
+export async function getDiskTypeLinux(filePath: string): Promise<DriveInfo | null> {
 	try {
 		const stdout = await execCommand("lsblk -o NAME,TYPE,MOUNTPOINT,FSTYPE,MODEL,SERIAL,SIZE,STATE,ROTA --json")
 		const drives: { blockdevices: LinuxDrive[] } = JSON.parse(stdout)

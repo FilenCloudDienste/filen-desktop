@@ -317,6 +317,10 @@ if (IS_ELECTRON) {
 		console.error(err)
 
 		dialog.showErrorBox("Could not launch Filen", err instanceof Error ? err.message : "Unknown error")
+
+		setTimeout(() => {
+			app?.exit(1)
+		}, 3000)
 	})
 }
 
