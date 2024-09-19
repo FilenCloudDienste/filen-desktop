@@ -112,6 +112,8 @@ export type DesktopAPI = {
 	networkDriveStats: () => Promise<GetStats>
 	syncUpdatePairs: (params: { pairs: SyncPair[] }) => Promise<void>
 	isFUSETInstalledOnMacOS: () => Promise<boolean>
+	tryingToSyncDesktop: (path: string) => Promise<boolean>
+	isPathSyncedByICloud: (path: string) => Promise<boolean>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -210,6 +212,8 @@ if (env.isBrowser || env.isElectron) {
 		isFUSETInstalledOnMacOS: () => ipcRenderer.invoke("isFUSETInstalledOnMacOS"),
 		getDiskType: path => ipcRenderer.invoke("getDiskType", path),
 		networkDriveStats: () => ipcRenderer.invoke("networkDriveStats"),
-		syncUpdatePairs: params => ipcRenderer.invoke("syncUpdatePairs", params)
+		syncUpdatePairs: params => ipcRenderer.invoke("syncUpdatePairs", params),
+		tryingToSyncDesktop: path => ipcRenderer.invoke("tryingToSyncDesktop", path),
+		isPathSyncedByICloud: path => ipcRenderer.invoke("isPathSyncedByICloud", path)
 	} satisfies DesktopAPI)
 }

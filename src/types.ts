@@ -99,6 +99,7 @@ export type WorkerInvokeChannel =
 	| "stopHTTP"
 	| "networkDriveStats"
 	| "syncUpdatePairs"
+	| "getLocalDirectoryItemCount"
 
 export type WorkerMessage =
 	| {

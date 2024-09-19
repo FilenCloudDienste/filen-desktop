@@ -476,6 +476,26 @@ export class Worker {
 					}
 				} else if (message.data.channel === "isHTTPActive") {
 					this.invokeResponse(message.data.id, message.data.channel, this.http.active)
+				} else if (message.data.channel === "getLocalDirectoryItemCount") {
+					try {
+						const path = message.data.data
+						const canRead = await new Promise<boolean>(resolve =>
+							fs.access(path, fs.constants.R_OK, err => resolve(err ? false : true))
+						)
+
+						if (!canRead) {
+							throw new Error(`Cannot read at path ${path}.`)
+						}
+
+						const dir = await fs.readdir(path, {
+							recursive: true,
+							encoding: "utf-8"
+						})
+
+						this.invokeResponse(message.data.id, message.data.channel, dir.length)
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
+					}
 				} else {
 					this.invokeError(message.data.id, message.data.channel, new Error(`Channel ${message.data.channel} not found.`))
 				}

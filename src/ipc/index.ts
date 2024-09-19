@@ -24,6 +24,7 @@ import {
 	isFUSE3InstalledOnLinux,
 	isFUSETInstalledOnMacOS
 } from "@filen/network-drive"
+import { tryingToSyncDesktop, isPathSyncedByICloud } from "@filen/sync"
 
 export type IPCDownloadFileParams = {
 	item: DriveCloudItem
@@ -420,22 +421,19 @@ export class IPC {
 		})
 
 		ipcMain.handle("getLocalDirectoryItemCount", async (_, path: string) => {
-			const canRead = await new Promise<boolean>(resolve => fs.access(path, fs.constants.R_OK, err => resolve(err ? false : true)))
-
-			if (!canRead) {
-				throw new Error(`Cannot read at path ${path}.`)
-			}
-
-			const dir = await fs.readdir(path, {
-				recursive: true,
-				encoding: "utf-8"
-			})
-
-			return dir.length
+			return await this.desktop.worker.invoke("getLocalDirectoryItemCount", path)
 		})
 
 		ipcMain.handle("getDiskType", async (_, path: string) => {
 			return await getDiskType(path)
+		})
+
+		ipcMain.handle("tryingToSyncDesktop", async (_, path: string) => {
+			return tryingToSyncDesktop(path)
+		})
+
+		ipcMain.handle("isPathSyncedByICloud", async (_, path: string) => {
+			return await isPathSyncedByICloud(path)
 		})
 	}
 
