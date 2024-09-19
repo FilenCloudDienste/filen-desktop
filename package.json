@@ -71,7 +71,7 @@
 		"@filen/s3": "^0.2.39",
 		"@filen/sdk": "^0.1.167",
 		"@filen/sync": "^0.1.62",
-		"@filen/web": "^0.1.41",
+		"@filen/web": "^0.1.42",
 		"@filen/webdav": "^0.2.52",
 		"axios": "^1.7.2",
 		"cors": "^2.8.5",
