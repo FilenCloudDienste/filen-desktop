@@ -3,6 +3,8 @@ import axios from "axios"
 import https from "https"
 import { exec } from "child_process"
 import pathModule from "path"
+import fs from "fs-extra"
+import FastGlob, { type Entry } from "fast-glob"
 
 /**
  * Chunk large Promise.all executions.
@@ -364,4 +366,76 @@ export function findLinuxDiskByPath(drives: LinuxDrive[], filePath: string): Lin
 	}
 
 	return null
+}
+
+export async function getLocalDirectorySize(path: string): Promise<{
+	items: number
+	size: number
+}> {
+	return new Promise<{
+		items: number
+		size: number
+		// eslint-disable-next-line no-async-promise-executor
+	}>(async (resolve, reject) => {
+		try {
+			let didError = false
+			let didErrorErr: Error = new Error("Could not read local directory.")
+			let size = 0
+			let items = 0
+			const stream = FastGlob.stream("**/*", {
+				dot: true,
+				onlyDirectories: false,
+				onlyFiles: false,
+				throwErrorOnBrokenSymbolicLink: false,
+				cwd: path,
+				followSymbolicLinks: false,
+				deep: Infinity,
+				fs,
+				suppressErrors: false,
+				stats: true,
+				unique: true,
+				objectMode: true
+			})
+
+			stream.on("error", err => {
+				didError = true
+				didErrorErr = err
+
+				reject(err)
+			})
+
+			if (didError) {
+				reject(didErrorErr)
+
+				return
+			}
+
+			for await (const entry of stream) {
+				if (didError) {
+					break
+				}
+
+				const entryItem = entry as unknown as Required<Entry>
+
+				if (entryItem.dirent.isFile()) {
+					size += entryItem.stats.size
+				}
+
+				items += 1
+			}
+
+			if (didError) {
+				reject(didErrorErr)
+
+				return
+			}
+
+			resolve({
+				items,
+				size
+			})
+		} catch (e) {
+			reject(e)
+		}
+	})
 }

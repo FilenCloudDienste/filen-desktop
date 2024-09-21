@@ -4,7 +4,7 @@ import WebDAV from "./webdav"
 import S3 from "./s3"
 import NetworkDrive from "./networkDrive"
 import diskusage from "diskusage-ng"
-import { promiseAllChunked, serializeError } from "../utils"
+import { serializeError, getLocalDirectorySize } from "../utils"
 import pathModule from "path"
 import fs from "fs-extra"
 import Sync from "./sync"
@@ -116,27 +116,9 @@ export class Worker {
 			return 0
 		}
 
-		const dir = await fs.readdir(cachePath, {
-			recursive: true,
-			encoding: "utf-8"
-		})
-		let total = 0
+		const dir = await getLocalDirectorySize(cachePath)
 
-		await promiseAllChunked(
-			dir.map(async entry => {
-				try {
-					const stat = await fs.stat(pathModule.join(cachePath, entry))
-
-					if (stat.isFile()) {
-						total += stat.size
-					}
-				} catch {
-					// Noop
-				}
-			})
-		)
-
-		return total
+		return dir.size
 	}
 
 	public async networkDriveCleanupLocalDir(): Promise<void> {
@@ -487,12 +469,9 @@ export class Worker {
 							throw new Error(`Cannot read at path ${path}.`)
 						}
 
-						const dir = await fs.readdir(path, {
-							recursive: true,
-							encoding: "utf-8"
-						})
+						const dir = await getLocalDirectorySize(path)
 
-						this.invokeResponse(message.data.id, message.data.channel, dir.length)
+						this.invokeResponse(message.data.id, message.data.channel, dir.items)
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}

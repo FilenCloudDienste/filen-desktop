@@ -7,7 +7,7 @@ import { type DirDownloadType } from "@filen/sdk/dist/types/api/v3/dir/download"
 import pathModule from "path"
 import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
-import { isPortInUse, canStartServerOnIPAndPort, type SerializedError, getDiskType } from "../utils"
+import { isPortInUse, canStartServerOnIPAndPort, type SerializedError, getDiskType, getLocalDirectorySize } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
 import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
@@ -397,12 +397,9 @@ export class IPC {
 			}
 
 			const logsPath = await filenLogsPath()
-			const dir = await fs.readdir(logsPath, {
-				recursive: false,
-				encoding: "utf-8"
-			})
+			const dir = await getLocalDirectorySize(logsPath)
 
-			if (dir.length === 0) {
+			if (dir.items === 0) {
 				return
 			}
 
