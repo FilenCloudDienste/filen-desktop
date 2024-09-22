@@ -254,14 +254,16 @@ export class FilenDesktop {
 
 		this.windowState.manage(this.driveWindow)
 
-		this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
+		if (!this.tray) {
+			this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
 
-		this.tray.setContextMenu(null)
-		this.tray.setToolTip("Filen")
+			this.tray.setContextMenu(null)
+			this.tray.setToolTip("Filen")
 
-		this.tray.on("click", () => {
-			this.driveWindow?.show()
-		})
+			this.tray.on("click", () => {
+				this.driveWindow?.show()
+			})
+		}
 
 		if (process.platform === "win32") {
 			this.driveWindow.setThumbarButtons([])
