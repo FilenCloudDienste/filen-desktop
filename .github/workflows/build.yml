@@ -27,6 +27,15 @@ jobs:
               with:
                   node-version: 20
                   cache: "npm"
+            - name: Clear builder cache
+              run: |
+                  if (Test-Path "$env:ELECTRON_BUILDER_CACHE") {
+                    Remove-Item -Recurse -Force "$env:ELECTRON_BUILDER_CACHE"
+                  }
+
+                  if (Test-Path "$env:ELECTRON_BUILDER_DOWNLOAD_PATH") {
+                    Remove-Item -Recurse -Force "$env:ELECTRON_BUILDER_DOWNLOAD_PATH"
+                  }
             - name: Install dependencies
               run: npm install --package-lock-only; npm ci
             - name: Install prebuilts
@@ -72,6 +81,9 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             contents: write
+        env:
+            ELECTRON_BUILDER_CACHE: "/tmp/electron-builder"
+            ELECTRON_BUILDER_DOWNLOAD_PATH: "/tmp/electron"
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -80,6 +92,15 @@ jobs:
               with:
                   node-version: 20
                   cache: "npm"
+            - name: Clear builder cache
+              run: |
+                  if [ -d "$ELECTRON_BUILDER_CACHE" ]; then
+                      rm -rf $ELECTRON_BUILDER_CACHE
+                  fi
+
+                  if [ -d "$ELECTRON_BUILDER_DOWNLOAD_PATH" ]; then
+                      rm -rf $ELECTRON_BUILDER_DOWNLOAD_PATH
+                  fi
             - name: Install dependencies
               run: npm install --package-lock-only && npm ci
             - name: Install prebuilts
@@ -131,6 +152,8 @@ jobs:
             APPLE_NOTARIZE_ID: ${{ secrets.APPLE_NOTARIZE_ID }}
             APPLE_NOTARIZE_PASS: ${{ secrets.APPLE_NOTARIZE_PASS }}
             APPLE_NOTARIZE_TEAM_ID: ${{ secrets.APPLE_NOTARIZE_TEAM_ID }}
+            ELECTRON_BUILDER_CACHE: "/tmp/electron-builder-cache"
+            ELECTRON_BUILDER_DOWNLOAD_PATH: "/tmp/electron-download"
         steps:
             - name: Checkout
               uses: actions/checkout@v4
@@ -139,6 +162,15 @@ jobs:
               with:
                   node-version: 20
                   cache: "npm"
+            - name: Clear builder cache
+              run: |
+                  if [ -d "$ELECTRON_BUILDER_CACHE" ]; then
+                      rm -rf $ELECTRON_BUILDER_CACHE
+                  fi
+
+                  if [ -d "$ELECTRON_BUILDER_DOWNLOAD_PATH" ]; then
+                      rm -rf $ELECTRON_BUILDER_DOWNLOAD_PATH
+                  fi
             - name: Install dependencies
               run: npm install --package-lock-only && npm ci
             - name: Install prebuilts
