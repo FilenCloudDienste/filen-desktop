@@ -57,7 +57,7 @@
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
 		"electron": "^32.2.0",
-		"electron-builder": "^25.0.0",
+		"electron-builder": "^24.13.3",
 		"eslint": "^8.56.0",
 		"jest": "^29.7.0",
 		"rimraf": "^6.0.1",
@@ -76,7 +76,7 @@
 		"axios": "^1.7.2",
 		"cors": "^2.8.5",
 		"diskusage-ng": "^1.0.4",
-		"electron-updater": "^6.2.1",
+		"electron-updater": "^6.3.9",
 		"express": "^4.19.2",
 		"fast-glob": "^3.3.2",
 		"find-free-ports": "^3.1.1",
@@ -136,13 +136,11 @@
 			}
 		],
 		"win": {
-			"signtoolOptions": {
-				"publisherName": [
-					"Filen Cloud Dienste UG (haftungsbeschränkt)"
-				],
-				"certificateSubjectName": "Filen Cloud Dienste UG (haftungsbeschränkt)",
-				"sign": "build/sign.js"
-			},
+			"publisherName": [
+				"Filen Cloud Dienste UG (haftungsbeschränkt)"
+			],
+			"certificateSubjectName": "Filen Cloud Dienste UG (haftungsbeschränkt)",
+			"sign": "build/sign.js",
 			"verifyUpdateCodeSignature": false,
 			"icon": "build/icons/win/icon.ico",
 			"target": [
