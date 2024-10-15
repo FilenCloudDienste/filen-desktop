@@ -833,17 +833,12 @@ export class IPC {
 
 		ipcMain.handle("doesPathStartWithHomeDir", async (_, path: string) => {
 			if (process.platform === "win32") {
-				return path.startsWith(`C:\\Users\\${process.env.USER ?? "user"}`)
+				return path.startsWith(os.homedir() + "\\")
 			}
 
-			if (process.platform === "linux") {
-				return path.startsWith(`/home/${process.env.USER ?? "user"}`)
+			if (process.platform === "linux" || process.platform === "darwin") {
+				return path.startsWith(os.homedir() + "/")
 			}
-
-			if (process.platform === "darwin") {
-				return path.startsWith(`/Users/${process.env.USER ?? "user"}`)
-			}
-
 			return false
 		})
 	}
