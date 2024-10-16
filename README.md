@@ -11,10 +11,6 @@
 
 ![Contributors](https://img.shields.io/github/contributors/FilenCloudDienste/filen-desktop?color=dark-green) ![Forks](https://img.shields.io/github/forks/FilenCloudDienste/filen-desktop?style=social) ![Stargazers](https://img.shields.io/github/stars/FilenCloudDienste/filen-desktop?style=social) ![Issues](https://img.shields.io/github/issues/FilenCloudDienste/filen-desktop) ![License](https://img.shields.io/github/license/FilenCloudDienste/filen-desktop)
 
-# Attention
-
-The package is still a work in progress. DO NOT USE IT IN PRODUCTION YET. Class names, function names, types, definitions, constants etc. are subject to change until we release a fully tested and stable version.
-
 ### Installation and building
 
 1. Clone repository
