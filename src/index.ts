@@ -152,7 +152,12 @@ export class FilenDesktop {
 
 			this.logger.log("info", "Starting sync and http inside worker")
 
-			await Promise.all([this.worker.invoke("restartSync"), this.worker.invoke("restartHTTP")])
+			await this.worker.invoke("restartSync")
+
+			await this.worker.invoke("restartHTTP").catch(err => {
+				this.logger.log("error", err, "http.start")
+				this.logger.log("error", err)
+			})
 
 			this.logger.log("info", "Started")
 		} catch (e) {
