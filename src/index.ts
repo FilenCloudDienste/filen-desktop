@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Tray, nativeTheme, dialog } from "electron"
+import { app, BrowserWindow, shell, Tray, nativeTheme, dialog, Menu } from "electron"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
@@ -268,10 +268,36 @@ export class FilenDesktop {
 			this.tray.on("click", () => {
 				this.driveWindow?.show()
 			})
+
+			this.tray.setContextMenu(
+				Menu.buildFromTemplate([
+					{
+						label: "Filen",
+						type: "normal",
+						icon: getTrayIcon(false),
+						enabled: false
+					},
+					{
+						label: "Separator",
+						type: "separator"
+					},
+					{
+						label: "Exit",
+						type: "normal",
+						click: () => {
+							app?.quit()
+						}
+					}
+				])
+			)
+
+			this.tray.on("click", () => {
+				this.driveWindow?.show()
+			})
 		}
 
 		if (process.platform === "win32") {
-			this.driveWindow.setThumbarButtons([])
+			this.driveWindow?.setThumbarButtons([])
 		}
 
 		this.driveWindow.on("closed", () => {
@@ -292,11 +318,11 @@ export class FilenDesktop {
 			}
 
 			if (process.platform === "darwin") {
-				app.dock.setIcon(getAppIcon())
+				app?.dock?.setIcon(getAppIcon())
 			}
 
 			if (process.platform === "darwin" || (process.platform === "linux" && this.isUnityRunning)) {
-				app.setBadgeCount(this.notificationCount)
+				app?.setBadgeCount(this.notificationCount)
 			}
 		})
 
