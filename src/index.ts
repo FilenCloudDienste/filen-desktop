@@ -266,6 +266,14 @@ export class FilenDesktop {
 			this.tray.setToolTip("Filen")
 
 			this.tray.on("click", () => {
+				if (BrowserWindow.getAllWindows().length === 0) {
+					this.createMainWindow().catch(err => {
+						this.logger.log("error", err)
+					})
+
+					return
+				}
+
 				this.driveWindow?.show()
 			})
 
@@ -290,10 +298,6 @@ export class FilenDesktop {
 					}
 				])
 			)
-
-			this.tray.on("click", () => {
-				this.driveWindow?.show()
-			})
 		}
 
 		if (process.platform === "win32") {
