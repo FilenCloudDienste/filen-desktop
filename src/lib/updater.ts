@@ -145,8 +145,13 @@ export class Updater {
 			this.desktop.logger.log("error", err)
 		})
 
-		for (const window of BrowserWindow.getAllWindows()) {
-			window.destroy()
+		try {
+			for (const window of BrowserWindow.getAllWindows()) {
+				window.destroy()
+			}
+		} catch (e) {
+			this.desktop.logger.log("error", e, "updater.installUpdate.destroyWindows")
+			this.desktop.logger.log("error", e)
 		}
 
 		autoUpdater.quitAndInstall(false, true)
