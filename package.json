@@ -104,7 +104,7 @@
 			"dist/**/*",
 			"bin/**/*",
 			"build/installer.nsh",
-			"build/winfsp-2.1.24051.msi",
+			"build/winfsp-2.1.24255.msi",
 			"public/**/*"
 		],
 		"asarUnpack": [
@@ -162,8 +162,8 @@
 			],
 			"extraFiles": [
 				{
-					"from": "build/winfsp-2.1.24051.msi",
-					"to": "build/winfsp-2.1.24051.msi"
+					"from": "build/winfsp-2.1.24255.msi",
+					"to": "build/winfsp-2.1.24255.msi"
 				},
 				{
 					"from": "build/installer.nsh",
