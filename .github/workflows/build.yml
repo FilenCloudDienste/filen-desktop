@@ -39,7 +39,7 @@ jobs:
             - name: Install dependencies
               run: npm install --package-lock-only; npm ci
             - name: Install prebuilts
-              run: npm install @parcel/watcher-win32-ia32 @parcel/watcher-win32-x64 @parcel/watcher-win32-arm64 --force
+              run: npm install @parcel/watcher-win32-ia32@latest @parcel/watcher-win32-x64@latest @parcel/watcher-win32-arm64@latest --force
             - name: Build
               run: npm run build:win
               env:
@@ -104,7 +104,7 @@ jobs:
             - name: Install dependencies
               run: npm install --package-lock-only && npm ci
             - name: Install prebuilts
-              run: npm install @parcel/watcher-linux-x64-glibc @parcel/watcher-linux-x64-musl @parcel/watcher-linux-arm64-musl @parcel/watcher-linux-arm64-glibc @parcel/watcher-linux-arm-glibc --force
+              run: npm install @parcel/watcher-linux-x64-glibc@latest @parcel/watcher-linux-x64-musl@latest @parcel/watcher-linux-arm64-musl@latest @parcel/watcher-linux-arm64-glibc@latest @parcel/watcher-linux-arm-glibc@latest @parcel/watcher-linux-arm-musl@latest --force
             - name: Build
               run: npm run build:linux
             - name: Generate SHA256 hashes
@@ -174,7 +174,7 @@ jobs:
             - name: Install dependencies
               run: npm install --package-lock-only && npm ci
             - name: Install prebuilts
-              run: npm install @parcel/watcher-darwin-arm64 @parcel/watcher-darwin-x64 --force
+              run: npm install @parcel/watcher-darwin-arm64@latest @parcel/watcher-darwin-x64@latest --force
             - name: Decode macOS certificate
               run: |
                   echo "$APPLE_DEVELOPER_ID_CERT" | base64 --decode > certificate.p12
