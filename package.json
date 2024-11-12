@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.23",
-	"buildNumber": 323,
+	"version": "3.0.24",
+	"buildNumber": 324,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -52,7 +52,7 @@
 		"@typescript-eslint/parser": "^6.20.0",
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
-		"electron": "^33.0.2",
+		"electron": "^33.2.0",
 		"electron-builder": "^24.13.3",
 		"eslint": "^8.56.0",
 		"jest": "^29.7.0",
@@ -63,12 +63,12 @@
 		"wait-on": "^7.2.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.25",
-		"@filen/s3": "^0.2.41",
+		"@filen/network-drive": "^0.9.26",
+		"@filen/s3": "^0.2.42",
 		"@filen/sdk": "^0.1.175",
-		"@filen/sync": "^0.1.75",
+		"@filen/sync": "^0.1.77",
 		"@filen/web": "^0.1.47",
-		"@filen/webdav": "^0.2.56",
+		"@filen/webdav": "^0.2.57",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
 		"diskusage-ng": "^1.0.4",
@@ -78,12 +78,12 @@
 		"fs-extra": "^11.2.0",
 		"lodash": "^4.17.21",
 		"mime-types": "^2.1.35",
-		"pino": "^9.3.2",
+		"pino": "^9.5.0",
 		"rotating-file-stream": "^3.2.5",
 		"typed-emitter": "^2.1.0",
-		"uuid": "^11.0.2",
+		"uuid": "^11.0.3",
 		"write-file-atomic": "^6.0.0",
-		"zip-a-folder": "^3.1.7"
+		"zip-a-folder": "^3.1.8"
 	},
 	"build": {
 		"appId": "io.filen.desktop",
