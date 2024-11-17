@@ -93,10 +93,13 @@ export class Worker {
 
 		await fs.ensureDir(cachePath)
 
-		return await new Promise<number>((resolve, reject) => {
+		return await new Promise<number>(resolve => {
 			diskusage(cachePath, (err, usage) => {
 				if (err) {
-					reject(err)
+					this.logger.log("error", err, "worker.networkDriveAvailableCacheSize")
+					this.logger.log("error", err)
+
+					resolve(12884901888)
 
 					return
 				}
