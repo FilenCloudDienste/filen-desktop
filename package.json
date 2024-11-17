@@ -21,6 +21,7 @@
 		"build:mac": "npm run build && electron-builder -m --publish never",
 		"build:win": "npm run build && electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
+		"build:hashes": "tsx ./build/hashes.js",
 		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest @filen/network-drive@latest"
 	},
 	"repository": {
@@ -60,7 +61,8 @@
 		"ts-node": "^10.9.2",
 		"tsx": "^4.19.2",
 		"typescript": "^5.3.3",
-		"wait-on": "^8.0.1"
+		"wait-on": "^8.0.1",
+		"yaml": "^2.6.0"
 	},
 	"dependencies": {
 		"@filen/network-drive": "^0.9.28",

@@ -51,6 +51,8 @@ jobs:
                     $hash = CertUtil -hashfile $_.FullName SHA256 | Select-String -Pattern "^[0-9a-fA-F]{64}$"
                     $hash -replace "\s+", "" | Out-File "$($_.FullName).sha256.txt"
                   }
+            - name: Generate update hashes
+              run: npm run build:hashes
             - name: Attach artifacts to release
               uses: softprops/action-gh-release@v2
               with:
@@ -114,6 +116,8 @@ jobs:
                       sha256sum "$file" | awk '{print $1}' > "$file.sha256.txt"
                     fi
                   done
+            - name: Generate update hashes
+              run: npm run build:hashes
             - name: Attach artifacts to release
               uses: softprops/action-gh-release@v2
               with:
@@ -195,6 +199,8 @@ jobs:
                       shasum -a 256 "$file" | awk '{print $1}' > "$file.sha256.txt"
                     fi
                   done
+            - name: Generate update hashes
+              run: npm run build:hashes
             - name: Attach artifacts to release
               uses: softprops/action-gh-release@v2
               with:
