@@ -65,11 +65,11 @@
 		"yaml": "^2.6.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.28",
+		"@filen/network-drive": "^0.9.30",
 		"@filen/s3": "^0.2.44",
-		"@filen/sdk": "^0.1.176",
+		"@filen/sdk": "^0.1.177",
 		"@filen/sync": "^0.1.80",
-		"@filen/web": "^0.1.56",
+		"@filen/web": "^0.1.58",
 		"@filen/webdav": "^0.2.59",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
