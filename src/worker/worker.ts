@@ -3,7 +3,6 @@ import { type FilenDesktopConfig, type WorkerMessage, type WorkerInvokeChannel }
 import WebDAV from "./webdav"
 import S3 from "./s3"
 import NetworkDrive from "./networkDrive"
-import diskusage from "diskusage-ng"
 import { serializeError, getLocalDirectorySize } from "../utils"
 import pathModule from "path"
 import fs from "fs-extra"
@@ -94,7 +93,7 @@ export class Worker {
 		await fs.ensureDir(cachePath)
 
 		return await new Promise<number>(resolve => {
-			diskusage(cachePath, (err, usage) => {
+			fs.statfs(cachePath, (err, stats) => {
 				if (err) {
 					this.logger.log("error", err, "worker.networkDriveAvailableCacheSize")
 					this.logger.log("error", err)
@@ -104,7 +103,11 @@ export class Worker {
 					return
 				}
 
-				resolve(usage.available)
+				const blockSize = stats.bsize
+				const availableBlocks = stats.bavail
+				const freeSpace = availableBlocks * blockSize
+
+				resolve(freeSpace)
 			})
 		})
 	}

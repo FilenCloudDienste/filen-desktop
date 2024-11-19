@@ -391,7 +391,7 @@ export async function getLocalDirectorySize(path: string): Promise<{
 				followSymbolicLinks: false,
 				deep: Infinity,
 				fs,
-				suppressErrors: false,
+				suppressErrors: true,
 				stats: true,
 				unique: true,
 				objectMode: true
@@ -417,7 +417,7 @@ export async function getLocalDirectorySize(path: string): Promise<{
 
 				const entryItem = entry as unknown as Required<Entry>
 
-				if (entryItem.dirent.isFile()) {
+				if (entryItem.stats && entryItem.dirent?.isFile()) {
 					size += entryItem.stats.size
 				}
 
