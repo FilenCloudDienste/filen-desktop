@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.33",
-	"buildNumber": 333,
+	"version": "3.0.34",
+	"buildNumber": 334,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -65,7 +65,7 @@
 		"yaml": "^2.6.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.33",
+		"@filen/network-drive": "^0.9.34",
 		"@filen/s3": "^0.2.45",
 		"@filen/sdk": "^0.1.181",
 		"@filen/sync": "^0.1.81",
