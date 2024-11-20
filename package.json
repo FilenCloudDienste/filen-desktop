@@ -65,7 +65,7 @@
 		"yaml": "^2.6.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.32",
+		"@filen/network-drive": "^0.9.33",
 		"@filen/s3": "^0.2.45",
 		"@filen/sdk": "^0.1.181",
 		"@filen/sync": "^0.1.81",
