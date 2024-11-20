@@ -216,6 +216,18 @@ export class FilenDesktop {
 		this.launcherWindow = null
 	}
 
+	private showOrOpenDriveWindow(): void {
+		if (BrowserWindow.getAllWindows().length === 0) {
+			this.createMainWindow().catch(err => {
+				this.logger.log("error", err)
+			})
+
+			return
+		}
+
+		this.driveWindow?.show()
+	}
+
 	private async createMainWindow(): Promise<void> {
 		if (this.driveWindow) {
 			return
@@ -269,15 +281,7 @@ export class FilenDesktop {
 			this.tray.setToolTip("Filen")
 
 			this.tray.on("click", () => {
-				if (BrowserWindow.getAllWindows().length === 0) {
-					this.createMainWindow().catch(err => {
-						this.logger.log("error", err)
-					})
-
-					return
-				}
-
-				this.driveWindow?.show()
+				this.showOrOpenDriveWindow()
 			})
 
 			this.tray.setContextMenu(
@@ -287,6 +291,13 @@ export class FilenDesktop {
 						type: "normal",
 						icon: getTrayIcon(false),
 						enabled: false
+					},
+					{
+						label: "Open",
+						type: "normal",
+						click: () => {
+							this.showOrOpenDriveWindow()
+						}
 					},
 					{
 						label: "Separator",
