@@ -17,7 +17,7 @@ import FastGlob, { type Entry } from "fast-glob"
  * @param {number} [chunkSize=10000]
  * @returns {Promise<T[]>}
  */
-export async function promiseAllChunked<T>(promises: Promise<T>[], chunkSize = 100000): Promise<T[]> {
+export async function promiseAllChunked<T>(promises: Promise<T>[], chunkSize = 10000): Promise<T[]> {
 	const results: T[] = []
 
 	for (let i = 0; i < promises.length; i += chunkSize) {
@@ -394,7 +394,8 @@ export async function getLocalDirectorySize(path: string): Promise<{
 				suppressErrors: true,
 				stats: true,
 				unique: true,
-				objectMode: true
+				objectMode: true,
+				ignore: ["**/.filen.trash.local/**/*", "**/$RECYCLE.BIN/**/*", "**/System Volume Information/**/*"]
 			})
 
 			stream.on("error", err => {
