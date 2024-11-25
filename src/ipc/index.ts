@@ -926,7 +926,7 @@ export class IPC {
 				const normalizedPath = pathModule.normalize(path)
 
 				for (const disallowedDir of DISALLOWED_SYNC_DIRS) {
-					if (normalizedPath.startsWith(pathModule.normalize(disallowedDir))) {
+					if (normalizedPath.startsWith(pathModule.normalize(disallowedDir) + pathModule.sep)) {
 						return false
 					}
 				}
@@ -935,9 +935,9 @@ export class IPC {
 					return false
 				}
 
-				if (process.platform === "win32" && normalizedPath.startsWith("\\")) {
-					return false
-				}
+				// if (process.platform === "win32" && normalizedPath.startsWith("\\")) {
+				// 	return false
+				// }
 
 				const stat = await fs.lstat(path)
 

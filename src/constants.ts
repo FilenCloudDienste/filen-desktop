@@ -19,7 +19,8 @@ export const DISALLOWED_SYNC_DIRS = [
 	"C:\\Windows",
 	"C:\\Program Files",
 	"C:\\Program Files (x86)",
-	`C:\\Users\\${process.env.USER ?? "User"}\\AppData`,
+	`C:\\Users\\${process.env.USER ?? "User"}\\AppData\\Local`,
+	`C:\\Users\\${process.env.USER ?? "User"}\\AppData\\LocalLow`,
 	"C:\\Temp",
 	"C:\\Windows\\Temp",
 	"/System",
@@ -28,7 +29,7 @@ export const DISALLOWED_SYNC_DIRS = [
 	"/usr",
 	"/bin",
 	"/sbin",
-	"/var",
+	//"/var",
 	"/tmp",
 	"/private",
 	`/home/${process.env.USER ?? "User"}/.cache`
