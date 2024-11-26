@@ -281,6 +281,10 @@ export class FilenDesktop {
 			this.tray.setToolTip("Filen")
 
 			this.tray.on("click", () => {
+				if (process.platform !== "win32") {
+					return
+				}
+
 				this.showOrOpenDriveWindow()
 			})
 
