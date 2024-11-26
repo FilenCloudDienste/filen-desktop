@@ -140,6 +140,11 @@ export class Updater {
 		app.removeAllListeners("window-all-closed")
 		app.removeAllListeners("will-quit")
 
+		this.desktop.driveWindow?.removeAllListeners("close")
+		this.desktop.driveWindow?.removeAllListeners("show")
+		this.desktop.driveWindow?.removeAllListeners("minimize")
+		this.desktop.driveWindow?.removeAllListeners("maximize")
+
 		await this.desktop.worker.stop().catch(err => {
 			this.desktop.logger.log("error", err, "updater.installUpdate")
 			this.desktop.logger.log("error", err)

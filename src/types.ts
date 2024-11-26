@@ -141,3 +141,10 @@ export type WorkerMessage =
 			type: "sync"
 			data: SyncMessage
 	  }
+
+export type TrayState = {
+	notificationCount: number
+	isSyncing: boolean
+	warningCount: number
+	errorCount: number
+}

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, Tray, nativeTheme, dialog, Menu } from "electron"
+import { app, BrowserWindow, shell, dialog } from "electron"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
@@ -7,12 +7,14 @@ import Cloud from "./lib/cloud"
 import FS from "./lib/fs"
 import { IS_ELECTRON } from "./constants"
 import Worker from "./worker"
-import { getAppIcon, getTrayIcon, getOverlayIcon } from "./assets"
+import { getAppIcon } from "./assets"
 import Updater from "./lib/updater"
 import isDev from "./isDev"
 import Logger from "./lib/logger"
 import serveProd from "./lib/serve"
 import WindowState from "./lib/windowState"
+import Status from "./lib/status"
+import Options from "./lib/options"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -40,13 +42,14 @@ export class FilenDesktop {
 		cloud: Cloud
 		fs: FS
 	}
-	public notificationCount = 0
-	public tray: Tray | null = null
 	public updater: Updater
 	public logger: Logger
 	public isUnityRunning: boolean = process.platform === "linux" ? app.isUnityRunning() : false
 	public serve: (window: BrowserWindow) => Promise<void>
 	public windowState: WindowState
+	public minimizeToTray: boolean = false
+	public status: Status
+	public options: Options
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -67,6 +70,8 @@ export class FilenDesktop {
 		this.worker = new Worker(this)
 		this.updater = new Updater(this)
 		this.logger = new Logger(false, false)
+		this.status = new Status(this)
+		this.options = new Options()
 	}
 
 	/**
@@ -103,7 +108,14 @@ export class FilenDesktop {
 				return
 			}
 
+			const options = await this.options.get()
+
 			await app.whenReady()
+
+			if (options.startMinimized && process.platform === "darwin") {
+				app?.dock?.hide()
+			}
+
 			await this.createLauncherWindow()
 
 			this.initializeSDK()
@@ -202,7 +214,9 @@ export class FilenDesktop {
 
 		await this.launcherWindow.loadFile(pathModule.join("..", "public", "launcher.html"))
 
-		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden")) {
+		const startMinimized = (await this.options.get()).startMinimized ?? false
+
+		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden") && !startMinimized) {
 			this.launcherWindow.show()
 		}
 	}
@@ -216,7 +230,7 @@ export class FilenDesktop {
 		this.launcherWindow = null
 	}
 
-	private showOrOpenDriveWindow(): void {
+	public showOrOpenDriveWindow(): void {
 		if (BrowserWindow.getAllWindows().length === 0) {
 			this.createMainWindow().catch(err => {
 				this.logger.log("error", err)
@@ -225,7 +239,11 @@ export class FilenDesktop {
 			return
 		}
 
-		this.driveWindow?.show()
+		if (this.driveWindow?.isMinimized()) {
+			this.driveWindow?.restore()
+		} else {
+			this.driveWindow?.show()
+		}
 	}
 
 	private async createMainWindow(): Promise<void> {
@@ -233,7 +251,7 @@ export class FilenDesktop {
 			return
 		}
 
-		const state = await this.windowState.get()
+		const [state, options] = await Promise.all([this.windowState.get(), this.options.get()])
 
 		this.driveWindow = new BrowserWindow({
 			width: state ? state.width : 1280,
@@ -263,6 +281,8 @@ export class FilenDesktop {
 			}
 		})
 
+		this.status.initialize()
+
 		if (state) {
 			this.driveWindow.setBounds({
 				width: state.width,
@@ -274,82 +294,36 @@ export class FilenDesktop {
 
 		this.windowState.manage(this.driveWindow)
 
-		if (!this.tray) {
-			this.tray = new Tray(getTrayIcon(this.notificationCount > 0))
-
-			this.tray.setContextMenu(null)
-			this.tray.setToolTip("Filen")
-
-			this.tray.on("click", () => {
-				if (process.platform !== "win32") {
-					return
-				}
-
-				this.showOrOpenDriveWindow()
-			})
-
-			this.tray.setContextMenu(
-				Menu.buildFromTemplate([
-					{
-						label: "Filen",
-						type: "normal",
-						icon: getTrayIcon(false),
-						enabled: false
-					},
-					{
-						label: "Open",
-						type: "normal",
-						click: () => {
-							this.showOrOpenDriveWindow()
-						}
-					},
-					{
-						label: "Separator",
-						type: "separator"
-					},
-					{
-						label: "Exit",
-						type: "normal",
-						click: () => {
-							app?.quit()
-						}
-					}
-				])
-			)
-		}
-
 		if (process.platform === "win32") {
 			this.driveWindow?.setThumbarButtons([])
 		}
 
-		this.driveWindow.on("closed", () => {
+		this.driveWindow?.on("closed", () => {
 			this.driveWindow = null
 		})
 
-		// Handle different icons based on the user's theme (dark/light)
-		nativeTheme.on("updated", () => {
-			this.driveWindow?.setIcon(getAppIcon())
-			this.tray?.setImage(getTrayIcon(this.notificationCount > 0))
-
-			if (process.platform === "win32") {
-				if (this.notificationCount > 0) {
-					this.driveWindow?.setOverlayIcon(getOverlayIcon(this.notificationCount), this.notificationCount.toString())
-				} else {
-					this.driveWindow?.setOverlayIcon(null, "")
-				}
+		this.driveWindow?.on("minimize", () => {
+			if (process.platform === "darwin" && this.minimizeToTray) {
+				app?.dock?.hide()
 			}
+		})
 
-			if (process.platform === "darwin") {
-				app?.dock?.setIcon(getAppIcon())
+		this.driveWindow?.on("show", () => {
+			if (process.platform === "darwin" && !app?.dock?.isVisible()) {
+				app?.dock?.show()
 			}
+		})
 
-			if (process.platform === "darwin" || (process.platform === "linux" && this.isUnityRunning)) {
-				app?.setBadgeCount(this.notificationCount)
+		this.driveWindow?.on("close", e => {
+			if ((process.platform === "darwin" || this.minimizeToTray) && !this.driveWindow?.isMinimized()) {
+				e.preventDefault()
+
+				this.driveWindow?.minimize()
 			}
 		})
 
 		// Open links in default external browser
-		this.driveWindow.webContents.setWindowOpenHandler(({ url }) => {
+		this.driveWindow?.webContents.setWindowOpenHandler(({ url }) => {
 			shell.openExternal(url)
 
 			return {
@@ -358,13 +332,13 @@ export class FilenDesktop {
 		})
 
 		if (isDev) {
-			await this.driveWindow.loadURL("http://localhost:5173")
+			await this.driveWindow?.loadURL("http://localhost:5173")
 		} else {
 			await this.serve(this.driveWindow)
 		}
 
-		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden")) {
-			this.driveWindow.show()
+		if (!app.commandLine.hasSwitch("hidden") && !process.argv.includes("--hidden") && !options.startMinimized) {
+			this.driveWindow?.show()
 		}
 	}
 }

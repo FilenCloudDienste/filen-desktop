@@ -94,6 +94,9 @@ export type DesktopAPI = {
 	syncUpdateIgnorerContent: (params: { uuid: string; content: string }) => Promise<void>
 	syncToggleLocalTrash: (params: { uuid: string; enabled: boolean }) => Promise<void>
 	updateNotificationCount: (count: number) => Promise<void>
+	updateErrorCount: (count: number) => Promise<void>
+	updateWarningCount: (count: number) => Promise<void>
+	updateIsSyncing: (isSyncing: boolean) => Promise<void>
 	toggleAutoLaunch: (enabled: boolean) => Promise<void>
 	installUpdate: () => Promise<void>
 	isWinFSPInstalled: () => Promise<boolean>
@@ -114,6 +117,8 @@ export type DesktopAPI = {
 	isFUSETInstalledOnMacOS: () => Promise<boolean>
 	tryingToSyncDesktop: (path: string) => Promise<boolean>
 	isPathSyncedByICloud: (path: string) => Promise<boolean>
+	setMinimizeToTray: (minimizeToTray: boolean) => Promise<void>
+	setStartMinimized: (startMinimized: boolean) => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -194,6 +199,9 @@ if (env.isBrowser || env.isElectron) {
 		syncUpdateIgnorerContent: params => ipcRenderer.invoke("syncUpdateIgnorerContent", params),
 		syncFetchIgnorerContent: params => ipcRenderer.invoke("syncFetchIgnorerContent", params),
 		updateNotificationCount: count => ipcRenderer.invoke("updateNotificationCount", count),
+		updateErrorCount: count => ipcRenderer.invoke("updateErrorCount", count),
+		updateWarningCount: count => ipcRenderer.invoke("updateWarningCount", count),
+		updateIsSyncing: isSyncing => ipcRenderer.invoke("updateIsSyncing", isSyncing),
 		toggleAutoLaunch: enabled => ipcRenderer.invoke("toggleAutoLaunch", enabled),
 		installUpdate: () => ipcRenderer.invoke("installUpdate"),
 		isWinFSPInstalled: () => ipcRenderer.invoke("isWinFSPInstalled"),
@@ -214,6 +222,8 @@ if (env.isBrowser || env.isElectron) {
 		networkDriveStats: () => ipcRenderer.invoke("networkDriveStats"),
 		syncUpdatePairs: params => ipcRenderer.invoke("syncUpdatePairs", params),
 		tryingToSyncDesktop: path => ipcRenderer.invoke("tryingToSyncDesktop", path),
-		isPathSyncedByICloud: path => ipcRenderer.invoke("isPathSyncedByICloud", path)
+		isPathSyncedByICloud: path => ipcRenderer.invoke("isPathSyncedByICloud", path),
+		setMinimizeToTray: minimizeToTray => ipcRenderer.invoke("setMinimizeToTray", minimizeToTray),
+		setStartMinimized: startMinimized => ipcRenderer.invoke("setStartMinimized", startMinimized)
 	} satisfies DesktopAPI)
 }

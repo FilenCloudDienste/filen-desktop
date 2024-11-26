@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.34",
-	"buildNumber": 334,
+	"version": "3.0.35",
+	"buildNumber": 335,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -65,12 +65,12 @@
 		"yaml": "^2.6.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.35",
-		"@filen/s3": "^0.2.45",
-		"@filen/sdk": "^0.1.183",
+		"@filen/network-drive": "^0.9.36",
+		"@filen/s3": "^0.2.46",
+		"@filen/sdk": "^0.1.187",
 		"@filen/sync": "^0.1.84",
-		"@filen/web": "^0.1.67",
-		"@filen/webdav": "^0.2.60",
+		"@filen/web": "^0.1.71",
+		"@filen/webdav": "^0.2.61",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
 		"electron-updater": "^6.4.0-alpha.1",

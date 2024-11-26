@@ -9,7 +9,6 @@ import fs from "fs-extra"
 import { v4 as uuidv4 } from "uuid"
 import { isPortInUse, canStartServerOnIPAndPort, type SerializedError, getDiskType, getLocalDirectorySize } from "../utils"
 import { type SyncMessage } from "@filen/sync/dist/types"
-import { getTrayIcon, getAppIcon, getOverlayIcon } from "../assets"
 import { type ProgressInfo, type UpdateDownloadedEvent } from "electron-updater"
 import { DISALLOWED_SYNC_DIRS } from "../constants"
 import os from "os"
@@ -333,32 +332,38 @@ export class IPC {
 		})
 
 		ipcMain.handle("updateNotificationCount", async (_, count: number) => {
-			this.desktop.notificationCount = count
+			this.desktop.status.trayState.notificationCount = count
 
-			this.desktop.driveWindow?.setIcon(getAppIcon())
-			this.desktop.tray?.setImage(getTrayIcon(count > 0))
+			this.desktop.status.update()
+		})
 
-			if (process.platform === "win32") {
-				if (count > 0) {
-					this.desktop.driveWindow?.setOverlayIcon(getOverlayIcon(count), count.toString())
-				} else {
-					this.desktop.driveWindow?.setOverlayIcon(null, "")
-				}
-			}
+		ipcMain.handle("updateErrorCount", async (_, count: number) => {
+			this.desktop.status.trayState.errorCount = count
 
-			if (process.platform === "darwin") {
-				app.dock.setIcon(getAppIcon())
-			}
+			this.desktop.status.update()
+		})
 
-			if (process.platform === "darwin" || (process.platform === "linux" && this.desktop.isUnityRunning)) {
-				app.setBadgeCount(count)
-			}
+		ipcMain.handle("updateWarningCount", async (_, count: number) => {
+			this.desktop.status.trayState.warningCount = count
+
+			this.desktop.status.update()
+		})
+
+		ipcMain.handle("updateIsSyncing", async (_, isSyncing: boolean) => {
+			this.desktop.status.trayState.isSyncing = isSyncing
+
+			this.desktop.status.update()
 		})
 
 		ipcMain.handle("toggleAutoLaunch", async (_, enabled: boolean) => {
 			app.setLoginItemSettings({
 				openAtLogin: enabled,
-				...(enabled ? { openAsHidden: true, args: ["--hidden"] } : {})
+				...(enabled
+					? {
+							openAsHidden: true,
+							args: ["--hidden"]
+					  }
+					: {})
 			})
 		})
 
@@ -431,6 +436,20 @@ export class IPC {
 
 		ipcMain.handle("isPathSyncedByICloud", async (_, path: string) => {
 			return await isPathSyncedByICloud(path)
+		})
+
+		ipcMain.handle("setMinimizeToTray", async (_, minimizeToTray: boolean) => {
+			this.desktop.minimizeToTray = minimizeToTray
+
+			await this.desktop.options.update({
+				minimizeToTray
+			})
+		})
+
+		ipcMain.handle("setStartMinimized", async (_, startMinimized: boolean) => {
+			await this.desktop.options.update({
+				startMinimized
+			})
 		})
 	}
 
@@ -675,7 +694,11 @@ export class IPC {
 		})
 
 		ipcMain.handle("showWindow", async (): Promise<void> => {
-			this.desktop.driveWindow?.show()
+			if (this.desktop.driveWindow?.isMinimized()) {
+				this.desktop.driveWindow?.restore()
+			} else {
+				this.desktop.driveWindow?.show()
+			}
 		})
 
 		ipcMain.handle("hideWindow", async (): Promise<void> => {
