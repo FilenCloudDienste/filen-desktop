@@ -29,8 +29,9 @@ export const DISALLOWED_SYNC_DIRS = [
 	"/usr",
 	"/bin",
 	"/sbin",
-	//"/var",
+	// "/var",
 	"/tmp",
 	"/private",
-	`/home/${process.env.USER ?? "User"}/.cache`
+	`/home/${process.env.USER ?? "User"}/.cache`,
+	`/var/home/${process.env.USER ?? "User"}/.cache`
 ]
