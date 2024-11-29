@@ -43,17 +43,16 @@ export class NetworkDrive {
 				filenLogsPath()
 			])
 
+			const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
+
 			this.networkDrive = new FilenNetworkDrive({
 				sdk,
 				mountPoint: desktopConfig.networkDriveConfig.mountPoint,
-				cachePath: desktopConfig.networkDriveConfig.cachePath
-					? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache")
-					: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache"),
 				logFilePath: pathModule.join(logDir, "rclone.log"),
 				readOnly: desktopConfig.networkDriveConfig.readOnly,
-				cacheSize: desktopConfig.networkDriveConfig.cacheSizeInGi,
 				tryToInstallDependenciesOnStart: true,
-				disableLogging: false
+				disableLogging: false,
+				cachePath
 			})
 
 			await this.networkDrive.start()

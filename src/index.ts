@@ -164,10 +164,10 @@ export class FilenDesktop {
 
 			this.logger.log("info", "Starting sync and http inside worker")
 
-			this.worker.invoke("restartHTTP").catch(err => {
-				this.logger.log("error", err, "http.start")
-				this.logger.log("error", err)
-			})
+			// this.worker.invoke("restartHTTP").catch(err => {
+			// 	this.logger.log("error", err, "http.start")
+			// 	this.logger.log("error", err)
+			// })
 
 			this.worker.invoke("restartSync").catch(err => {
 				this.logger.log("error", err, "sync.start")

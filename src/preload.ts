@@ -119,6 +119,7 @@ export type DesktopAPI = {
 	isPathSyncedByICloud: (path: string) => Promise<boolean>
 	setMinimizeToTray: (minimizeToTray: boolean) => Promise<void>
 	setStartMinimized: (startMinimized: boolean) => Promise<void>
+	syncUpdateConfirmDeletion: (params: { uuid: string; result: "delete" | "restart" }) => Promise<void>
 }
 
 if (env.isBrowser || env.isElectron) {
@@ -224,6 +225,7 @@ if (env.isBrowser || env.isElectron) {
 		tryingToSyncDesktop: path => ipcRenderer.invoke("tryingToSyncDesktop", path),
 		isPathSyncedByICloud: path => ipcRenderer.invoke("isPathSyncedByICloud", path),
 		setMinimizeToTray: minimizeToTray => ipcRenderer.invoke("setMinimizeToTray", minimizeToTray),
-		setStartMinimized: startMinimized => ipcRenderer.invoke("setStartMinimized", startMinimized)
+		setStartMinimized: startMinimized => ipcRenderer.invoke("setStartMinimized", startMinimized),
+		syncUpdateConfirmDeletion: params => ipcRenderer.invoke("syncUpdateConfirmDeletion", params)
 	} satisfies DesktopAPI)
 }

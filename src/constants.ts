@@ -19,8 +19,6 @@ export const DISALLOWED_SYNC_DIRS = [
 	"C:\\Windows",
 	"C:\\Program Files",
 	"C:\\Program Files (x86)",
-	`C:\\Users\\${process.env.USER ?? "User"}\\AppData\\Local`,
-	`C:\\Users\\${process.env.USER ?? "User"}\\AppData\\LocalLow`,
 	"C:\\Temp",
 	"C:\\Windows\\Temp",
 	"/System",

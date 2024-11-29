@@ -86,9 +86,7 @@ export class Worker {
 
 	public async networkDriveAvailableCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
-		const cachePath = desktopConfig.networkDriveConfig.cachePath
-			? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache")
-			: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
+		const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
 
 		await fs.ensureDir(cachePath)
 
@@ -114,9 +112,7 @@ export class Worker {
 
 	public async networkDriveCacheSize(): Promise<number> {
 		const desktopConfig = await this.waitForConfig()
-		const cachePath = desktopConfig.networkDriveConfig.cachePath
-			? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache", "vfs")
-			: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache", "vfs")
+		const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache", "vfs")
 
 		if (!(await fs.exists(cachePath))) {
 			return 0
@@ -142,9 +138,7 @@ export class Worker {
 
 	public async networkDriveCleanupCache(): Promise<void> {
 		const desktopConfig = await this.waitForConfig()
-		const cachePath = desktopConfig.networkDriveConfig.cachePath
-			? pathModule.join(desktopConfig.networkDriveConfig.cachePath, "filenCache")
-			: pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
+		const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
 
 		await fs.rm(cachePath, {
 			force: true,
@@ -481,6 +475,14 @@ export class Worker {
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
+				} else if (message.data.channel === "syncUpdateConfirmDeletion") {
+					if (this.sync.active && this.sync.sync) {
+						const { uuid, result } = message.data.data
+
+						this.sync.sync.confirmDeletion(uuid, result)
+					}
+
+					this.invokeResponse(message.data.id, message.data.channel)
 				} else {
 					this.invokeError(message.data.id, message.data.channel, new Error(`Channel ${message.data.channel} not found.`))
 				}

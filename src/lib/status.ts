@@ -37,7 +37,12 @@ export class Status {
 					{
 						label: "Filen",
 						type: "normal",
-						icon: getTrayIcon(this.trayState),
+						icon: getTrayIcon({
+							isSyncing: false,
+							warningCount: 0,
+							notificationCount: 0,
+							errorCount: 0
+						}),
 						enabled: false
 					},
 					{

@@ -100,6 +100,7 @@ export type WorkerInvokeChannel =
 	| "networkDriveStats"
 	| "syncUpdatePairs"
 	| "getLocalDirectoryItemCount"
+	| "syncUpdateConfirmDeletion"
 
 export type WorkerMessage =
 	| {

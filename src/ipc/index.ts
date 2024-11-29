@@ -229,7 +229,11 @@ export class IPC {
 				},
 				syncConfig: {
 					...config.syncConfig,
-					dbPath: pathModule.join(app.getPath("userData"), "sync")
+					dbPath: pathModule.join(app.getPath("userData"), "sync"),
+					syncPairs: config.syncConfig.syncPairs.map(pair => ({
+						...pair,
+						requireConfirmationOnLargeDeletion: true
+					}))
 				}
 			}
 
@@ -942,6 +946,10 @@ export class IPC {
 
 		ipcMain.handle("syncUpdatePairs", async (_, params) => {
 			await this.desktop.worker.invoke("syncUpdatePairs", params)
+		})
+
+		ipcMain.handle("syncUpdateConfirmDeletion", async (_, params) => {
+			await this.desktop.worker.invoke("syncUpdateConfirmDeletion", params)
 		})
 
 		ipcMain.handle("isAllowedToSyncDirectory", async (_, path: string) => {
