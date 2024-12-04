@@ -66,10 +66,10 @@
 	},
 	"dependencies": {
 		"@filen/network-drive": "^0.9.38",
-		"@filen/s3": "^0.2.47",
+		"@filen/s3": "^0.2.49",
 		"@filen/sdk": "^0.1.189",
 		"@filen/sync": "^0.1.91",
-		"@filen/web": "^0.1.77",
+		"@filen/web": "^0.1.78",
 		"@filen/webdav": "^0.2.63",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
