@@ -60,7 +60,7 @@ export class Status {
 						label: "Exit",
 						type: "normal",
 						click: () => {
-							app?.quit()
+							app?.exit(0)
 						}
 					}
 				])
