@@ -211,7 +211,7 @@ export class IPC {
 			this.didCallRestart = true
 
 			app.relaunch()
-			app.quit()
+			app.exit(0)
 		})
 
 		ipcMain.handle("setConfig", async (_, config: FilenDesktopConfig): Promise<void> => {
@@ -406,6 +406,11 @@ export class IPC {
 			}
 
 			const logsPath = await filenLogsPath()
+
+			await fs.copy(app.getPath("crashDumps"), pathModule.join(logsPath, "crashDumps"), {
+				overwrite: true
+			})
+
 			const dir = await getLocalDirectorySize(logsPath)
 
 			if (dir.items === 0) {

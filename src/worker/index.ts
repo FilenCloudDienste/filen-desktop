@@ -46,7 +46,7 @@ export class Worker {
 			} finally {
 				this.didQuitApp = true
 
-				app.quit()
+				app.exit(0)
 			}
 		})
 	}
@@ -93,7 +93,16 @@ export class Worker {
 
 				this.worker = new WorkerThread(pathModule.join(__dirname, !isDev ? "worker.js" : "worker.dev.js"))
 
-				this.worker.on("error", reject)
+				this.worker.on("error", err => {
+					this.desktop.logger.log("error", err, "worker.onError")
+					this.desktop.logger.log("error", err)
+
+					reject(err)
+				})
+
+				this.worker.on("exit", code => {
+					this.desktop.logger.log("error", `Worker exited with code ${code}.`)
+				})
 
 				if (isDev) {
 					this.worker.stderr.on("data", chunk => {

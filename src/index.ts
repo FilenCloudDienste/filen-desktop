@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, dialog } from "electron"
+import { app, BrowserWindow, shell, dialog, crashReporter } from "electron"
 import pathModule from "path"
 import IPC from "./ipc"
 import FilenSDK from "@filen/sdk"
@@ -15,6 +15,7 @@ import serveProd from "./lib/serve"
 import WindowState from "./lib/windowState"
 import Status from "./lib/status"
 import Options from "./lib/options"
+import os from "os"
 
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
@@ -50,6 +51,7 @@ export class FilenDesktop {
 	public minimizeToTray: boolean = false
 	public status: Status
 	public options: Options
+	public shouldExitOnQuit: boolean = false
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -59,6 +61,21 @@ export class FilenDesktop {
 	 * @public
 	 */
 	public constructor() {
+		crashReporter.start({
+			submitURL: undefined,
+			productName: "io.filen.desktop",
+			uploadToServer: false,
+			ignoreSystemCrashHandler: false,
+			rateLimit: false,
+			compress: false,
+			globalExtra: {
+				cpus: os.cpus().length.toString(),
+				ram: os.totalmem().toString(),
+				platform: os.platform(),
+				release: os.release()
+			}
+		})
+
 		this.serve = serveProd()
 		this.windowState = new WindowState()
 		this.sdk = new FilenSDK()
@@ -121,9 +138,9 @@ export class FilenDesktop {
 			this.initializeSDK()
 
 			app.on("window-all-closed", () => {
-				if (process.platform !== "darwin") {
-					app.quit()
-				}
+				this.shouldExitOnQuit = true
+
+				app.exit(0)
 			})
 
 			app.on("second-instance", () => {
@@ -315,7 +332,7 @@ export class FilenDesktop {
 		})
 
 		this.driveWindow?.on("close", e => {
-			if ((process.platform === "darwin" || this.minimizeToTray) && !this.driveWindow?.isMinimized()) {
+			if ((process.platform === "darwin" || this.minimizeToTray) && !this.driveWindow?.isMinimized() && !this.shouldExitOnQuit) {
 				e.preventDefault()
 
 				this.driveWindow?.minimize()

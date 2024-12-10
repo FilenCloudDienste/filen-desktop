@@ -135,6 +135,8 @@ export class Updater {
 			throw new Error("No update available to install.")
 		}
 
+		this.desktop.shouldExitOnQuit = true
+
 		this.desktop.logger.log("info", "Installing update")
 
 		app.removeAllListeners("window-all-closed")
@@ -163,7 +165,7 @@ export class Updater {
 
 		if (process.platform === "win32") {
 			setTimeout(() => {
-				app.quit()
+				app.exit(0)
 			}, 1000)
 		}
 	}
