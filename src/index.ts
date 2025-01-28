@@ -25,6 +25,8 @@ if (IS_ELECTRON) {
 	// Ref: https://github.com/electron/electron/issues/28422
 	app?.commandLine.appendSwitch("enable-experimental-web-platform-features")
 	app?.commandLine.appendSwitch("disable-renderer-backgrounding")
+	app?.commandLine.appendSwitch("disable-pinch-zoom")
+	app?.commandLine.appendSwitch("disable-pinch")
 }
 
 /**
@@ -226,9 +228,13 @@ export class FilenDesktop {
 			show: false,
 			resizable: false,
 			webPreferences: {
-				devTools: false
+				devTools: false,
+				zoomFactor: 1
 			}
 		})
+
+		this.launcherWindow.webContents.setZoomFactor(1)
+		this.launcherWindow.webContents.setVisualZoomLevelLimits(1, 1)
 
 		this.launcherWindow.setIcon(getAppIcon())
 
@@ -297,9 +303,13 @@ export class FilenDesktop {
 				contextIsolation: true,
 				experimentalFeatures: true,
 				preload: isDev ? pathModule.join(__dirname, "..", "dist", "preload.js") : pathModule.join(__dirname, "preload.js"),
-				devTools: isDev
+				devTools: isDev,
+				zoomFactor: 1
 			}
 		})
+
+		this.driveWindow.webContents.setZoomFactor(1)
+		this.driveWindow.webContents.setVisualZoomLevelLimits(1, 1)
 
 		this.status.initialize()
 
