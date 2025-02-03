@@ -115,7 +115,8 @@ export class Cloud {
 					data: {
 						type: "queued",
 						uuid,
-						name
+						name,
+						fileType: "file"
 					}
 				})
 			},
@@ -130,7 +131,8 @@ export class Cloud {
 						type: "started",
 						uuid,
 						name,
-						size
+						size,
+						fileType: "file"
 					}
 				})
 			},
@@ -145,7 +147,8 @@ export class Cloud {
 						type: "progress",
 						bytes: transferred,
 						uuid,
-						name
+						name,
+						fileType: "file"
 					}
 				})
 			},
@@ -160,7 +163,8 @@ export class Cloud {
 						type: "finished",
 						uuid,
 						name,
-						size
+						size,
+						fileType: "file"
 					}
 				})
 			},
@@ -180,7 +184,8 @@ export class Cloud {
 						uuid,
 						err,
 						name,
-						size
+						size,
+						fileType: "file"
 					}
 				})
 			}
@@ -259,7 +264,8 @@ export class Cloud {
 				data: {
 					type: "queued",
 					uuid,
-					name
+					name,
+					fileType: "directory"
 				}
 			})
 		}
@@ -312,7 +318,8 @@ export class Cloud {
 							type: "started",
 							uuid,
 							name,
-							size
+							size,
+							fileType: "directory"
 						}
 					})
 				},
@@ -327,7 +334,8 @@ export class Cloud {
 							type: "progress",
 							bytes: transferred,
 							uuid,
-							name
+							name,
+							fileType: "directory"
 						}
 					})
 				},
@@ -342,7 +350,8 @@ export class Cloud {
 							type: "finished",
 							uuid,
 							name,
-							size
+							size,
+							fileType: "directory"
 						}
 					})
 				},
@@ -362,7 +371,8 @@ export class Cloud {
 							uuid,
 							err,
 							name,
-							size
+							size,
+							fileType: "directory"
 						}
 					})
 				}
@@ -382,7 +392,8 @@ export class Cloud {
 						uuid,
 						name,
 						size,
-						err
+						err,
+						fileType: "directory"
 					}
 				})
 			}
@@ -533,7 +544,8 @@ export class Cloud {
 						type: "finished",
 						uuid: directoryId,
 						name,
-						size: directorySize
+						size: directorySize,
+						fileType: "directory"
 					}
 				})
 
@@ -582,7 +594,8 @@ export class Cloud {
 										data: {
 											type: "queued",
 											uuid: directoryId,
-											name
+											name,
+											fileType: "directory"
 										}
 									})
 								},
@@ -603,7 +616,8 @@ export class Cloud {
 											type: "started",
 											uuid: directoryId,
 											name,
-											size: directorySize
+											size: directorySize,
+											fileType: "directory"
 										}
 									})
 								},
@@ -618,7 +632,8 @@ export class Cloud {
 											type: "progress",
 											uuid: directoryId,
 											name,
-											bytes: transferred
+											bytes: transferred,
+											fileType: "directory"
 										}
 									})
 								},
@@ -644,7 +659,8 @@ export class Cloud {
 											uuid: directoryId,
 											name,
 											size: directorySize,
-											err
+											err,
+											fileType: "directory"
 										}
 									})
 								}
@@ -661,7 +677,8 @@ export class Cloud {
 					type: "finished",
 					uuid: directoryId,
 					name,
-					size: directorySize
+					size: directorySize,
+					fileType: "directory"
 				}
 			})
 
@@ -683,7 +700,8 @@ export class Cloud {
 						uuid: directoryId,
 						name,
 						size: directorySize,
-						err
+						err,
+						fileType: "directory"
 					}
 				})
 			}

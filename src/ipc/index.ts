@@ -85,7 +85,7 @@ export type IPCShowSaveDialogResultParams = {
 export type MainToWindowMessage =
 	| {
 			type: "download" | "upload"
-			data: { uuid: string; name: string } & (
+			data: { uuid: string; name: string; fileType: "file" | "directory" } & (
 				| {
 						type: "started"
 						size: number
@@ -538,7 +538,8 @@ export class IPC {
 							uuid: item.uuid,
 							name,
 							size: item.size,
-							err: e
+							err: e,
+							fileType: "file"
 						}
 					})
 				}
@@ -593,7 +594,8 @@ export class IPC {
 								uuid,
 								name,
 								size: 0,
-								err: e
+								err: e,
+								fileType: "directory"
 							}
 						})
 					}
@@ -665,7 +667,8 @@ export class IPC {
 								uuid: directoryId,
 								name,
 								size: 0,
-								err: e
+								err: e,
+								fileType: "directory"
 							}
 						})
 					}
