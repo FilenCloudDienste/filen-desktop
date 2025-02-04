@@ -17,9 +17,6 @@ import Status from "./lib/status"
 import Options from "./lib/options"
 import os from "os"
 
-// Disable ASAR archive handling. We want to tread archives as single files.
-process.noAsar = true
-
 if (IS_ELECTRON) {
 	// Needs to be here, otherwise Chromium's FileSystemAccess API won't work. Waiting for the electron team to fix it.
 	// Ref: https://github.com/electron/electron/issues/28422

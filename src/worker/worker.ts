@@ -12,7 +12,7 @@ import { Semaphore } from "../semaphore"
 import Logger from "../lib/logger"
 import HTTP from "./http"
 
-// Disable ASAR archive handling. We want to tread archives as single files.
+// Disable ASAR archive handling. We want to treat archives as single files.
 process.noAsar = true
 
 export class Worker {
