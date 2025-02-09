@@ -92,6 +92,7 @@ export type DesktopAPI = {
 	syncResumeTransfer: (params: { uuid: string; type: "upload" | "download"; relativePath: string }) => Promise<void>
 	syncFetchIgnorerContent: (params: { uuid: string }) => Promise<string>
 	syncUpdateIgnorerContent: (params: { uuid: string; content: string }) => Promise<void>
+	syncUpdateRequireConfirmationOnLargeDeletions: (params: { uuid: string; requireConfirmationOnLargeDeletions: boolean }) => Promise<void>
 	syncToggleLocalTrash: (params: { uuid: string; enabled: boolean }) => Promise<void>
 	updateNotificationCount: (count: number) => Promise<void>
 	updateErrorCount: (count: number) => Promise<void>
@@ -226,6 +227,7 @@ if (env.isBrowser || env.isElectron) {
 		isPathSyncedByICloud: path => ipcRenderer.invoke("isPathSyncedByICloud", path),
 		setMinimizeToTray: minimizeToTray => ipcRenderer.invoke("setMinimizeToTray", minimizeToTray),
 		setStartMinimized: startMinimized => ipcRenderer.invoke("setStartMinimized", startMinimized),
-		syncUpdateConfirmDeletion: params => ipcRenderer.invoke("syncUpdateConfirmDeletion", params)
+		syncUpdateConfirmDeletion: params => ipcRenderer.invoke("syncUpdateConfirmDeletion", params),
+		syncUpdateRequireConfirmationOnLargeDeletions: params => ipcRenderer.invoke("syncUpdateRequireConfirmationOnLargeDeletions", params)
 	} satisfies DesktopAPI)
 }

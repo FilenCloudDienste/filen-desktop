@@ -346,6 +346,10 @@ export class FilenDesktop {
 				e.preventDefault()
 
 				this.driveWindow?.minimize()
+
+				if (process.platform === "darwin" && this.minimizeToTray) {
+					app?.dock?.hide()
+				}
 			}
 		})
 

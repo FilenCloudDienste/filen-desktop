@@ -161,12 +161,20 @@ export class Updater {
 			this.desktop.logger.log("error", e)
 		}
 
-		autoUpdater.quitAndInstall(false, true)
+		if (process.platform === "darwin") {
+			autoUpdater.quitAndInstall(true, true)
 
-		if (process.platform === "win32") {
 			setTimeout(() => {
 				app.exit(0)
-			}, 1000)
+			}, 1500)
+		} else {
+			autoUpdater.quitAndInstall(false, true)
+
+			if (process.platform === "win32") {
+				setTimeout(() => {
+					app.exit(0)
+				}, 1000)
+			}
 		}
 	}
 }

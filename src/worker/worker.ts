@@ -333,7 +333,7 @@ export class Worker {
 					if (this.sync.active && this.sync.sync) {
 						const { uuid, content } = message.data.data
 
-						this.sync.sync.updateIgnorerContent(uuid, content)
+						await this.sync.sync.updateIgnorerContent(uuid, content)
 					}
 
 					this.invokeResponse(message.data.id, message.data.channel)
@@ -425,6 +425,18 @@ export class Worker {
 							const { pairs } = message.data.data
 
 							await this.sync.sync.updateSyncPairs(pairs)
+						}
+
+						this.invokeResponse(message.data.id, message.data.channel)
+					} catch (e) {
+						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
+					}
+				} else if (message.data.channel === "syncUpdateRequireConfirmationOnLargeDeletions") {
+					try {
+						if (this.sync.active && this.sync.sync) {
+							const { uuid, requireConfirmationOnLargeDeletion } = message.data.data
+
+							this.sync.sync.updateRequireConfirmationOnLargeDeletion(uuid, requireConfirmationOnLargeDeletion)
 						}
 
 						this.invokeResponse(message.data.id, message.data.channel)

@@ -101,6 +101,7 @@ export type WorkerInvokeChannel =
 	| "syncUpdatePairs"
 	| "getLocalDirectoryItemCount"
 	| "syncUpdateConfirmDeletion"
+	| "syncUpdateRequireConfirmationOnLargeDeletions"
 
 export type WorkerMessage =
 	| {
