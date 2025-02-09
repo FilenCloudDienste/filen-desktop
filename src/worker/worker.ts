@@ -12,9 +12,6 @@ import { Semaphore } from "../semaphore"
 import Logger from "../lib/logger"
 import HTTP from "./http"
 
-// Disable ASAR archive handling. We want to treat archives as single files.
-process.noAsar = true
-
 export class Worker {
 	public desktopConfig: FilenDesktopConfig | null = null
 	private webdav: WebDAV
