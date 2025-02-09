@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.46",
-	"buildNumber": 346,
+	"version": "3.0.47",
+	"buildNumber": 347,
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -54,7 +54,7 @@
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
 		"electron": "^34.1.1",
-		"electron-builder": "^26.0.6",
+		"electron-builder": "^26.0.0-alpha.6",
 		"eslint": "^8.56.0",
 		"jest": "^29.7.0",
 		"rimraf": "^6.0.1",
