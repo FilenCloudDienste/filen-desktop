@@ -60,14 +60,24 @@ export class Worker {
 
 	public async waitForConfig(): Promise<FilenDesktopConfig> {
 		return new Promise<FilenDesktopConfig>(resolve => {
-			if (this.desktopConfig && this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32) {
+			if (
+				this.desktopConfig &&
+				this.desktopConfig.sdkConfig.apiKey &&
+				this.desktopConfig.sdkConfig.apiKey.length > 32 &&
+				this.desktopConfig.sdkConfig.apiKey !== "anonymous"
+			) {
 				resolve(this.desktopConfig)
 
 				return
 			}
 
 			const wait = setInterval(() => {
-				if (this.desktopConfig && this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32) {
+				if (
+					this.desktopConfig &&
+					this.desktopConfig.sdkConfig.apiKey &&
+					this.desktopConfig.sdkConfig.apiKey.length > 32 &&
+					this.desktopConfig.sdkConfig.apiKey !== "anonymous"
+				) {
 					clearInterval(wait)
 
 					resolve(this.desktopConfig)
@@ -81,7 +91,11 @@ export class Worker {
 			return false
 		}
 
-		return this.desktopConfig.sdkConfig.apiKey && this.desktopConfig.sdkConfig.apiKey.length > 32 ? true : false
+		return this.desktopConfig.sdkConfig.apiKey &&
+			this.desktopConfig.sdkConfig.apiKey.length > 32 &&
+			this.desktopConfig.sdkConfig.apiKey !== "anonymous"
+			? true
+			: false
 	}
 
 	public async networkDriveAvailableCacheSize(): Promise<number> {

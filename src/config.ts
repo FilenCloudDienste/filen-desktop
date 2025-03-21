@@ -8,14 +8,14 @@ export function setConfig(config: FilenDesktopConfig): void {
 
 export function waitForConfig(): Promise<FilenDesktopConfig> {
 	return new Promise<FilenDesktopConfig>(resolve => {
-		if (CONFIG && CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32) {
+		if (CONFIG && CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32 && CONFIG.sdkConfig.apiKey !== "anonymous") {
 			resolve(CONFIG)
 
 			return
 		}
 
 		const wait = setInterval(() => {
-			if (CONFIG && CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32) {
+			if (CONFIG && CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32 && CONFIG.sdkConfig.apiKey !== "anonymous") {
 				clearInterval(wait)
 
 				resolve(CONFIG)
@@ -29,7 +29,7 @@ export function isAuthed(): boolean {
 		return false
 	}
 
-	return CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32 ? true : false
+	return CONFIG.sdkConfig.apiKey && CONFIG.sdkConfig.apiKey.length > 32 && CONFIG.sdkConfig.apiKey !== "anonymous" ? true : false
 }
 
 export default CONFIG
