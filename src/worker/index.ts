@@ -61,7 +61,6 @@ export class Worker {
 			}
 
 			// Start worker if it's not online for some reason. Should start on client init.
-			// eslint-disable-next-line no-extra-semi
 			;(this.active ? Promise.resolve() : this.start())
 				.then(() => {
 					const id = this.invokesId++

@@ -93,7 +93,6 @@ export class Logger {
 			return
 		}
 
-		// eslint-disable-next-line no-extra-semi
 		;(async () => {
 			try {
 				if (!this.logger) {
