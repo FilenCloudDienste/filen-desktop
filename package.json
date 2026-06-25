@@ -95,6 +95,7 @@
 		"npmRebuild": false,
 		"nodeGypRebuild": false,
 		"artifactName": "Filen_${os}_${arch}.${ext}",
+		"afterAllArtifactBuild": "build/notarize-dmg.js",
 		"directories": {
 			"output": "prod",
 			"buildResources": "build"
