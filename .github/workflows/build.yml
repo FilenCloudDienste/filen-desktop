@@ -175,11 +175,11 @@ jobs:
         permissions:
             contents: write
         env:
-            APPLE_DEVELOPER_ID_CERT: ${{ secrets.APPLE_DEVELOPER_ID_CERT }}
-            APPLE_DEVELOPER_ID_CERT_PASS: ${{ secrets.APPLE_DEVELOPER_ID_CERT_PASS }}
-            APPLE_NOTARIZE_ID: ${{ secrets.APPLE_NOTARIZE_ID }}
-            APPLE_NOTARIZE_PASS: ${{ secrets.APPLE_NOTARIZE_PASS }}
-            APPLE_NOTARIZE_TEAM_ID: ${{ secrets.APPLE_NOTARIZE_TEAM_ID }}
+            CSC_LINK: ${{ secrets.CSC_LINK }}
+            CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+            APPLE_ID: ${{ secrets.APPLE_ID }}
+            APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+            APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
             ELECTRON_BUILDER_CACHE: "/tmp/electron-builder-cache"
             ELECTRON_BUILDER_DOWNLOAD_PATH: "/tmp/electron-download"
         steps:
@@ -203,17 +203,6 @@ jobs:
               run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-darwin-arm64@latest @parcel/watcher-darwin-x64@latest --force
-            - name: Decode macOS certificate
-              run: |
-                  echo "$APPLE_DEVELOPER_ID_CERT" | base64 --decode > certificate.p12
-            - name: Import certificate to keychain
-              run: |
-                  security create-keychain -p actions build.keychain
-                  security import certificate.p12 -k ~/Library/Keychains/build.keychain -P "$APPLE_DEVELOPER_ID_CERT_PASS" -T /usr/bin/codesign
-                  security list-keychains -d user -s ~/Library/Keychains/build.keychain
-                  security set-keychain-settings -t 3600 -u ~/Library/Keychains/build.keychain
-                  security unlock-keychain -p actions ~/Library/Keychains/build.keychain
-                  security set-key-partition-list -S apple-tool:,apple: -s -k actions ~/Library/Keychains/build.keychain
             - name: Build
               run: npm run build:mac
             - name: Generate SHA256 hashes
@@ -255,8 +244,3 @@ jobs:
                       prod/*.blockmap
                       prod/latest-mac.yml
                   if-no-files-found: error
-            - name: Cleanup keychain
-              if: always()
-              run: |
-                  security delete-keychain build.keychain || true
-                  rm -f certificate.p12
