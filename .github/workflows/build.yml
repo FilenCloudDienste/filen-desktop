@@ -3,6 +3,7 @@ name: Build artifacts and attach to release
 on:
     release:
         types: [published]
+    workflow_dispatch:
 
 concurrency:
     group: "build"
@@ -11,12 +12,13 @@ concurrency:
 jobs:
     buildWindows:
         name: Build windows artifacts and attach to release
-        runs-on: win11
+        runs-on: windows-latest
         permissions:
             contents: write
         env:
-            SIGN_TOKEN_ALIAS: ${{ secrets.SIGN_TOKEN_ALIAS }}
-            SIGN_TOKEN_PASS: ${{ secrets.SIGN_TOKEN_PASS }}
+            AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+            AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+            AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
             ELECTRON_BUILDER_CACHE: "C:\\actions-runner\\cache\\builder"
             ELECTRON_BUILDER_DOWNLOAD_PATH: "C:\\actions-runner\\cache\\electron"
         steps:
@@ -37,14 +39,15 @@ jobs:
                     Remove-Item -Recurse -Force "$env:ELECTRON_BUILDER_DOWNLOAD_PATH"
                   }
             - name: Install dependencies
-              run: npm install --package-lock-only; npm ci
+              run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-win32-ia32@latest @parcel/watcher-win32-x64@latest @parcel/watcher-win32-arm64@latest --force
             - name: Build
               run: npm run build:win
               env:
-                  SIGN_TOKEN_ALIAS: ${{ secrets.SIGN_TOKEN_ALIAS }}
-                  SIGN_TOKEN_PASS: ${{ secrets.SIGN_TOKEN_PASS }}
+                  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+                  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+                  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
             - name: Generate SHA256 hashes
               run: |
                   Get-ChildItem prod -File | ForEach-Object {
@@ -54,6 +57,7 @@ jobs:
             - name: Generate update hashes
               run: npm run build:hashes
             - name: Attach artifacts to release
+              if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v2
               with:
                   files: |
@@ -75,8 +79,17 @@ jobs:
                       prod/Filen_win_x64.zip.sha256.txt
                       prod/latest.yml
                       prod/latest.yml.sha256.txt
-            - name: Cleanup
-              run: npm run clear
+            - name: Upload artifacts (manual run)
+              if: success() && github.event_name != 'release'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Filen-windows
+                  path: |
+                      prod/*.exe
+                      prod/*.zip
+                      prod/*.blockmap
+                      prod/latest.yml
+                  if-no-files-found: error
 
     buildLinux:
         name: Build linux artifacts and attach to release
@@ -104,7 +117,7 @@ jobs:
                       rm -rf $ELECTRON_BUILDER_DOWNLOAD_PATH
                   fi
             - name: Install dependencies
-              run: npm install --package-lock-only && npm ci
+              run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-linux-x64-glibc@latest @parcel/watcher-linux-x64-musl@latest @parcel/watcher-linux-arm64-musl@latest @parcel/watcher-linux-arm64-glibc@latest @parcel/watcher-linux-arm-glibc@latest @parcel/watcher-linux-arm-musl@latest --force
             - name: Build
@@ -119,6 +132,7 @@ jobs:
             - name: Generate update hashes
               run: npm run build:hashes
             - name: Attach artifacts to release
+              if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v2
               with:
                   files: |
@@ -142,8 +156,18 @@ jobs:
                       prod/Filen_linux_x86_64.rpm.sha256.txt
                       prod/latest-linux-arm64.yml.sha256.txt
                       prod/latest-linux.yml.sha256.txt
-            - name: Cleanup
-              run: npm run clear
+            - name: Upload artifacts (manual run)
+              if: success() && github.event_name != 'release'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Filen-linux
+                  path: |
+                      prod/*.deb
+                      prod/*.rpm
+                      prod/*.AppImage
+                      prod/*.zip
+                      prod/latest-linux*.yml
+                  if-no-files-found: error
 
     buildMac:
         name: Build macOS artifacts and attach to release
@@ -176,7 +200,7 @@ jobs:
                       rm -rf $ELECTRON_BUILDER_DOWNLOAD_PATH
                   fi
             - name: Install dependencies
-              run: npm install --package-lock-only && npm ci
+              run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-darwin-arm64@latest @parcel/watcher-darwin-x64@latest --force
             - name: Decode macOS certificate
@@ -202,6 +226,7 @@ jobs:
             - name: Generate update hashes
               run: npm run build:hashes
             - name: Attach artifacts to release
+              if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v2
               with:
                   files: |
@@ -219,9 +244,19 @@ jobs:
                       prod/Filen_mac_arm64.zip.sha256.txt
                       prod/latest-mac.yml
                       prod/latest-mac.yml.sha256.txt
+            - name: Upload artifacts (manual run)
+              if: success() && github.event_name != 'release'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Filen-macos
+                  path: |
+                      prod/*.dmg
+                      prod/*.zip
+                      prod/*.blockmap
+                      prod/latest-mac.yml
+                  if-no-files-found: error
             - name: Cleanup keychain
+              if: always()
               run: |
-                  security delete-keychain build.keychain
+                  security delete-keychain build.keychain || true
                   rm -f certificate.p12
-            - name: Cleanup
-              run: npm run clear

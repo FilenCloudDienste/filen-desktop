@@ -22,7 +22,8 @@
 		"build:win": "npm run build && electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
 		"build:hashes": "tsx ./build/hashes.js",
-		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest @filen/network-drive@latest"
+		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest @filen/network-drive@latest",
+		"ncu": "ncu --interactive --format group"
 	},
 	"repository": {
 		"type": "git",
@@ -54,9 +55,10 @@
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
 		"electron": "^34.1.1",
-		"electron-builder": "^26.0.0-alpha.6",
+		"electron-builder": "^26.15.5",
 		"eslint": "^8.56.0",
 		"jest": "^29.7.0",
+		"npm-check-updates": "^22.2.7",
 		"rimraf": "^6.0.1",
 		"ts-node": "^10.9.2",
 		"tsx": "^4.19.2",
@@ -73,7 +75,7 @@
 		"@filen/webdav": "^0.2.67",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
-		"electron-updater": "^6.5.0",
+		"electron-updater": "^6.8.9",
 		"express": "^4.19.2",
 		"fast-glob": "^3.3.2",
 		"fs-extra": "^11.2.0",
@@ -132,12 +134,14 @@
 			}
 		],
 		"win": {
-			"signtoolOptions": {
-				"publisherName": [
-					"Filen Cloud Dienste UG (haftungsbeschränkt)"
-				],
-				"certificateSubjectName": "Filen Cloud Dienste UG (haftungsbeschränkt)",
-				"sign": "build/sign.js"
+			"azureSignOptions": {
+				"publisherName": "Filen Cloud Dienste UG (haftungsbeschränkt)",
+				"endpoint": "https://weu.codesigning.azure.net",
+				"codeSigningAccountName": "filen-signing",
+				"certificateProfileName": "filen-signing",
+				"timestampRfc3161": "http://timestamp.acs.microsoft.com",
+				"timestampDigest": "SHA256",
+				"fileDigest": "SHA256"
 			},
 			"verifyUpdateCodeSignature": false,
 			"icon": "build/icons/win/icon.ico",
