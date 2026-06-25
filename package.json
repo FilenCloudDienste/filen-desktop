@@ -192,6 +192,7 @@
 			"include": "build/installer.nsh"
 		},
 		"linux": {
+			"executableName": "Filen",
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
