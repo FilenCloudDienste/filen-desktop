@@ -13,3 +13,4 @@ prod
 .env
 tsconfig.tsbuildinfo
 docs/
+bin/rclone/

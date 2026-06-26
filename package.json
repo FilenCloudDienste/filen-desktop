@@ -71,6 +71,7 @@
 		"cors": "^2.8.5",
 		"electron-updater": "^6.8.9",
 		"express": "^4.19.2",
+		"extract-zip": "^2.0.1",
 		"fast-glob": "^3.3.2",
 		"fs-extra": "^11.2.0",
 		"mime-types": "^2.1.35",
