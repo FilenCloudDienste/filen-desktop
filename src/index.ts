@@ -197,6 +197,10 @@ export class FilenDesktop {
 				logger: (level, message) => this.logger.log(level as Parameters<Logger["log"]>[0], message)
 			})
 
+			// Eagerly extract / self-heal the bundled rclone binary up-front so the first network-drive/S3/WebDAV enable does not
+			// pay the (first-run) extraction cost. Fire-and-forget: failures are logged and retried lazily on first use.
+			this.rclone.warmUpBinary().catch(() => {})
+
 			this.logger.log("info", "Starting worker and creating window")
 
 			await this.worker.start()

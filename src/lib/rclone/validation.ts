@@ -35,20 +35,21 @@ const DNS_HOSTNAME_REGEX =
 const WINDOWS_DRIVE_LETTER_REGEX = /^[D-Z]:\\?$/
 
 /**
- * s3 access key id (spec §10): 16-128 ASCII letters/digits only. Used verbatim in the SigV4 canonical
- * request, so whitespace and control characters are disallowed.
+ * s3 access key id: 1-128 ASCII letters/digits. Used verbatim in the SigV4 canonical request, so
+ * whitespace and control characters are disallowed. The minimum is 1 (not 16) so the desktop's default
+ * `admin` credential keeps working - the server binds to localhost, so a short key is acceptable.
  *
  * @type {RegExp}
  */
-const S3_ACCESS_KEY_ID_REGEX = /^[A-Za-z0-9]{16,128}$/
+const S3_ACCESS_KEY_ID_REGEX = /^[A-Za-z0-9]{1,128}$/
 
 /**
- * s3 secret key (spec §10): 16-256 characters of letters, digits and the base64 alphabet extras `/`,
- * `+`, `=`. Acts as the HMAC signing key.
+ * s3 secret key: 1-256 characters of letters, digits and the base64 alphabet extras `/`, `+`, `=`. Acts
+ * as the HMAC signing key. The minimum is 1 (not 16) so the default `admin` credential keeps working.
  *
  * @type {RegExp}
  */
-const S3_SECRET_KEY_REGEX = /^[A-Za-z0-9/+=]{16,256}$/
+const S3_SECRET_KEY_REGEX = /^[A-Za-z0-9/+=]{1,256}$/
 
 /**
  * True if `value` contains any ASCII control character (code points 0x00-0x1F or 0x7F), which includes
@@ -135,7 +136,7 @@ export function validatePort(port: number): ValidationResult {
 }
 
 /**
- * Validate an s3 `accessKeyId` (spec §10): 16-128 characters of letters and digits only.
+ * Validate an s3 `accessKeyId`: 1-128 characters of letters and digits only.
  *
  * @export
  * @param {string} v
@@ -145,7 +146,7 @@ export function validateS3AccessKeyId(v: string): ValidationResult {
 	if (!S3_ACCESS_KEY_ID_REGEX.test(v)) {
 		return {
 			valid: false,
-			error: "Access key ID must be 16 to 128 characters long and may contain only letters and digits."
+			error: "Access key ID must be 1 to 128 characters long and may contain only letters and digits."
 		}
 	}
 
@@ -155,8 +156,7 @@ export function validateS3AccessKeyId(v: string): ValidationResult {
 }
 
 /**
- * Validate an s3 `secretKeyId` (spec §10): 16-256 characters of letters, digits and the characters
- * `/`, `+`, `=`.
+ * Validate an s3 `secretKeyId`: 1-256 characters of letters, digits and the characters `/`, `+`, `=`.
  *
  * @export
  * @param {string} v
@@ -166,7 +166,7 @@ export function validateS3SecretKey(v: string): ValidationResult {
 	if (!S3_SECRET_KEY_REGEX.test(v)) {
 		return {
 			valid: false,
-			error: "Secret key must be 16 to 256 characters long and may contain only letters, digits and the characters / + =."
+			error: "Secret key must be 1 to 256 characters long and may contain only letters, digits and the characters / + =."
 		}
 	}
 

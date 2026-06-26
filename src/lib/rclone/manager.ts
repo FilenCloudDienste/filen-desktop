@@ -207,6 +207,29 @@ export class RcloneManager {
 	}
 
 	/**
+	 * Eagerly trigger binary extraction / self-heal at app start so the (possibly slow, first-run) extraction happens up-front
+	 * instead of lazily on the first role start. Fire-and-forget friendly: resolves `true` on success and `false` on failure
+	 * (the error is logged and the next role start retries via {@link ensureBinary}). Never throws.
+	 *
+	 * @public
+	 * @async
+	 * @returns {Promise<boolean>}
+	 */
+	public async warmUpBinary(): Promise<boolean> {
+		try {
+			const binaryPath = await this.ensureBinary()
+
+			this.log("info", `rclone binary ready at ${binaryPath}.`)
+
+			return true
+		} catch (e) {
+			this.log("error", `rclone binary warm-up failed (will retry on first use): ${e instanceof Error ? e.message : String(e)}`)
+
+			return false
+		}
+	}
+
+	/**
 	 * Return the stored config or throw a clear error when none has been set yet.
 	 *
 	 * @private
@@ -224,8 +247,8 @@ export class RcloneManager {
 	 * Require an authenticated config and a written `rclone.conf` before a role may start, returning the config.
 	 *
 	 * Throws a clear error when the account is not authenticated (the role cannot run without INTERNAL-mode key material). When
-	 * authenticated but the config file is somehow missing (e.g. it was never written, or was deleted on logout/relogin), it is
-	 * regenerated defensively — {@link setConfig} normally writes it.
+	 * authenticated but the config file is somehow missing or empty (e.g. never written, deleted on logout/relogin, or left
+	 * 0-byte by an out-of-band failure), it is regenerated defensively — {@link setConfig} normally writes it.
 	 *
 	 * @private
 	 * @async
@@ -240,7 +263,17 @@ export class RcloneManager {
 			)
 		}
 
-		if (!(await fs.pathExists(this.configPath))) {
+		// Self-heal: (re)write the config when it is missing or empty. writeRcloneConfig is atomic, so a present non-empty file
+		// is always complete - only a missing/0-byte file needs regenerating here.
+		let configReady = false
+
+		try {
+			configReady = (await fs.stat(this.configPath)).size > 0
+		} catch {
+			configReady = false
+		}
+
+		if (!configReady) {
 			await writeRcloneConfig(this.configPath, config.sdkConfig)
 		}
 

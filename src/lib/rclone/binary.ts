@@ -9,6 +9,14 @@ import { RCLONE_VERSION, rcloneZipName, rcloneBinaryFileName, rcloneBinDir, rclo
 const execFileAsync = promisify(execFile)
 
 /**
+ * In-flight extraction promises keyed by the target binary path, so concurrent ensureRcloneBinary() calls for the same target
+ * share a single extraction instead of racing each other (belt-and-suspenders alongside any caller-side memoization).
+ *
+ * @type {Map<string, Promise<string>>}
+ */
+const inFlight = new Map<string, Promise<string>>()
+
+/**
  * Absolute path to the directory that holds the bundled rclone release zips.
  *
  * Production: `<process.resourcesPath>/rclone` (placed there by electron-builder `extraResources`, per spec §11).
@@ -133,12 +141,75 @@ export async function pruneOldRcloneVersions(userData: string, keepVersion: stri
 }
 
 /**
+ * Whether `binaryPath` is a present, executable and genuinely-runnable rclone binary - the core self-healing check.
+ *
+ * (Re)applies the executable bit on non-Windows first (perms can be lost across copies/restores), then actually runs
+ * `<binary> version`. ANY failure - missing, not executable, truncated/partial from a write interrupted mid-run, wrong
+ * arch, quarantined/killed, or simply not rclone - resolves `false` so the caller re-extracts a known-good copy. Never
+ * throws.
+ *
+ * @export
+ * @async
+ * @param {string} binaryPath
+ * @returns {Promise<boolean>}
+ */
+export async function isRcloneBinaryUsable(binaryPath: string): Promise<boolean> {
+	try {
+		if (!(await fs.pathExists(binaryPath))) {
+			return false
+		}
+
+		if (process.platform !== "win32") {
+			await fs.chmod(binaryPath, 0o755).catch(() => {})
+		}
+
+		await execFileAsync(binaryPath, ["version"], {
+			timeout: 30000,
+			windowsHide: true
+		})
+
+		return true
+	} catch {
+		return false
+	}
+}
+
+/**
+ * Remove leftover `.extract-*` temp directories under `<userData>/rclone` - debris from an extraction interrupted by a
+ * crash, a kill, or the user quitting mid-run. Best-effort; a missing rclone dir (first run) is fine.
+ *
+ * @async
+ * @param {string} rcloneDir
+ * @returns {Promise<void>}
+ */
+async function cleanExtractTemps(rcloneDir: string): Promise<void> {
+	try {
+		const entries = await fs.readdir(rcloneDir)
+
+		await Promise.all(
+			entries
+				.filter(name => name.startsWith(".extract-"))
+				.map(name =>
+					fs
+						.rm(pathModule.join(rcloneDir, name), {
+							force: true,
+							recursive: true
+						})
+						.catch(() => {})
+				)
+		)
+	} catch {
+		// The rclone dir may not exist yet on a first run - nothing to clean.
+	}
+}
+
+/**
  * Resolve the bundled rclone binary for the current platform/arch, extracting it on first use, and return its absolute path.
  *
- * Idempotent: if the target already exists it is only re-marked executable (non-Windows) and returned. Otherwise the
- * matching official release zip is located in `zipDir`, extracted into a fresh temp dir, the `rclone`/`rclone.exe` binary is
- * moved into `<userData>/rclone/bin/<version>/`, marked executable (`0o755`, non-Windows), and older extracted versions are
- * pruned (spec §11). The temp dir is always cleaned up, even on failure.
+ * Fully IDEMPOTENT and SELF-HEALING against crashes, restarts and mid-run kills (spec §11): repeated calls are safe, a
+ * half-written or otherwise corrupt binary left by an interrupted run is detected and replaced, and concurrent callers for
+ * the same target share a single extraction (see {@link inFlight}). The heavy lifting lives in
+ * {@link extractRcloneBinary}; this wrapper only deduplicates in-flight work.
  *
  * @export
  * @async
@@ -150,18 +221,55 @@ export async function pruneOldRcloneVersions(userData: string, keepVersion: stri
  */
 export async function ensureRcloneBinary(userData: string, options?: { zipDir?: string; version?: string }): Promise<string> {
 	const version = options?.version ?? RCLONE_VERSION
+	const target = rcloneBinaryPath(userData, process.platform, version)
+
+	const existing = inFlight.get(target)
+
+	if (existing) {
+		return existing
+	}
+
+	const run = extractRcloneBinary(userData, target, version, options?.zipDir).finally(() => {
+		inFlight.delete(target)
+	})
+
+	inFlight.set(target, run)
+
+	return run
+}
+
+/**
+ * The extraction / self-heal worker behind {@link ensureRcloneBinary} (kept separate so the in-flight dedup wrapper stays
+ * tiny). Single-pass, crash-safe:
+ *
+ * 1. Fast path - if a binary that genuinely RUNS is already in place, reuse it as-is.
+ * 2. Otherwise self-heal: delete the corrupt/partial target and sweep any leftover `.extract-*` temp dirs.
+ * 3. Extract the matching official release zip into a per-process temp dir, locate the `rclone`/`rclone.exe` binary, mark it
+ *    executable and VERIFY IT RUNS before trusting it.
+ * 4. ATOMICALLY publish it onto the target via a same-filesystem rename, so the live target is never half-written.
+ * 5. Always clean up the temp dir, verify the published target one final time, and prune older versions.
+ *
+ * @async
+ * @param {string} userData
+ * @param {string} target Absolute path the ready-to-run binary must end up at.
+ * @param {string} version
+ * @param {string} [zipDirOverride]
+ * @returns {Promise<string>}
+ */
+async function extractRcloneBinary(userData: string, target: string, version: string, zipDirOverride?: string): Promise<string> {
 	const platform = process.platform
-	const target = rcloneBinaryPath(userData, platform, version)
+	const rcloneDir = pathModule.join(userData, "rclone")
 
-	if (await fs.pathExists(target)) {
-		if (platform !== "win32") {
-			await fs.chmod(target, 0o755)
-		}
-
+	// Fast path: a binary that actually RUNS is reused (idempotent). A corrupt/partial one fails this and is replaced.
+	if (await isRcloneBinaryUsable(target)) {
 		return target
 	}
 
-	const zipDir = options?.zipDir ?? bundledZipDir()
+	// Self-heal: drop a corrupt/partial target and any leftover extraction temp dirs from a prior interrupted run.
+	await fs.rm(target, { force: true }).catch(() => {})
+	await cleanExtractTemps(rcloneDir)
+
+	const zipDir = zipDirOverride ?? bundledZipDir()
 	const zipName = rcloneZipName(platform, process.arch, version)
 	const zipPath = pathModule.join(zipDir, zipName)
 
@@ -169,12 +277,13 @@ export async function ensureRcloneBinary(userData: string, options?: { zipDir?: 
 		throw new Error(`Bundled rclone zip not found: ${zipPath}. The build step must place it there (spec §11).`)
 	}
 
-	const tempDir = pathModule.resolve(userData, "rclone", `.extract-${version}`)
+	// Per-process temp dir, cleaned before use so a same-pid leftover can never interfere.
+	const tempDir = pathModule.join(rcloneDir, `.extract-${version}-${String(process.pid)}`)
 
 	await fs.rm(tempDir, {
 		force: true,
 		recursive: true
-	})
+	}).catch(() => {})
 
 	await fs.ensureDir(tempDir)
 
@@ -193,8 +302,19 @@ export async function ensureRcloneBinary(userData: string, options?: { zipDir?: 
 			throw new Error(`Could not find "${binaryFileName}" inside the extracted rclone zip: ${zipPath}`)
 		}
 
+		if (platform !== "win32") {
+			await fs.chmod(binarySource, 0o755)
+		}
+
+		// Verify the freshly-extracted binary RUNS before publishing it, so a bad/partial extract never becomes the live target.
+		if (!(await isRcloneBinaryUsable(binarySource))) {
+			throw new Error(`Extracted rclone binary failed to run: ${binarySource}`)
+		}
+
 		await fs.ensureDir(rcloneBinDir(userData, version))
 
+		// Atomic publish: temp and target share one filesystem (both under <userData>/rclone), so fs.move is a rename - the
+		// target appears fully-formed or not at all, never half-written.
 		await fs.move(binarySource, target, {
 			overwrite: true
 		})
@@ -206,7 +326,12 @@ export async function ensureRcloneBinary(userData: string, options?: { zipDir?: 
 		await fs.rm(tempDir, {
 			force: true,
 			recursive: true
-		})
+		}).catch(() => {})
+	}
+
+	// Final guard: the published target must run.
+	if (!(await isRcloneBinaryUsable(target))) {
+		throw new Error(`rclone binary is not usable after extraction: ${target}`)
 	}
 
 	await pruneOldRcloneVersions(userData, version)
