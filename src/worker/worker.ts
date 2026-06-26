@@ -76,18 +76,6 @@ export class Worker {
 		})
 	}
 
-	public isAuthed(): boolean {
-		if (!this.desktopConfig) {
-			return false
-		}
-
-		return this.desktopConfig.sdkConfig.apiKey &&
-			this.desktopConfig.sdkConfig.apiKey.length > 32 &&
-			this.desktopConfig.sdkConfig.apiKey !== "anonymous"
-			? true
-			: false
-	}
-
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public invokeResponse(id: number, channel: WorkerInvokeChannel, result?: any): void {
 		parentPort?.postMessage({
