@@ -172,9 +172,28 @@ export class FilenDesktop {
 				}
 			})
 
+			// The bundled FUSE-layer installers RcloneManager hands to the network-drive role so a fresh machine can
+			// auto-install the FUSE layer when missing (WinFSP on Windows, FUSE-T on macOS). In production they ship
+			// under resources/deps (package.json extraResources); in dev they live in the repo tree. Each is undefined
+			// off its platform.
+			const resolveDepInstaller = (devSegments: string[], prodSegments: string[]): string =>
+				isDev ? pathModule.join(__dirname, "..", ...devSegments) : pathModule.join(process.resourcesPath, ...prodSegments)
+
+			const winfspMsiPath =
+				process.platform === "win32"
+					? resolveDepInstaller(["build", "winfsp-2.1.25156.msi"], ["deps", "winfsp-2.1.25156.msi"])
+					: undefined
+
+			const fuseTPkgPath =
+				process.platform === "darwin"
+					? resolveDepInstaller(["bin", "deps", "fuse-t-macos-installer-1.2.7.pkg"], ["deps", "fuse-t-macos-installer-1.2.7.pkg"])
+					: undefined
+
 			this.rclone = new RcloneManager({
 				userDataPath: app.getPath("userData"),
 				logsPath: await filenLogsPath(),
+				winfspMsiPath,
+				fuseTPkgPath,
 				logger: (level, message) => this.logger.log(level as Parameters<Logger["log"]>[0], message)
 			})
 

@@ -22,11 +22,21 @@ const ARCHES = ["amd64", "arm64"]
 
 const BASE_URL = "https://downloads.rclone.org"
 
+// FUSE-T is the macOS FUSE layer the network drive auto-installs when NEITHER macFUSE nor FUSE-T is present
+// (restoring the old @filen/network-drive behavior of auto-installing FUSE-T on macOS). It is fetched at build
+// time into bin/deps/ and bundled into the macOS app via mac.extraResources — NOT committed (the pkg is ~24 MB).
+// FUSE-T publishes NO SHA256SUMS manifest, so FUSE_T_SHA256 below is PINNED: computed once from the release asset
+// and hardcoded here. Bumping FUSE-T = change BOTH FUSE_T_VERSION and this hash, then re-run this script.
+const FUSE_T_VERSION = "1.2.7"
+const FUSE_T_SHA256 = "6a29c747e61a86a405a189efc3de42812d73147135f93a1bb0624c1e7b90e654"
+const FUSE_T_URL = `https://github.com/macos-fuse-t/fuse-t/releases/download/${FUSE_T_VERSION}/fuse-t-macos-installer-${FUSE_T_VERSION}.pkg`
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 // build/rclone/fetch.mjs -> repo root is two levels up.
 const REPO_ROOT = path.resolve(__dirname, "..", "..")
 const BIN_DIR = path.join(REPO_ROOT, "bin", "rclone")
+const DEPS_DIR = path.join(REPO_ROOT, "bin", "deps")
 
 /**
  * Map the current Node platform to rclone's OS token used in its official release zip names.
@@ -174,6 +184,61 @@ function parseSums(text) {
 	return map
 }
 
+/**
+ * macOS only: fetch the FUSE-T installer pkg into bin/deps and verify it against the PINNED SHA256
+ * (FUSE-T ships no SHA256SUMS manifest, unlike rclone). Idempotent and intact-aware — a present pkg whose
+ * hash already matches is left untouched. Uses the same .part -> verify -> rename pattern as the rclone
+ * zips; a hash mismatch deletes the bad download and throws so CI fails loudly. No-op on Windows/Linux,
+ * whose builds bundle only the rclone zips.
+ *
+ * @returns {Promise<void>}
+ */
+async function fetchFuseT() {
+	const fileName = `fuse-t-macos-installer-${FUSE_T_VERSION}.pkg`
+	const destPath = path.join(DEPS_DIR, fileName)
+
+	await fs.promises.mkdir(DEPS_DIR, { recursive: true })
+
+	console.log(`[rclone-fetch] FUSE-T v${FUSE_T_VERSION}, target dir: ${DEPS_DIR}`)
+
+	// Idempotent: if a matching, intact pkg is already present, skip re-downloading.
+	if (fs.existsSync(destPath)) {
+		const actual = await sha256File(destPath)
+
+		if (actual === FUSE_T_SHA256) {
+			console.log(`[rclone-fetch] OK (cached)   ${fileName} sha256=${FUSE_T_SHA256}`)
+
+			return
+		}
+
+		console.log(`[rclone-fetch] stale         ${fileName} (have ${actual}); re-downloading`)
+	}
+
+	console.log(`[rclone-fetch] downloading   ${FUSE_T_URL}`)
+
+	const tmpPath = `${destPath}.part`
+
+	let actual
+
+	try {
+		actual = await downloadToFile(FUSE_T_URL, tmpPath)
+	} catch (e) {
+		await fs.promises.rm(tmpPath, { force: true })
+
+		throw e
+	}
+
+	if (actual !== FUSE_T_SHA256) {
+		await fs.promises.rm(tmpPath, { force: true })
+
+		throw new Error(`SHA256 mismatch for ${fileName}: expected ${FUSE_T_SHA256}, got ${actual}. Deleted the bad download.`)
+	}
+
+	await fs.promises.rename(tmpPath, destPath)
+
+	console.log(`[rclone-fetch] OK (verified) ${fileName} sha256=${FUSE_T_SHA256}`)
+}
+
 async function main() {
 	const os = rcloneOs(process.platform)
 	const zipNames = ARCHES.map(arch => `rclone-v${RCLONE_VERSION}-${os}-${arch}.zip`)
@@ -235,6 +300,11 @@ async function main() {
 		await fs.promises.rename(tmpPath, destPath)
 
 		console.log(`[rclone-fetch] OK (verified) ${zipName} sha256=${expected}`)
+	}
+
+	// macOS also bundles the FUSE-T installer so a fresh machine can auto-install the FUSE layer.
+	if (process.platform === "darwin") {
+		await fetchFuseT()
 	}
 
 	console.log(`[rclone-fetch] done: ${zipNames.length} zip(s) ready in ${BIN_DIR}`)

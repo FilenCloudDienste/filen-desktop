@@ -1,4 +1,4 @@
-!define WINFSP_INSTALLER "winfsp-2.1.24255.msi"
+!define WINFSP_INSTALLER "winfsp-2.1.25156.msi"
 
 RequestExecutionLevel admin
 

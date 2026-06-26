@@ -14,3 +14,4 @@ prod
 tsconfig.tsbuildinfo
 docs/
 bin/rclone/
+bin/deps/
