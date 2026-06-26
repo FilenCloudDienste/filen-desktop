@@ -78,12 +78,15 @@ export interface NetworkDriveStats {
  * is split into `-o` + `KEY=VALUE` — so the caller can spawn with `shell:false` and no string-joining (spec §7.1). The base
  * flags are identical on every OS; the tail differs by platform:
  *
- * - **Windows (WinFSP):** `--network-mode`, a `--volname \\Filen\Filen` override, `-o FileSecurity=D:P(A;;FA;;;WD)` and
- *   `--no-console`.
- * - **macOS + macFUSE** (detected via {@link isMacFUSEInstalled}): `-o jail_symlinks`.
- * - **macOS + FUSE-T** (macFUSE absent): `-o backend=nfs`, `-o nomtime`, `-o nonamedattr`, and `-o location=Filen` ONLY when
- *   {@link ensureHostsFilenEntry} reports the `/etc/hosts` `Filen` entry exists (omitted otherwise so the mount still works
- *   with an unresolvable name, spec §8.2).
+ * - **Windows (WinFSP):** `--network-mode`, a `--volname \\Filen\Filen` override, `-o FileSecurity=D:P(A;;FA;;;WD)`, the
+ *   WinFSP-native metadata caches `-o FileInfoTimeout=5000`/`-o DirInfoTimeout=5000` (WinFSP ignores libfuse `attr_timeout`,
+ *   so these are what actually cut getattr/readdir round-trips on a high-latency drive) and `--no-console`.
+ * - **macOS + macFUSE** (detected via {@link isMacFUSEInstalled}): `-o jail_symlinks` plus `-o noapplexattr` (macFUSE returns
+ *   ENOSYS for xattrs anyway, so this only suppresses Finder's futile `com.apple.*` probing over the network).
+ * - **macOS + FUSE-T** (macFUSE absent): `-o nomtime`, `-o nonamedattr`, `-o rwsize=1048576` (raise the NFS read/write size
+ *   from the 32 KiB default to 1 MiB to cut round-trips; `backend=nfs` is omitted because NFS is FUSE-T's default), and
+ *   `-o location=Filen` ONLY when {@link ensureHostsFilenEntry} reports the `/etc/hosts` `Filen` entry exists (omitted
+ *   otherwise so the mount still works with an unresolvable name, spec §8.2).
  * - **Linux (FUSE3):** no extra `-o` by default.
  *
  * The macFUSE-before-FUSE-T branch order mirrors rclone/cgofuse's own dlopen selection, so detect() and the actual mount can
@@ -116,8 +119,11 @@ export async function buildMountArgs(options: NetworkDriveOptions): Promise<stri
 		"720h",
 		"--vfs-write-back",
 		"5s",
+		// Raised from 3s: Filen has no ChangeNotify (so --poll-interval 0 is inherent), which makes dir-cache-time the only
+		// freshness lever. 3s re-listed on nearly every navigation of a high-latency backend; 30s keeps browsing snappy while
+		// still surfacing external changes within ~30s (force a refresh via the rc API / SIGHUP when needed).
 		"--dir-cache-time",
-		"3s",
+		"30s",
 		"--poll-interval",
 		"0",
 		"--no-gzip-encoding",
@@ -127,17 +133,37 @@ export async function buildMountArgs(options: NetworkDriveOptions): Promise<stri
 		"0666",
 		"--dir-perms",
 		"0777",
-		"--use-server-modtime",
+		// --no-checksum kept: the Filen SDK re-verifies BLAKE3 over the full stream on download itself, so rclone's VFS-layer
+		// hash would be a redundant second pass. (--use-server-modtime and --vfs-fast-fingerprint were removed: both are no-ops
+		// for the Filen backend - ModTime always returns the real client mtime, and the backend flags neither SlowHash nor
+		// SlowModTime.)
 		"--no-checksum",
-		"--vfs-fast-fingerprint",
+		// Download throughput: the Filen SDK reads each file as a strictly serial chain of 1-MiB GETs, so per-file download
+		// parallelism exists ONLY here. --vfs-read-chunk-streams turns that serial chain into N concurrent range readers (the
+		// single biggest download win); a 64Mi chunk lets even ~512Mi files engage all 8 streams. --buffer-size keeps an async
+		// prefetch buffer (NEVER 0 - that strands the serial reader); --vfs-read-ahead prefetches ahead (cache-mode full only).
+		"--vfs-read-chunk-streams",
+		"8",
 		"--vfs-read-chunk-size",
-		"128Mi",
+		"64Mi",
 		"--vfs-read-chunk-size-limit",
 		"0",
 		"--buffer-size",
-		"0",
+		"32Mi",
 		"--vfs-read-ahead",
-		"1024Mi",
+		"128Mi",
+		// Upload throughput: large/medium files upload via rclone's multi-thread chunk-writer (Filen's native OpenChunkWriter)
+		// with worker count = --filen-upload-concurrency. Lowering --multi-thread-cutoff from the 256Mi default pulls medium
+		// files onto that concurrent (and retryable) path; --multi-thread-streams must stay >1. --transfers also enlarges the
+		// shared fshttp keep-alive pool (2*(checkers+transfers+1)) so the parallel up/download streams don't churn TLS.
+		"--multi-thread-streams",
+		"4",
+		"--multi-thread-cutoff",
+		"64Mi",
+		"--filen-upload-concurrency",
+		"24",
+		"--transfers",
+		"8",
 		"--rc",
 		"--rc-addr",
 		`127.0.0.1:${rcPort}`,
@@ -164,13 +190,27 @@ export async function buildMountArgs(options: NetworkDriveOptions): Promise<stri
 	)
 
 	if (process.platform === "win32") {
-		// Network mode mounts to a drive letter; the UNC-style volname overrides the base `--volname Filen`.
-		args.push("--network-mode", "--volname", "\\\\Filen\\Filen", "-o", "FileSecurity=D:P(A;;FA;;;WD)", "--no-console")
+		// Network mode mounts to a drive letter; the UNC-style volname overrides the base `--volname Filen`. FileInfoTimeout/
+		// DirInfoTimeout are WinFSP's native metadata caches (libfuse `attr_timeout` is not WinFSP's lever), cutting round-trips.
+		args.push(
+			"--network-mode",
+			"--volname",
+			"\\\\Filen\\Filen",
+			"-o",
+			"FileSecurity=D:P(A;;FA;;;WD)",
+			"-o",
+			"FileInfoTimeout=5000",
+			"-o",
+			"DirInfoTimeout=5000",
+			"--no-console"
+		)
 	} else if (process.platform === "darwin") {
 		if (await isMacFUSEInstalled()) {
-			args.push("-o", "jail_symlinks")
+			// noapplexattr: macFUSE returns ENOSYS for xattrs anyway, so this only stops Finder's futile com.apple.* probing.
+			args.push("-o", "jail_symlinks", "-o", "noapplexattr")
 		} else {
-			args.push("-o", "backend=nfs", "-o", "nomtime", "-o", "nonamedattr")
+			// NFS is FUSE-T's default backend (no need to pass backend=nfs); rwsize lifts the 32 KiB default to 1 MiB.
+			args.push("-o", "nomtime", "-o", "nonamedattr", "-o", "rwsize=1048576")
 
 			// Only pass the NFS volume hostname when /etc/hosts resolves it; otherwise omit it (spec §8.2) so the mount
 			// still succeeds rather than failing on an unresolvable name.

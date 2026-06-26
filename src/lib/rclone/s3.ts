@@ -172,6 +172,32 @@ export async function buildS3Args(options: S3Options): Promise<string[]> {
 		cachePath,
 		"--vfs-write-back",
 		"5s",
+		// Bound the long-running server's VFS cache so it can't fill the disk (the network drive has the same guard).
+		"--vfs-cache-min-free-space",
+		"5Gi",
+		// Download throughput: the Filen SDK reads each object as a strictly serial chain of 1-MiB GETs, so per-object
+		// parallelism exists ONLY at this layer. --vfs-read-chunk-streams fans a client GET into concurrent range readers
+		// (the biggest download win); --buffer-size keeps an async prefetch buffer. (--vfs-read-ahead is omitted - it is a
+		// no-op outside --vfs-cache-mode full, and this role runs `writes`.)
+		"--vfs-read-chunk-streams",
+		"12",
+		"--vfs-read-chunk-size",
+		"64Mi",
+		"--buffer-size",
+		"32Mi",
+		// Upload throughput: a client PUT uploads to Filen via rclone's multi-thread chunk-writer (Filen's native
+		// OpenChunkWriter, worker count = --filen-upload-concurrency) once it reaches --multi-thread-cutoff; --transfers and
+		// --checkers also enlarge the shared fshttp keep-alive pool (2*(checkers+transfers+1)) for the parallel streams.
+		"--multi-thread-streams",
+		"4",
+		"--multi-thread-cutoff",
+		"32Mi",
+		"--filen-upload-concurrency",
+		"32",
+		"--transfers",
+		"8",
+		"--checkers",
+		"16",
 		// The default 1h server timeouts abort long transfers; 0 disables them.
 		"--server-read-timeout",
 		"0",
