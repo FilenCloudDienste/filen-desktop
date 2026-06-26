@@ -12,3 +12,4 @@ yalc.lock
 prod
 .env
 tsconfig.tsbuildinfo
+docs/
