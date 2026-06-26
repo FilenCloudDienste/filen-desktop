@@ -96,6 +96,7 @@
 			"assets/**/*",
 			"dist/**/*",
 			"bin/**/*",
+			"!bin/rclone/**",
 			"build/installer.nsh",
 			"build/winfsp-2.1.24255.msi",
 			"public/**/*"
@@ -166,6 +167,15 @@
 					"from": "build/installer.nsh",
 					"to": "build/installer.nsh"
 				}
+			],
+			"extraResources": [
+				{
+					"from": "bin/rclone",
+					"to": "rclone",
+					"filter": [
+						"*.zip"
+					]
+				}
 			]
 		},
 		"nsis": {
@@ -187,6 +197,15 @@
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
 			"icon": "build/icons/png/",
+			"extraResources": [
+				{
+					"from": "bin/rclone",
+					"to": "rclone",
+					"filter": [
+						"*.zip"
+					]
+				}
+			],
 			"description": "Filen Desktop Client",
 			"synopsis": "Filen Desktop Client",
 			"target": [
@@ -256,7 +275,16 @@
 					"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 				}
 			],
-			"icon": "build/icons/mac/icon.icns"
+			"icon": "build/icons/mac/icon.icns",
+			"extraResources": [
+				{
+					"from": "bin/rclone",
+					"to": "rclone",
+					"filter": [
+						"*.zip"
+					]
+				}
+			]
 		},
 		"dmg": {
 			"sign": false

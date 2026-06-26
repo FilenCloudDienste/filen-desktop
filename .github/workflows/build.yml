@@ -42,6 +42,8 @@ jobs:
               run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-win32-ia32@latest @parcel/watcher-win32-x64@latest @parcel/watcher-win32-arm64@latest --force
+            - name: Fetch rclone binaries
+              run: node build/rclone/fetch.mjs
             - name: Build
               run: npm run build:win
               env:
@@ -120,6 +122,8 @@ jobs:
               run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-linux-x64-glibc@latest @parcel/watcher-linux-x64-musl@latest @parcel/watcher-linux-arm64-musl@latest @parcel/watcher-linux-arm64-glibc@latest @parcel/watcher-linux-arm-glibc@latest @parcel/watcher-linux-arm-musl@latest --force
+            - name: Fetch rclone binaries
+              run: node build/rclone/fetch.mjs
             - name: Build
               run: npm run build:linux
             - name: Generate SHA256 hashes
@@ -203,6 +207,8 @@ jobs:
               run: npm ci
             - name: Install prebuilts
               run: npm install @parcel/watcher-darwin-arm64@latest @parcel/watcher-darwin-x64@latest --force
+            - name: Fetch rclone binaries
+              run: node build/rclone/fetch.mjs
             - name: Build
               run: npm run build:mac
             - name: Generate SHA256 hashes
