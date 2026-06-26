@@ -21,7 +21,7 @@
 		"build:win": "npm run build && electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
 		"build:hashes": "tsx ./build/hashes.js",
-		"install:filen": "npm install @filen/web@latest @filen/s3@latest @filen/webdav@latest @filen/sdk@latest @filen/sync@latest @filen/network-drive@latest",
+		"install:filen": "npm install @filen/web@latest @filen/sdk@latest @filen/sync@latest",
 		"ncu": "ncu --interactive --format group"
 	},
 	"repository": {
@@ -61,12 +61,9 @@
 		"yaml": "^2.6.0"
 	},
 	"dependencies": {
-		"@filen/network-drive": "^0.9.44",
-		"@filen/s3": "^0.3.1",
 		"@filen/sdk": "^0.3.12",
 		"@filen/sync": "^0.2.1",
 		"@filen/web": "^0.1.92",
-		"@filen/webdav": "^0.3.1",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
 		"electron-updater": "^6.8.9",
