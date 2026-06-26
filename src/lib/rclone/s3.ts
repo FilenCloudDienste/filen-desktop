@@ -424,7 +424,8 @@ export class S3Server {
 				rcPort,
 				role: "s3",
 				scriptDir,
-				logger: this.logger
+				logger: this.logger,
+				logFilePath: this.options.logFilePath
 			})
 
 			this.process = proc
@@ -555,7 +556,7 @@ export class S3Server {
 
 		while (Date.now() < deadline) {
 			if (!proc.isRunning()) {
-				throw new Error("could not start S3 server (rclone exited before the server became ready)")
+				throw new Error(`could not start S3 server (rclone exited before the server became ready)${await proc.readLogTail()}`)
 			}
 
 			if (await this.isOnline()) {
@@ -565,7 +566,7 @@ export class S3Server {
 			await sleep(500)
 		}
 
-		throw new Error("could not start S3 server (timeout)")
+		throw new Error(`could not start S3 server (timeout)${await proc.readLogTail()}`)
 	}
 }
 

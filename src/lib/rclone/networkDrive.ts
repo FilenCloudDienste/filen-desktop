@@ -299,7 +299,8 @@ export class NetworkDrive {
 				scriptDir,
 				mountPoint,
 				onUnmount: () => this.osUnmount(),
-				logger: this.logger
+				logger: this.logger,
+				logFilePath: this.options.logFilePath
 			})
 
 			this.process = proc
@@ -486,7 +487,7 @@ export class NetworkDrive {
 
 		while (Date.now() < deadline) {
 			if (!proc.isRunning()) {
-				throw new Error("could not start network drive (rclone exited before the mount became ready)")
+				throw new Error(`could not start network drive (rclone exited before the mount became ready)${await proc.readLogTail()}`)
 			}
 
 			if (await isMountActive(mountPoint)) {
@@ -500,7 +501,7 @@ export class NetworkDrive {
 			await sleep(500)
 		}
 
-		throw new Error("could not start network drive (timeout)")
+		throw new Error(`could not start network drive (timeout)${await proc.readLogTail()}`)
 	}
 
 	/**

@@ -277,7 +277,8 @@ export class WebdavServer {
 				rcPort,
 				role: "webdav",
 				scriptDir,
-				logger: this.logger
+				logger: this.logger,
+				logFilePath: this.options.logFilePath
 			})
 
 			this.process = proc
@@ -346,7 +347,7 @@ export class WebdavServer {
 
 		while (Date.now() < deadline) {
 			if (!proc.isRunning()) {
-				throw new Error("could not start WebDAV server (rclone exited before the server became ready)")
+				throw new Error(`could not start WebDAV server (rclone exited before the server became ready)${await proc.readLogTail()}`)
 			}
 
 			if (await this.isOnline()) {
@@ -356,7 +357,7 @@ export class WebdavServer {
 			await sleep(500)
 		}
 
-		throw new Error("could not start WebDAV server (timeout)")
+		throw new Error(`could not start WebDAV server (timeout)${await proc.readLogTail()}`)
 	}
 }
 

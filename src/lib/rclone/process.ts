@@ -1,8 +1,81 @@
 import { spawn, spawnSync, type ChildProcess } from "child_process"
+import fs from "fs-extra"
 import { Semaphore } from "../../semaphore"
 import { RcClient } from "./rc"
 import { RcloneWatchdog } from "./watchdog"
 import { type RcloneRole } from "./constants"
+
+/**
+ * Read the tail of an rclone `--log-file` and distill it into a short, user-facing reason suffix like
+ * `: ERROR : Failed to mount FUSE fs: permission denied`, or `""` when the file is missing/empty or holds nothing that
+ * looks like a failure.
+ *
+ * The rclone child is spawned with `stdio: "ignore"`, so its stderr is discarded — but rclone still writes its real
+ * operational failures (bind errors, mount failures, auth/config errors) to `--log-file`. This surfaces that reason, which
+ * the generic readiness errors ("timeout" / "exited before ready") otherwise omit. Best-effort; never throws.
+ *
+ * @param {string} logFilePath
+ * @returns {Promise<string>}
+ */
+export async function readRcloneLogTail(logFilePath: string): Promise<string> {
+	try {
+		const stat = await fs.stat(logFilePath)
+
+		if (!stat.isFile() || stat.size === 0) {
+			return ""
+		}
+
+		// Only the last slice matters; an INFO-level log from a long session can be large, and this runs on a failure path.
+		const maxBytes = 16384
+		const startPos = Math.max(0, stat.size - maxBytes)
+
+		const text = await new Promise<string>((resolve, reject) => {
+			let data = ""
+
+			const stream = fs.createReadStream(logFilePath, {
+				start: startPos,
+				encoding: "utf8"
+			})
+
+			stream.on("data", chunk => {
+				data += chunk
+			})
+
+			stream.on("end", () => resolve(data))
+			stream.on("error", reject)
+		})
+
+		const lines = text
+			.split(/\r?\n/)
+			.map(line => line.trim())
+			.filter(line => line.length > 0)
+
+		// Keep only lines that look like a failure (rclone marks them ERROR/CRITICAL or uses these phrasings), then take the
+		// last couple — appending benign INFO chatter would be noise, so when nothing matches we add nothing.
+		const failureRegex = /\b(ERROR|CRITICAL)\b|failed|couldn'?t|can'?t|cannot|unable to|permission denied|already in use|no such|not found|fatal/i
+		const failureLines = lines.filter(line => failureRegex.test(line))
+
+		if (failureLines.length === 0) {
+			return ""
+		}
+
+		const reason = failureLines
+			.slice(-2)
+			// Drop the leading "2024/06/26 21:14:01 " timestamp; keep the level (e.g. "ERROR : ...") for context. The optional
+			// ".000000" tolerates rclone's --log-format=microseconds (its default format is date+time only, per fs/log/log.go).
+			.map(line => line.replace(/^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+/, "").trim())
+			.filter(line => line.length > 0)
+			.join(" | ")
+
+		if (reason.length === 0) {
+			return ""
+		}
+
+		return `: ${reason.length > 300 ? `${reason.slice(0, 297)}...` : reason}`
+	} catch {
+		return ""
+	}
+}
 
 /**
  * Construction options for {@link RcloneProcess}.
@@ -25,6 +98,7 @@ export interface RcloneProcessOptions {
 	mountPoint?: string
 	onUnmount?: () => Promise<void>
 	logger?: (level: string, message: string) => void
+	logFilePath?: string
 }
 
 /**
@@ -63,6 +137,7 @@ export class RcloneProcess {
 	private readonly mountPoint?: string
 	private readonly onUnmount?: () => Promise<void>
 	private readonly logger?: (level: string, message: string) => void
+	private readonly logFilePath?: string
 	private readonly watchdog: RcloneWatchdog
 	private readonly startMutex = new Semaphore(1)
 	private readonly stopMutex = new Semaphore(1)
@@ -84,6 +159,7 @@ export class RcloneProcess {
 		this.mountPoint = options.mountPoint
 		this.onUnmount = options.onUnmount
 		this.logger = options.logger
+		this.logFilePath = options.logFilePath
 		this.rc = new RcClient({
 			port: options.rcPort,
 			user: options.rcUser,
@@ -127,6 +203,19 @@ export class RcloneProcess {
 	 */
 	public get pid(): number | undefined {
 		return this.child?.pid
+	}
+
+	/**
+	 * Best-effort, user-facing reason suffix distilled from this process' `--log-file` (see {@link readRcloneLogTail}), or
+	 * `""` when no log file was configured or nothing failure-like was found. Used to enrich the otherwise-generic startup
+	 * readiness errors with rclone's actual reason.
+	 *
+	 * @public
+	 * @async
+	 * @returns {Promise<string>}
+	 */
+	public async readLogTail(): Promise<string> {
+		return this.logFilePath ? await readRcloneLogTail(this.logFilePath) : ""
 	}
 
 	/**
