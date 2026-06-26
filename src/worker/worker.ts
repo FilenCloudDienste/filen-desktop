@@ -1,10 +1,6 @@
 import { parentPort, isMainThread } from "worker_threads"
 import { type FilenDesktopConfig, type WorkerMessage, type WorkerInvokeChannel } from "../types"
-import WebDAV from "./webdav"
-import S3 from "./s3"
-import NetworkDrive from "./networkDrive"
 import { serializeError, getLocalDirectorySize } from "../utils"
-import pathModule from "path"
 import fs from "fs-extra"
 import Sync from "./sync"
 import FilenSDK from "@filen/sdk"
@@ -14,9 +10,6 @@ import HTTP from "./http"
 
 export class Worker {
 	public desktopConfig: FilenDesktopConfig | null = null
-	private webdav: WebDAV
-	private s3: S3
-	private networkDrive: NetworkDrive
 	private sync: Sync
 	private http: HTTP
 	private sdk: FilenSDK | null = null
@@ -28,9 +21,6 @@ export class Worker {
 			throw new Error("Not running inside a worker thread.")
 		}
 
-		this.webdav = new WebDAV(this)
-		this.s3 = new S3(this)
-		this.networkDrive = new NetworkDrive(this)
 		this.sync = new Sync(this)
 		this.http = new HTTP(this)
 		this.logger = new Logger(false, true)
@@ -98,72 +88,6 @@ export class Worker {
 			: false
 	}
 
-	public async networkDriveAvailableCacheSize(): Promise<number> {
-		const desktopConfig = await this.waitForConfig()
-		const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
-
-		await fs.ensureDir(cachePath)
-
-		return await new Promise<number>(resolve => {
-			fs.statfs(cachePath, (err, stats) => {
-				if (err) {
-					this.logger.log("error", err, "worker.networkDriveAvailableCacheSize")
-					this.logger.log("error", err)
-
-					resolve(12884901888)
-
-					return
-				}
-
-				const blockSize = stats.bsize
-				const availableBlocks = stats.bavail
-				const freeSpace = availableBlocks * blockSize
-
-				resolve(freeSpace)
-			})
-		})
-	}
-
-	public async networkDriveCacheSize(): Promise<number> {
-		const desktopConfig = await this.waitForConfig()
-		const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache", "vfs")
-
-		if (!(await fs.exists(cachePath))) {
-			return 0
-		}
-
-		const dir = await getLocalDirectorySize(cachePath)
-
-		return dir.size
-	}
-
-	public async networkDriveCleanupLocalDir(): Promise<void> {
-		const desktopConfig = await this.waitForConfig()
-
-		await fs.rm(desktopConfig.networkDriveConfig.localDirPath, {
-			force: true,
-			maxRetries: 60 * 10,
-			recursive: true,
-			retryDelay: 100
-		})
-
-		await fs.ensureDir(desktopConfig.networkDriveConfig.localDirPath)
-	}
-
-	public async networkDriveCleanupCache(): Promise<void> {
-		const desktopConfig = await this.waitForConfig()
-		const cachePath = pathModule.join(desktopConfig.networkDriveConfig.localDirPath, "cache")
-
-		await fs.rm(cachePath, {
-			force: true,
-			maxRetries: 60 * 10,
-			recursive: true,
-			retryDelay: 100
-		})
-
-		await fs.ensureDir(cachePath)
-	}
-
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	public invokeResponse(id: number, channel: WorkerInvokeChannel, result?: any): void {
 		parentPort?.postMessage({
@@ -202,106 +126,6 @@ export class Worker {
 					await this.stop()
 
 					this.invokeResponse(message.data.id, message.data.channel)
-				} else if (message.data.channel === "startNetworkDrive" || message.data.channel === "restartNetworkDrive") {
-					try {
-						await this.networkDrive.stop()
-						await this.networkDrive.start()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "stopNetworkDrive") {
-					try {
-						await this.networkDrive.stop()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "startS3" || message.data.channel === "restartS3") {
-					try {
-						await this.s3.stop()
-						await this.s3.start()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "stopS3") {
-					try {
-						await this.s3.stop()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "startWebDAV" || message.data.channel === "restartWebDAV") {
-					try {
-						await this.webdav.stop()
-						await this.webdav.start()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "stopWebDAV") {
-					try {
-						await this.webdav.stop()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "networkDriveAvailableCacheSize") {
-					try {
-						const size = await this.networkDriveAvailableCacheSize()
-
-						this.invokeResponse(message.data.id, message.data.channel, size)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "networkDriveStats") {
-					try {
-						if (!this.networkDrive.networkDrive) {
-							this.invokeResponse(message.data.id, message.data.channel, {
-								uploadsInProgress: 0,
-								uploadsQueued: 0,
-								erroredFiles: 0,
-								transfers: []
-							})
-						} else {
-							const stats = await this.networkDrive.networkDrive.getStats()
-
-							this.invokeResponse(message.data.id, message.data.channel, stats)
-						}
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "networkDriveCacheSize") {
-					try {
-						const size = await this.networkDriveCacheSize()
-
-						this.invokeResponse(message.data.id, message.data.channel, size)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "networkDriveCleanupCache") {
-					try {
-						await this.networkDriveCleanupCache()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
-				} else if (message.data.channel === "networkDriveCleanupLocalDir") {
-					try {
-						await this.networkDriveCleanupCache()
-
-						this.invokeResponse(message.data.id, message.data.channel)
-					} catch (e) {
-						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
-					}
 				} else if (message.data.channel === "startSync" || message.data.channel === "restartSync") {
 					try {
 						await this.sync.stop()
@@ -319,14 +143,8 @@ export class Worker {
 					} catch (e) {
 						this.invokeError(message.data.id, message.data.channel, e instanceof Error ? e : new Error(JSON.stringify(e)))
 					}
-				} else if (message.data.channel === "isS3Active") {
-					this.invokeResponse(message.data.id, message.data.channel, this.s3.active)
-				} else if (message.data.channel === "isWebDAVActive") {
-					this.invokeResponse(message.data.id, message.data.channel, this.webdav.active)
 				} else if (message.data.channel === "isSyncActive") {
 					this.invokeResponse(message.data.id, message.data.channel, this.sync.active)
-				} else if (message.data.channel === "isNetworkDriveActive") {
-					this.invokeResponse(message.data.id, message.data.channel, this.networkDrive.active)
 				} else if (message.data.channel === "syncResetCache") {
 					if (this.sync.active && this.sync.sync) {
 						const { uuid } = message.data.data
@@ -517,10 +335,7 @@ export class Worker {
 	}
 
 	public async stop(): Promise<void> {
-		if (this.isAuthed()) {
-			// We only need to cleanup the network drive rclone instance, everything else (webdav, s3, sync, http) gets killed automatically
-			await this.networkDrive.stop()
-		}
+		// Network drive, S3 and WebDAV now live in the main-thread RcloneManager; sync and http are torn down automatically when the worker thread terminates.
 	}
 }
 

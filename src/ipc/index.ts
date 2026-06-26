@@ -14,15 +14,8 @@ import { DISALLOWED_SYNC_DIRS } from "../constants"
 import os from "os"
 import { zip } from "zip-a-folder"
 import { filenLogsPath } from "../lib/logger"
-import {
-	getExistingDrives,
-	getAvailableDriveLetters,
-	isUnixMountPointValid,
-	isUnixMountPointEmpty,
-	isWinFSPInstalled,
-	isFUSE3InstalledOnLinux,
-	isFUSETInstalledOnMacOS
-} from "@filen/network-drive"
+import { getExistingDrives, getAvailableDriveLetters, isUnixMountPointValid, isUnixMountPointEmpty } from "../lib/rclone/mountValidation"
+import { isWinFSPInstalled, isFUSE3InstalledOnLinux, isFUSETInstalledOnMacOS } from "../lib/rclone/dependencies"
 import { tryingToSyncDesktop, isPathSyncedByICloud } from "@filen/sync"
 
 export type IPCDownloadFileParams = {
@@ -241,6 +234,7 @@ export class IPC {
 
 			await Promise.all([
 				this.desktop.worker.invoke("setConfig", config),
+				this.desktop.rclone.setConfig(config),
 				this.desktop.worker.invoke("syncUpdatePairs", { pairs: config.syncConfig.syncPairs })
 			])
 		})
@@ -733,23 +727,23 @@ export class IPC {
 	 */
 	private webdav(): void {
 		ipcMain.handle("startWebDAVServer", async () => {
-			await this.desktop.worker.invoke("startWebDAV")
+			await this.desktop.rclone.startWebDAV()
 		})
 
 		ipcMain.handle("stopWebDAVServer", async () => {
-			await this.desktop.worker.invoke("stopWebDAV")
+			await this.desktop.rclone.stopWebDAV()
 		})
 
 		ipcMain.handle("restartWebDAVServer", async () => {
-			await this.desktop.worker.invoke("restartWebDAV")
+			await this.desktop.rclone.restartWebDAV()
 		})
 
 		ipcMain.handle("isWebDAVOnline", async () => {
-			return await this.desktop.worker.isWebDAVOnline()
+			return await this.desktop.rclone.isWebDAVOnline()
 		})
 
 		ipcMain.handle("isWebDAVActive", async () => {
-			return await this.desktop.worker.invoke("isWebDAVActive")
+			return this.desktop.rclone.isWebDAVActive()
 		})
 	}
 
@@ -760,23 +754,23 @@ export class IPC {
 	 */
 	private s3(): void {
 		ipcMain.handle("startS3Server", async () => {
-			await this.desktop.worker.invoke("startS3")
+			await this.desktop.rclone.startS3()
 		})
 
 		ipcMain.handle("stopS3Server", async () => {
-			await this.desktop.worker.invoke("stopS3")
+			await this.desktop.rclone.stopS3()
 		})
 
 		ipcMain.handle("restartS3Server", async () => {
-			await this.desktop.worker.invoke("restartS3")
+			await this.desktop.rclone.restartS3()
 		})
 
 		ipcMain.handle("isS3Online", async () => {
-			return await this.desktop.worker.isS3Online()
+			return await this.desktop.rclone.isS3Online()
 		})
 
 		ipcMain.handle("isS3Active", async () => {
-			return await this.desktop.worker.invoke("isS3Active")
+			return this.desktop.rclone.isS3Active()
 		})
 	}
 
@@ -787,43 +781,43 @@ export class IPC {
 	 */
 	private networkDrive(): void {
 		ipcMain.handle("startNetworkDrive", async () => {
-			await this.desktop.worker.invoke("startNetworkDrive")
+			await this.desktop.rclone.startNetworkDrive()
 		})
 
 		ipcMain.handle("stopNetworkDrive", async () => {
-			await this.desktop.worker.invoke("stopNetworkDrive")
+			await this.desktop.rclone.stopNetworkDrive()
 		})
 
 		ipcMain.handle("restartNetworkDrive", async () => {
-			await this.desktop.worker.invoke("restartNetworkDrive")
+			await this.desktop.rclone.restartNetworkDrive()
 		})
 
 		ipcMain.handle("isNetworkDriveMounted", async () => {
-			return await this.desktop.worker.isNetworkDriveMounted()
+			return await this.desktop.rclone.isNetworkDriveMounted()
 		})
 
 		ipcMain.handle("networkDriveAvailableCache", async () => {
-			return await this.desktop.worker.invoke("networkDriveAvailableCacheSize")
+			return await this.desktop.rclone.networkDriveAvailableCacheSize()
 		})
 
 		ipcMain.handle("networkDriveStats", async () => {
-			return await this.desktop.worker.invoke("networkDriveStats")
+			return await this.desktop.rclone.networkDriveStats()
 		})
 
 		ipcMain.handle("networkDriveCacheSize", async () => {
-			return await this.desktop.worker.invoke("networkDriveCacheSize")
+			return await this.desktop.rclone.networkDriveCacheSize()
 		})
 
 		ipcMain.handle("networkDriveCleanupCache", async () => {
-			await this.desktop.worker.invoke("networkDriveCleanupCache")
+			await this.desktop.rclone.networkDriveCleanupCache()
 		})
 
 		ipcMain.handle("networkDriveCleanupLocalDir", async () => {
-			await this.desktop.worker.invoke("networkDriveCleanupLocalDir")
+			await this.desktop.rclone.networkDriveCleanupCache()
 		})
 
 		ipcMain.handle("isNetworkDriveActive", async () => {
-			return await this.desktop.worker.invoke("isNetworkDriveActive")
+			return this.desktop.rclone.isNetworkDriveActive()
 		})
 
 		ipcMain.handle("isWinFSPInstalled", async () => {

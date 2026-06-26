@@ -13,7 +13,7 @@ import {
 import { type FilenDesktopConfig } from "./types"
 import { type SyncMode, type SyncPair } from "@filen/sync/dist/types"
 import { type DriveInfo } from "./utils"
-import { type GetStats } from "@filen/network-drive/dist/types"
+import { type NetworkDriveStats } from "./lib/rclone/networkDrive"
 
 const env = {
 	isBrowser:
@@ -113,7 +113,7 @@ export type DesktopAPI = {
 	getAutoLaunch: () => Promise<LoginItemSettings>
 	isFUSE3InstalledOnLinux: () => Promise<boolean>
 	getDiskType: (path: string) => Promise<DriveInfo | null>
-	networkDriveStats: () => Promise<GetStats>
+	networkDriveStats: () => Promise<NetworkDriveStats>
 	syncUpdatePairs: (params: { pairs: SyncPair[] }) => Promise<void>
 	isFUSETInstalledOnMacOS: () => Promise<boolean>
 	tryingToSyncDesktop: (path: string) => Promise<boolean>

@@ -1,14 +1,11 @@
 import { Worker as WorkerThread } from "worker_threads"
 import pathModule from "path"
-import { waitForConfig } from "../config"
-import { httpHealthCheck, deserializeError, isProcessRunning } from "../utils"
+import { deserializeError } from "../utils"
 import { app } from "electron"
 import type FilenDesktop from ".."
 import isDev from "../isDev"
 import { type WorkerInvokeChannel, type WorkerMessage } from "../types"
-import fs from "fs-extra"
 import { Semaphore } from "../semaphore"
-import { RCLONE_BINARY_NAME, checkIfMountExists } from "@filen/network-drive"
 
 export class Worker {
 	private worker: WorkerThread | null = null
@@ -39,6 +36,7 @@ export class Worker {
 					app.exit(0)
 				}, 60000)
 
+				await this.desktop.rclone.killAll()
 				await this.stop()
 				await new Promise<void>(resolve => setTimeout(resolve, 250))
 			} catch {
@@ -169,44 +167,6 @@ export class Worker {
 			this.active = false
 		} finally {
 			this.stopMutex.release()
-		}
-	}
-
-	public async isWebDAVOnline(): Promise<boolean> {
-		const desktopConfig = await waitForConfig()
-
-		return await httpHealthCheck({
-			url: `http${desktopConfig.webdavConfig.https ? "s" : ""}://${desktopConfig.webdavConfig.hostname}:${
-				desktopConfig.webdavConfig.port
-			}`,
-			method: "GET",
-			expectedStatusCode: 401
-		})
-	}
-
-	public async isS3Online(): Promise<boolean> {
-		const desktopConfig = await waitForConfig()
-
-		return await httpHealthCheck({
-			url: `http${desktopConfig.s3Config.https ? "s" : ""}://${desktopConfig.s3Config.hostname}:${desktopConfig.s3Config.port}`,
-			method: "GET",
-			expectedStatusCode: 400
-		})
-	}
-
-	public async isNetworkDriveMounted(): Promise<boolean> {
-		try {
-			const desktopConfig = await waitForConfig()
-
-			if (!(await checkIfMountExists(desktopConfig.networkDriveConfig.mountPoint)) || !(await isProcessRunning(RCLONE_BINARY_NAME))) {
-				return false
-			}
-
-			const stat = await fs.stat(desktopConfig.networkDriveConfig.mountPoint)
-
-			return process.platform === "linux" ? stat.ino === 0 || stat.birthtimeMs === 0 : stat.ino === 1
-		} catch {
-			return false
 		}
 	}
 }

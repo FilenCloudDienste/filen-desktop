@@ -10,7 +10,8 @@ import Worker from "./worker"
 import { getAppIcon } from "./assets"
 import Updater from "./lib/updater"
 import isDev from "./isDev"
-import Logger from "./lib/logger"
+import Logger, { filenLogsPath } from "./lib/logger"
+import RcloneManager from "./lib/rclone/manager"
 import serveProd from "./lib/serve"
 import WindowState from "./lib/windowState"
 import Status from "./lib/status"
@@ -47,6 +48,7 @@ export class FilenDesktop {
 	}
 	public updater: Updater
 	public logger: Logger
+	public rclone!: RcloneManager
 	public isUnityRunning: boolean = process.platform === "linux" ? app.isUnityRunning() : false
 	public serve: (window: BrowserWindow) => Promise<void>
 	public windowState: WindowState
@@ -168,6 +170,12 @@ export class FilenDesktop {
 						this.logger.log("error", err)
 					})
 				}
+			})
+
+			this.rclone = new RcloneManager({
+				userDataPath: app.getPath("userData"),
+				logsPath: await filenLogsPath(),
+				logger: (level, message) => this.logger.log(level as Parameters<Logger["log"]>[0], message)
 			})
 
 			this.logger.log("info", "Starting worker and creating window")
