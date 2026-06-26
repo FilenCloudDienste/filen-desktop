@@ -45,6 +45,38 @@ export function obscure(value: string): string {
 }
 
 /**
+ * Re-encode an RSA public key from SPKI (PKIX) DER to PKCS#1 DER (both base64).
+ *
+ * The Filen JS SDK exports `publicKey` as SPKI/PKIX DER, but rclone's native Filen backend parses
+ * `public_key` with Go's `x509.ParsePKCS1PublicKey` — handed the SPKI form it fails with "failed to parse
+ * public key (use ParsePKIXPublicKey instead...)". Verified end-to-end against the shipped rclone v1.74.3
+ * with a real account: converting SPKI -> PKCS#1 here is what makes INTERNAL-mode auth succeed (the
+ * private key is already PKCS#8, which the backend's `x509.ParsePKCS8PrivateKey` accepts as-is).
+ *
+ * Defensive: an input already in PKCS#1 is returned unchanged; anything unparseable throws.
+ *
+ * @param {string} publicKeyBase64
+ * @returns {string}
+ */
+function spkiPublicKeyToPkcs1(publicKeyBase64: string): string {
+	const der = Buffer.from(publicKeyBase64, "base64")
+
+	try {
+		const key = crypto.createPublicKey({ key: der, format: "der", type: "spki" })
+
+		return key.export({ format: "der", type: "pkcs1" }).toString("base64")
+	} catch {
+		try {
+			crypto.createPublicKey({ key: der, format: "der", type: "pkcs1" })
+
+			return publicKeyBase64
+		} catch (e) {
+			throw new Error(`Cannot encode public key as PKCS1 for rclone: ${e instanceof Error ? e.message : String(e)}`)
+		}
+	}
+}
+
+/**
  * Build the `[Filen]` rclone remote config text for INTERNAL-mode auth.
  *
  * INTERNAL mode lets rclone's native Filen backend construct its SDK purely from the desktop's
@@ -53,10 +85,10 @@ export function obscure(value: string): string {
  * backend/filen/filen.go).
  *
  * Format rules (spec §5.1): `password` and `api_key` are obscured because the backend marks them
- * `IsPassword` and `Reveal`s them; every other field is written raw. `master_keys` is pipe-joined — for
- * auth v3 the array holds the single DEK string as its only element, so the join still yields exactly
- * that value (Phase-0 spike confirms the JS SDK's key material serializes byte-identically to what
- * filen-sdk-go's `NewFromTSConfig` expects). `auth_version` must be non-zero (rclone errors on 0).
+ * `IsPassword` and `Reveal`s them; `public_key` is re-encoded from the SDK's SPKI/PKIX DER to the PKCS#1
+ * the backend's `x509.ParsePKCS1PublicKey` expects (see {@link spkiPublicKeyToPkcs1}); the `private_key`
+ * (PKCS#8) and the rest are written raw. `master_keys` is pipe-joined. `auth_version` must be non-zero
+ * (rclone errors on 0). Verified end-to-end against shipped rclone v1.74.3 with a real auth-v2 account.
  *
  * Throws a clear Error naming the first missing/empty required field.
  *
@@ -95,7 +127,7 @@ export function generateRcloneConfig(sdkConfig: FilenSDKConfig): string {
 		throw new Error("Cannot generate rclone config: missing publicKey.")
 	}
 
-	// password = obscure("INTERNAL") and api_key = obscure(apiKey) are obscured; the rest are raw.
+	// password/api_key obscured; public_key re-encoded SPKI -> PKCS1 (the backend parses it as PKCS1); the rest raw.
 	return [
 		"[Filen]",
 		"type = filen",
@@ -104,7 +136,7 @@ export function generateRcloneConfig(sdkConfig: FilenSDKConfig): string {
 		`api_key = ${obscure(apiKey)}`,
 		`master_keys = ${masterKeys.join("|")}`,
 		`private_key = ${privateKey}`,
-		`public_key = ${publicKey}`,
+		`public_key = ${spkiPublicKeyToPkcs1(publicKey)}`,
 		`auth_version = ${String(authVersion)}`,
 		`base_folder_uuid = ${baseFolderUUID}`,
 		""
