@@ -226,8 +226,9 @@ export class RcloneProcess {
 	 * group-kill); the child is intentionally NOT `unref()`'d — this class tracks and owns it. Resolves on
 	 * the child's `"spawn"` event and rejects if `"error"` fires first (e.g. ENOENT). An `"exit"` handler
 	 * marks the process not-running and logs an unexpected exit (it never auto-restarts). After a
-	 * successful spawn the watchdog is armed with the child PID and mountpoint; a watchdog failure is
-	 * logged but does not fail the start (rclone is already up, and the normal kill ladder still works).
+	 * successful spawn the watchdog is armed (with retries) with the child PID and mountpoint; if arming
+	 * ultimately fails, the just-spawned child is killed and the start REJECTS - an unguarded rclone that
+	 * could orphan on a hard exit is never left running (the crash-safety gate).
 	 *
 	 * @public
 	 * @async
@@ -297,12 +298,29 @@ export class RcloneProcess {
 
 			this.log("info", `rclone (${this.role}) spawned with pid ${String(child.pid)}.`)
 
-			if (child.pid !== undefined) {
-				try {
-					await this.watchdog.start(child.pid, this.mountPoint)
-				} catch (e) {
-					this.log("error", `Failed to arm rclone watchdog (${this.role}): ${e instanceof Error ? e.message : String(e)}`)
-				}
+			// Crash-safety gate: never run an UNGUARDED rclone. Without the watchdog, a hard exit (crash, app.exit) would
+			// orphan this process - an s3/webdav server keeps holding its port, a mount stays mounted - with no reliable
+			// auto-cleanup. So if we can't get a PID, or arming the watchdog fails (after its own retries), kill the child we
+			// just spawned and fail the start with a clear, diagnosable error rather than leave it running unguarded.
+			if (child.pid === undefined) {
+				await this.stop()
+
+				throw new Error(`rclone (${this.role}) spawned without a PID; cannot arm its crash-safety watchdog.`)
+			}
+
+			try {
+				await this.watchdog.start(child.pid, this.mountPoint)
+			} catch (e) {
+				this.log(
+					"error",
+					`Failed to arm rclone watchdog (${this.role}); aborting start to avoid an unguarded process: ${e instanceof Error ? e.message : String(e)}`
+				)
+
+				await this.stop()
+
+				throw new Error(
+					`Could not arm the rclone crash-safety watchdog for the ${this.role} role: ${e instanceof Error ? e.message : String(e)}`
+				)
 			}
 		} finally {
 			this.startMutex.release()

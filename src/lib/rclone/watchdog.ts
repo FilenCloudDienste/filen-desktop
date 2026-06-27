@@ -10,7 +10,7 @@ import { type RcloneRole } from "./constants"
  *
  * @type {number}
  */
-const MONITOR_VERSION = 1
+const MONITOR_VERSION = 2
 
 /**
  * Crash-safety monitor for a single rclone process.
@@ -111,7 +111,7 @@ if [ -z "$ELECTRON_PID" ] || [ -z "$RCLONE_PID" ]; then
 fi
 
 while kill -0 "$ELECTRON_PID" 2>/dev/null; do
-	sleep 2
+	sleep 10
 done
 
 kill -9 "$RCLONE_PID" 2>/dev/null || true
@@ -148,8 +148,11 @@ set "RCLONE_PID=%~2"
 if "%ELECTRON_PID%"=="" exit /B 1
 if "%RCLONE_PID%"=="" exit /B 1
 
+:: Delay via ping, NOT timeout: "timeout /t" aborts instantly with "Input redirection is not supported" when stdin
+:: isn't a console - and this helper runs with stdin = NUL - which would turn the poll into a CPU-pegging busy loop.
+:: A loopback ping is a reliable, console-free ~10s sleep on every supported Windows version.
 :loop
-tasklist /FI "PID eq %ELECTRON_PID%" | findstr %ELECTRON_PID% >nul && (timeout /t 2 >nul & goto loop)
+tasklist /FI "PID eq %ELECTRON_PID%" | findstr %ELECTRON_PID% >nul && (ping -n 11 127.0.0.1 >nul & goto loop)
 
 taskkill /F /T /PID %RCLONE_PID% >nul 2>&1
 
@@ -188,15 +191,13 @@ exit /B 0
 	}
 
 	/**
-	 * Spawn the detached crash-safety helper that guards `targetRclonePid`.
+	 * Arm the detached crash-safety helper that guards `targetRclonePid`, retrying a few times so a transient write/spawn
+	 * hiccup does not leave rclone unguarded. The single write+spawn attempt lives in {@link arm}; any previously-started
+	 * helper is reaped first so at most one runs per role.
 	 *
-	 * Writes (if needed) and spawns the monitor script `detached: true, stdio: "ignore"` and immediately
-	 * `unref()`s it so it neither keeps the Electron event loop alive nor dies with a normal shutdown. The
-	 * helper is handed `process.pid` (the Electron main PID to watch), `targetRclonePid` (the exact rclone
-	 * process to kill — never a name) and, for the drive role, `mountPoint`. Any previously-started helper
-	 * is reaped first so at most one runs per role.
-	 *
-	 * Resolves once the helper reports `"spawn"`; rejects if it emits `"error"` before spawning.
+	 * Callers MUST gate on this: if it ultimately throws (arming failed after all retries), the owning {@link RcloneProcess}
+	 * kills the just-spawned rclone rather than run it without crash-safety, so we never leave an unguarded process that could
+	 * orphan on a hard exit.
 	 *
 	 * @public
 	 * @async
@@ -209,6 +210,56 @@ exit /B 0
 			await this.stop()
 		}
 
+		const maxAttempts = 3
+		let lastError: unknown = null
+
+		for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+			try {
+				await this.arm(targetRclonePid, mountPoint)
+
+				this.log(
+					"info",
+					`Watchdog (${this.role}) armed: watching electron pid ${String(process.pid)}, guarding rclone pid ${String(targetRclonePid)}.`
+				)
+
+				return
+			} catch (e) {
+				lastError = e
+
+				this.log(
+					"warn",
+					`Watchdog (${this.role}) arm attempt ${String(attempt)}/${String(maxAttempts)} failed: ${e instanceof Error ? e.message : String(e)}`
+				)
+
+				// Reap any half-started helper before retrying so at most one ever runs.
+				if (this.helper) {
+					await this.stop()
+				}
+
+				if (attempt < maxAttempts) {
+					await new Promise<void>(resolve => setTimeout(resolve, 250 * attempt))
+				}
+			}
+		}
+
+		throw new Error(
+			`Could not arm the rclone watchdog (${this.role}) after ${String(maxAttempts)} attempts: ${lastError instanceof Error ? lastError.message : String(lastError)}`
+		)
+	}
+
+	/**
+	 * A single arming attempt: write (if needed) the monitor script and spawn the `detached`, `unref()`'d helper. It is
+	 * `unref()`'d so it neither keeps the Electron event loop alive nor dies with a normal shutdown, and handed `process.pid`
+	 * (the Electron PID to watch), `targetRclonePid` (the exact rclone PID to kill — never a name) and, for the drive role,
+	 * `mountPoint`. Resolves once the helper reports `"spawn"`; rejects if it emits `"error"` before spawning.
+	 *
+	 * @private
+	 * @async
+	 * @param {number} targetRclonePid
+	 * @param {string} [mountPoint]
+	 * @returns {Promise<void>}
+	 */
+	private async arm(targetRclonePid: number, mountPoint?: string): Promise<void> {
 		const scriptPath = await this.writeScript()
 		const isWindows = process.platform === "win32"
 		const args = [String(process.pid), String(targetRclonePid)]
@@ -268,11 +319,6 @@ exit /B 0
 				}
 			})
 		})
-
-		this.log(
-			"info",
-			`Watchdog (${this.role}) armed: watching electron pid ${String(process.pid)}, guarding rclone pid ${String(targetRclonePid)}.`
-		)
 	}
 
 	/**
