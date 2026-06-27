@@ -328,9 +328,12 @@ export async function isFUSETInstalledOnMacOS(): Promise<boolean> {
 }
 
 /**
- * Detect FUSE3 on Linux. Primary (either is sufficient): `which fusermount3` exits 0, OR `ldconfig -p` lists
- * `libfuse3.so` (the shared object rclone dlopens). A bare `fusermount` (FUSE v2) is intentionally NOT accepted. `ldconfig`
- * is probed both on PATH and at `/sbin/ldconfig`, since `/sbin` is frequently absent from a desktop process' PATH. Returns
+ * Detect FUSE3 on Linux. rclone performs unprivileged mounts through the `fusermount3` setuid helper, so the presence of
+ * THAT binary — not merely the libfuse3 shared object — is the real gate: a box that has `libfuse3` but no `fusermount3`
+ * (e.g. the library pulled in transitively without the `fuse3` utils package) cannot actually mount, and accepting it
+ * would turn the clean "install fuse3" message into a confusing mount failure. We probe `fusermount3` PATH-independently —
+ * `which fusermount3` first, then the well-known absolute locations — because a desktop GUI process frequently starts
+ * with a minimal PATH that omits the dir it lives in. A bare `fusermount` (FUSE v2) is intentionally NOT accepted. Returns
  * false on any non-Linux platform.
  *
  * @export
@@ -348,10 +351,8 @@ export async function isFUSE3InstalledOnLinux(): Promise<boolean> {
 		return true
 	}
 
-	for (const ldconfigBin of ["ldconfig", "/sbin/ldconfig"]) {
-		const ldconfig = await runProbe(ldconfigBin, ["-p"])
-
-		if (ldconfig.code === 0 && /libfuse3\.so/.test(ldconfig.stdout)) {
+	for (const candidate of ["/usr/bin/fusermount3", "/bin/fusermount3", "/usr/local/bin/fusermount3", "/sbin/fusermount3"]) {
+		if (await fs.pathExists(candidate)) {
 			return true
 		}
 	}
