@@ -107,7 +107,7 @@ export async function httpHealthCheck({
 		clearTimeout(timeouter)
 
 		return response.status === expectedStatusCode
-	} catch (e) {
+	} catch {
 		clearTimeout(timeouter)
 
 		return false
@@ -243,8 +243,7 @@ export type LinuxDrive = {
 	children?: LinuxDrive[]
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function getDiskType(filePath: string): Promise<DriveInfo | null> {
+export async function getDiskType(_filePath: string): Promise<DriveInfo | null> {
 	return null // Temporary disabled
 
 	/*const normalizedPath = pathModule.resolve(filePath)

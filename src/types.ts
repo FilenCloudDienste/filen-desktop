@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/ban-types */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { type CloudItem, type CloudItemShared, type FilenSDKConfig } from "@filen/sdk"
@@ -101,7 +100,6 @@ export type WorkerMessage =
 			data: {
 				id: number
 				channel: WorkerInvokeChannel
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				data?: any
 			}
 	  }
@@ -110,7 +108,6 @@ export type WorkerMessage =
 			data: {
 				id: number
 				channel: WorkerInvokeChannel
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				result?: any
 			}
 	  }

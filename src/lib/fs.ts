@@ -10,20 +10,15 @@ import fs from "fs-extra"
  * @typedef {FS}
  */
 export class FS {
-	private readonly desktop: FilenDesktop
-
 	/**
 	 * Creates an instance of FS.
 	 * @date 3/13/2024 - 8:03:20 PM
 	 *
 	 * @constructor
 	 * @public
-	 * @param {{ desktop: FilenDesktop }} param0
-	 * @param {FilenDesktop} param0.desktop
+	 * @param {FilenDesktop} _desktop Unused for now; kept so FS is constructed symmetrically with the other lib classes.
 	 */
-	public constructor(desktop: FilenDesktop) {
-		this.desktop = desktop
-	}
+	public constructor(_desktop: FilenDesktop) {}
 
 	public async isPathWritable(path: string): Promise<boolean> {
 		try {

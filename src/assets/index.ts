@@ -58,7 +58,6 @@ export function getTrayIcon({ notificationCount, isSyncing, warningCount, errorC
 		: TRAY_ICON_NORMAL
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function getOverlayIcon(notificationCount: number): NativeImage {
+export function getOverlayIcon(_notificationCount: number): NativeImage {
 	return OVERLAY_ICON
 }

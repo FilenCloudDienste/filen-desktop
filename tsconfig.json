@@ -14,7 +14,11 @@
 		"skipLibCheck": true,
 		"declaration": true,
 		"resolveJsonModule": true,
-		"noUncheckedIndexedAccess": true
+		"noUncheckedIndexedAccess": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noFallthroughCasesInSwitch": true,
+		"noImplicitOverride": true
 	},
 	"ts-node": {
 		"files": true
