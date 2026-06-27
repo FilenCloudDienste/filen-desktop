@@ -147,6 +147,13 @@ export class FilenDesktop {
 				app.exit(0)
 			})
 
+			// An explicit quit - macOS Cmd+Q, Windows/Linux Ctrl+Q or the app-menu Quit, the macOS Dock "Quit" item - flips
+			// this flag so the window `close` handler lets the window actually close instead of intercepting it into hide
+			// (macOS) / minimize (tray). Fires on every platform (Ctrl+Q-with-tray on Windows/Linux quit correctly too).
+			app.on("before-quit", () => {
+				this.shouldExitOnQuit = true
+			})
+
 			app.on("second-instance", () => {
 				if (this.driveWindow) {
 					if (this.driveWindow.isMinimized()) {
@@ -164,12 +171,11 @@ export class FilenDesktop {
 				app.setUserTasks([])
 			}
 
+			// macOS Dock-icon click: bring back the existing (hidden/minimized) window - never recreate it, since the
+			// renderer holds live state. showOrOpenDriveWindow() restores-if-minimized / shows-if-hidden, and only creates a
+			// window if somehow none exists. (The `activate` event is macOS-only, so this is a no-op on Windows/Linux.)
 			app.on("activate", () => {
-				if (BrowserWindow.getAllWindows().length === 0) {
-					this.createMainWindow().catch(err => {
-						this.logger.log("error", err)
-					})
-				}
+				this.showOrOpenDriveWindow()
 			})
 
 			// The bundled FUSE-layer installers RcloneManager hands to the network-drive role so a fresh machine can
@@ -360,12 +366,6 @@ export class FilenDesktop {
 			this.driveWindow = null
 		})
 
-		this.driveWindow?.on("minimize", () => {
-			if (process.platform === "darwin" && this.minimizeToTray) {
-				app?.dock?.hide()
-			}
-		})
-
 		this.driveWindow?.on("show", () => {
 			if (process.platform === "darwin" && !app?.dock?.isVisible()) {
 				app?.dock?.show()
@@ -373,14 +373,30 @@ export class FilenDesktop {
 		})
 
 		this.driveWindow?.on("close", e => {
-			if ((process.platform === "darwin" || this.minimizeToTray) && !this.driveWindow?.isMinimized() && !this.shouldExitOnQuit) {
+			// An explicit quit, or an already-minimized window, closes normally.
+			if (this.shouldExitOnQuit || this.driveWindow?.isMinimized()) {
+				return
+			}
+
+			if (process.platform === "darwin") {
+				// macOS: the red traffic light / Cmd+W HIDES the window rather than closing it. The BrowserWindow and its
+				// renderer stay fully alive (DOM, sockets, sync state intact - `backgroundThrottling` is off), and the app
+				// stays in the Dock + tray; a Dock-icon click or the tray "Open" restores it via showOrOpenDriveWindow().
+				// Only in "minimize to tray" mode do we also hide the Dock icon (menu-bar-agent mode); the always-on tray is
+				// then the way back. The window is only ever destroyed on a real quit (handled by the early return above).
+				e.preventDefault()
+
+				this.driveWindow?.hide()
+
+				if (this.minimizeToTray) {
+					app?.dock?.hide()
+				}
+			} else if (this.minimizeToTray) {
+				// Windows/Linux "minimize to tray" - unchanged. The renderer's window controls drive the hide-to-tray path;
+				// this minimize is the fallback for OS-level closes (Alt+F4, taskbar close) when tray mode is on.
 				e.preventDefault()
 
 				this.driveWindow?.minimize()
-
-				if (process.platform === "darwin" && this.minimizeToTray) {
-					app?.dock?.hide()
-				}
 			}
 		})
 
