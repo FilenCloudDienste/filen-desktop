@@ -14,14 +14,27 @@ export interface ISemaphore {
  */
 export const Semaphore = function (this: ISemaphore, max: number) {
 	let counter = 0
-	let waiting: { resolve: (value: void | PromiseLike<void>) => void; err: (reason?: unknown) => void }[] = []
+	// FIFO queue of pending acquirers, consumed from `head` instead of with Array.shift(). shift() is O(n)
+	// (it re-indexes the whole array), so a large fan-out queued ~N waiters and each of the N releases
+	// shifted an ~N-length array — O(N²). The head pointer makes each dequeue O(1) amortized; the consumed
+	// prefix is compacted occasionally so a long-lived semaphore never retains an unbounded backing array.
+	let waiting: ({ resolve: (value: void | PromiseLike<void>) => void; err: (reason?: unknown) => void } | undefined)[] = []
+	let head = 0
 	let maxCount = max || 1
 
 	const take = function (): void {
-		if (waiting.length > 0 && counter < maxCount) {
+		if (head < waiting.length && counter < maxCount) {
 			counter++
 
-			const promise = waiting.shift()
+			const promise = waiting[head]
+
+			waiting[head] = undefined
+			head++
+
+			if (head >= 1024 && head * 2 >= waiting.length) {
+				waiting = waiting.slice(head)
+				head = 0
+			}
 
 			if (!promise) {
 				return
@@ -63,9 +76,9 @@ export const Semaphore = function (this: ISemaphore, max: number) {
 	}
 
 	this.purge = function (): number {
-		const unresolved = waiting.length
+		const unresolved = waiting.length - head
 
-		for (let i = 0; i < unresolved; i++) {
+		for (let i = head; i < waiting.length; i++) {
 			const w = waiting[i]
 
 			if (!w) {
@@ -77,6 +90,7 @@ export const Semaphore = function (this: ISemaphore, max: number) {
 
 		counter = 0
 		waiting = []
+		head = 0
 
 		return unresolved
 	}
