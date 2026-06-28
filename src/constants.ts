@@ -17,8 +17,6 @@ export const IS_ELECTRON = env.isElectron
 export const IS_NODE = env.isNode
 export const DISALLOWED_SYNC_DIRS = [
 	"C:\\Windows",
-	"C:\\Program Files",
-	"C:\\Program Files (x86)",
 	"C:\\Temp",
 	"C:\\Windows\\Temp",
 	"/System",
@@ -29,7 +27,5 @@ export const DISALLOWED_SYNC_DIRS = [
 	"/sbin",
 	// "/var",
 	"/tmp",
-	"/private",
-	`/home/${process.env.USER ?? "User"}/.cache`,
-	`/var/home/${process.env.USER ?? "User"}/.cache`
+	"/private"
 ]
