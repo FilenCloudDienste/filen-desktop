@@ -300,6 +300,9 @@
 		},
 		"dmg": {
 			"sign": false
+		},
+		"toolsets": {
+			"appimage": "1.0.3"
 		}
 	}
 }
