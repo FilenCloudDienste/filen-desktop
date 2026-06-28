@@ -1,0 +1,39 @@
+# ESLint is a tool for identifying and reporting on patterns found in
+# ECMAScript/JavaScript code. https://eslint.org
+#
+# This runs the project's own lint configuration (flat config in eslint.config.mjs,
+# ESLint 9 + typescript-eslint 8) via `npm run lint` as a pass/fail gate. It installs
+# the exact, already-resolved dependency tree from package-lock.json with `npm ci`
+# (no version pinning), so it stays in lockstep with local linting. Security scanning
+# is handled separately by codeql.yml.
+
+name: ESLint
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+        types: [opened, synchronize, reopened]
+
+jobs:
+    eslint:
+        name: Run ESLint
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Set up Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version: 20
+                  cache: "npm"
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run ESLint
+              run: npm run lint
