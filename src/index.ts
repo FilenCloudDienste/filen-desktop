@@ -12,7 +12,7 @@ import Updater from "./lib/updater"
 import isDev from "./isDev"
 import Logger, { filenLogsPath } from "./lib/logger"
 import RcloneManager from "./lib/rclone/manager"
-import serveProd from "./lib/serve"
+import serveProd, { SCHEME } from "./lib/serve"
 import WindowState from "./lib/windowState"
 import Status from "./lib/status"
 import Options from "./lib/options"
@@ -408,6 +408,35 @@ export class FilenDesktop {
 				action: "deny"
 			}
 		})
+
+		// Lock the main window to its own origin. The renderer is the trusted @filen/web bundle
+		// (filendesktop://bundle in prod, the Vite dev server in dev) and must never navigate to any other origin
+		// (e.g. the loopback HTTP server) - that would expose window.desktopAPI to attacker-controlled content. SPA
+		// route changes use the History API and do not fire will-navigate, so in-app routing is unaffected; genuine
+		// external http(s) links open in the default browser instead.
+		const allowedNavigationOrigin = isDev ? "http://localhost:5173" : `${SCHEME}://bundle`
+		const blockOffOriginNavigation = (event: Electron.Event, url: string): void => {
+			let parsed: URL | null = null
+
+			try {
+				parsed = new URL(url)
+			} catch {
+				parsed = null
+			}
+
+			if (parsed && parsed.origin === allowedNavigationOrigin) {
+				return
+			}
+
+			event.preventDefault()
+
+			if (parsed && (parsed.protocol === "http:" || parsed.protocol === "https:")) {
+				shell.openExternal(url).catch(() => {})
+			}
+		}
+
+		this.driveWindow?.webContents.on("will-navigate", details => blockOffOriginNavigation(details, details.url))
+		this.driveWindow?.webContents.on("will-redirect", details => blockOffOriginNavigation(details, details.url))
 
 		if (isDev) {
 			await this.driveWindow?.loadURL("http://localhost:5173")

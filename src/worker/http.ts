@@ -92,8 +92,21 @@ export class HTTP {
 				res.set("Content-Length", file.size.toString())
 			}
 
-			res.set("Content-Type", mimeType)
-			res.set("Accept-Ranges", "bytes")
+			// file.mime is attacker-controlled. Allowlist the inline-renderable categories the app streams
+			// (audio/video/image); serve anything else as a non-executable download. nosniff + a strict response CSP
+			// stop this loopback server from being used to render attacker bytes as a same-origin script/HTML document.
+			const inlineSafe = /^(?:audio|video|image)\//i.test(mimeType)
+
+			res.set("X-Content-Type-Options", "nosniff")
+			res.set("Content-Security-Policy", "default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:")
+
+			if (inlineSafe) {
+				res.set("Content-Type", mimeType)
+				res.set("Accept-Ranges", "bytes")
+			} else {
+				res.set("Content-Type", "application/octet-stream")
+				res.set("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`)
+			}
 
 			const stream = sdk.cloud().downloadFileToReadableStream({
 				uuid: file.uuid,

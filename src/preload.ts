@@ -123,7 +123,13 @@ export type DesktopAPI = {
 	syncUpdateConfirmDeletion: (params: { uuid: string; result: "delete" | "restart" }) => Promise<void>
 }
 
-if (env.isBrowser || env.isElectron) {
+// Only expose the privileged desktopAPI on the trusted app origin - the @filen/web bundle (filendesktop://bundle,
+// served only as host "bundle" by src/lib/serve.ts) or the Vite dev server. Defense-in-depth so attacker-controlled
+// content on any other origin (e.g. the loopback HTTP server) cannot reach downloadFile/openLocalPath/setConfig/etc.
+const onTrustedOrigin =
+	typeof location !== "undefined" && (location.protocol === "filendesktop:" || location.origin === "http://localhost:5173")
+
+if ((env.isBrowser || env.isElectron) && onTrustedOrigin) {
 	contextBridge.exposeInMainWorld("desktopAPI", {
 		onMainToWindowMessage: listener => {
 			const listen = (_: Electron.IpcRendererEvent, message: MainToWindowMessage) => {
