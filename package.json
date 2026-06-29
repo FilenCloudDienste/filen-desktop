@@ -98,8 +98,8 @@
 			"dist/**/*",
 			"bin/**/*",
 			"!bin/rclone/**",
+			"!bin/deps/**",
 			"build/installer.nsh",
-			"build/winfsp-2.1.25156.msi",
 			"public/**/*"
 		],
 		"asarUnpack": [
@@ -161,10 +161,6 @@
 			],
 			"extraFiles": [
 				{
-					"from": "build/winfsp-2.1.25156.msi",
-					"to": "build/winfsp-2.1.25156.msi"
-				},
-				{
 					"from": "build/installer.nsh",
 					"to": "build/installer.nsh"
 				}
@@ -178,8 +174,11 @@
 					]
 				},
 				{
-					"from": "build/winfsp-2.1.25156.msi",
-					"to": "deps/winfsp-2.1.25156.msi"
+					"from": "bin/deps",
+					"to": "deps",
+					"filter": [
+						"*.msi"
+					]
 				}
 			]
 		},

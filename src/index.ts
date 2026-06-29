@@ -187,7 +187,7 @@ export class FilenDesktop {
 
 			const winfspMsiPath =
 				process.platform === "win32"
-					? resolveDepInstaller(["build", "winfsp-2.1.25156.msi"], ["deps", "winfsp-2.1.25156.msi"])
+					? resolveDepInstaller(["bin", "deps", "winfsp-2.2.26112.msi"], ["deps", "winfsp-2.2.26112.msi"])
 					: undefined
 
 			const fuseTPkgPath =

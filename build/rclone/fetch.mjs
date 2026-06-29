@@ -31,6 +31,16 @@ const FUSE_T_VERSION = "1.2.7"
 const FUSE_T_SHA256 = "6a29c747e61a86a405a189efc3de42812d73147135f93a1bb0624c1e7b90e654"
 const FUSE_T_URL = `https://github.com/macos-fuse-t/fuse-t/releases/download/${FUSE_T_VERSION}/fuse-t-macos-installer-${FUSE_T_VERSION}.pkg`
 
+// WinFSP is the Windows FUSE layer the network drive installs/upgrades (via the NSIS installer at install time, plus a
+// runtime install-if-absent fallback). Like FUSE-T it is fetched at build time into bin/deps/ — NOT committed — and
+// bundled via win.extraResources plus embedded into the NSIS installer. WinFSP publishes NO SHA256SUMS manifest, so
+// WINFSP_SHA256 is PINNED. Bumping WinFSP = change WINFSP_VERSION, WINFSP_TAG and this hash, then re-run this script.
+// v2.2B1 (2.2.26112) carries the CVE-2026-3006 fix (no stable release has it yet).
+const WINFSP_VERSION = "2.2.26112"
+const WINFSP_TAG = "v2.2B1"
+const WINFSP_SHA256 = "f9e70ede2344a30d377a38555e2128c0770d64ddc53c0e2af7dfe0c605f422a8"
+const WINFSP_URL = `https://github.com/winfsp/winfsp/releases/download/${WINFSP_TAG}/winfsp-${WINFSP_VERSION}.msi`
+
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 // build/rclone/fetch.mjs -> repo root is two levels up.
@@ -239,6 +249,59 @@ async function fetchFuseT() {
 	console.log(`[rclone-fetch] OK (verified) ${fileName} sha256=${FUSE_T_SHA256}`)
 }
 
+/**
+ * Windows only: fetch the WinFSP installer msi into bin/deps and verify it against the PINNED SHA256 (WinFSP ships no
+ * SHA256SUMS manifest, like FUSE-T). Same .part -> verify -> rename pattern as the rclone zips; idempotent and
+ * intact-aware — a present msi whose hash already matches is left untouched. No-op on macOS/Linux.
+ *
+ * @returns {Promise<void>}
+ */
+async function fetchWinFSP() {
+	const fileName = `winfsp-${WINFSP_VERSION}.msi`
+	const destPath = path.join(DEPS_DIR, fileName)
+
+	await fs.promises.mkdir(DEPS_DIR, { recursive: true })
+
+	console.log(`[rclone-fetch] WinFSP v${WINFSP_VERSION}, target dir: ${DEPS_DIR}`)
+
+	// Idempotent: if a matching, intact msi is already present, skip re-downloading.
+	if (fs.existsSync(destPath)) {
+		const actual = await sha256File(destPath)
+
+		if (actual === WINFSP_SHA256) {
+			console.log(`[rclone-fetch] OK (cached)   ${fileName} sha256=${WINFSP_SHA256}`)
+
+			return
+		}
+
+		console.log(`[rclone-fetch] stale         ${fileName} (have ${actual}); re-downloading`)
+	}
+
+	console.log(`[rclone-fetch] downloading   ${WINFSP_URL}`)
+
+	const tmpPath = `${destPath}.part`
+
+	let actual
+
+	try {
+		actual = await downloadToFile(WINFSP_URL, tmpPath)
+	} catch (e) {
+		await fs.promises.rm(tmpPath, { force: true })
+
+		throw e
+	}
+
+	if (actual !== WINFSP_SHA256) {
+		await fs.promises.rm(tmpPath, { force: true })
+
+		throw new Error(`SHA256 mismatch for ${fileName}: expected ${WINFSP_SHA256}, got ${actual}. Deleted the bad download.`)
+	}
+
+	await fs.promises.rename(tmpPath, destPath)
+
+	console.log(`[rclone-fetch] OK (verified) ${fileName} sha256=${WINFSP_SHA256}`)
+}
+
 async function main() {
 	const os = rcloneOs(process.platform)
 	const zipNames = ARCHES.map(arch => `rclone-v${RCLONE_VERSION}-${os}-${arch}.zip`)
@@ -305,6 +368,11 @@ async function main() {
 	// macOS also bundles the FUSE-T installer so a fresh machine can auto-install the FUSE layer.
 	if (process.platform === "darwin") {
 		await fetchFuseT()
+	}
+
+	// Windows also bundles the WinFSP installer (the Windows FUSE layer) so the NSIS installer / runtime can install it.
+	if (process.platform === "win32") {
+		await fetchWinFSP()
 	}
 
 	console.log(`[rclone-fetch] done: ${zipNames.length} zip(s) ready in ${BIN_DIR}`)
