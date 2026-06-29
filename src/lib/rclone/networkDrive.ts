@@ -7,6 +7,7 @@ import { RcloneProcess } from "./process"
 import { ensureDriveDependencies, isMacFUSEInstalled, ensureHostsFilenEntry } from "./dependencies"
 import { getAvailableDriveLetters, isUnixMountPointEmpty, isMountActive } from "./mountValidation"
 import { validateMountPointFormat } from "./validation"
+import { VFS_CACHE_MAX_SIZE_GI, VFS_CACHE_MIN_FREE_SPACE_GI, VFS_CACHE_MAX_AGE, VFS_DIR_CACHE_TIME } from "./constants"
 
 const execFileAsync = promisify(execFile)
 
@@ -108,22 +109,21 @@ export async function buildMountArgs(options: NetworkDriveOptions): Promise<stri
 
 	args.push("--cache-dir", cachePath)
 
-	if (typeof cacheSizeGi === "number") {
-		args.push("--vfs-cache-max-size", `${cacheSizeGi}Gi`)
-	}
+	// Default per-role cap; an explicit user-set cacheSizeGi (once wired to the UI) overrides it.
+	args.push("--vfs-cache-max-size", `${typeof cacheSizeGi === "number" ? cacheSizeGi : VFS_CACHE_MAX_SIZE_GI}Gi`)
 
 	args.push(
 		"--vfs-cache-min-free-space",
-		"5Gi",
+		`${VFS_CACHE_MIN_FREE_SPACE_GI}Gi`,
 		"--vfs-cache-max-age",
-		"720h",
+		VFS_CACHE_MAX_AGE,
 		"--vfs-write-back",
 		"5s",
-		// Raised from 3s: Filen has no ChangeNotify (so --poll-interval 0 is inherent), which makes dir-cache-time the only
-		// freshness lever. 3s re-listed on nearly every navigation of a high-latency backend; 30s keeps browsing snappy while
-		// still surfacing external changes within ~30s (force a refresh via the rc API / SIGHUP when needed).
+		// Filen has no ChangeNotify (so --poll-interval 0 is inherent), so dir-cache-time is the only freshness lever.
+		// VFS_DIR_CACHE_TIME (uniform across all rclone roles) surfaces external/remote changes quickly; kept well above
+		// the old 3s that re-listed on nearly every navigation of a high-latency backend (also rc API / SIGHUP refresh).
 		"--dir-cache-time",
-		"30s",
+		VFS_DIR_CACHE_TIME,
 		"--poll-interval",
 		"0",
 		"--no-gzip-encoding",

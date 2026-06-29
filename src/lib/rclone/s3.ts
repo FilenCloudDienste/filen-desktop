@@ -7,6 +7,7 @@ import { isPortInUse } from "../../utils"
 import { RcloneProcess } from "./process"
 import { ensureServerCert } from "./tls"
 import { validateS3AccessKeyId, validateS3SecretKey, validateHostname, validatePort } from "./validation"
+import { VFS_CACHE_MAX_SIZE_GI, VFS_CACHE_MIN_FREE_SPACE_GI, VFS_CACHE_MAX_AGE, VFS_DIR_CACHE_TIME } from "./constants"
 
 /**
  * Resolve after `ms` milliseconds.
@@ -172,9 +173,18 @@ export async function buildS3Args(options: S3Options): Promise<string[]> {
 		cachePath,
 		"--vfs-write-back",
 		"5s",
-		// Bound the long-running server's VFS cache so it can't fill the disk (the network drive has the same guard).
+		// Bound the long-running server's VFS cache: an absolute per-role cap, a disk free-space floor, and an age cutoff
+		// (uniform across all rclone roles). rclone never evicts dirty/open files to meet these, so pending writes are safe.
+		"--vfs-cache-max-size",
+		`${VFS_CACHE_MAX_SIZE_GI}Gi`,
 		"--vfs-cache-min-free-space",
-		"5Gi",
+		`${VFS_CACHE_MIN_FREE_SPACE_GI}Gi`,
+		"--vfs-cache-max-age",
+		VFS_CACHE_MAX_AGE,
+		// Filen has no ChangeNotify, so dir-cache-time is the only dir-listing freshness lever; short so external/remote
+		// changes surface quickly (rclone's default is 5m).
+		"--dir-cache-time",
+		VFS_DIR_CACHE_TIME,
 		// Download throughput: the Filen SDK reads each object as a strictly serial chain of 1-MiB GETs, so per-object
 		// parallelism exists ONLY at this layer. --vfs-read-chunk-streams fans a client GET into concurrent range readers
 		// (the biggest download win); --buffer-size keeps an async prefetch buffer. (--vfs-read-ahead is omitted - it is a

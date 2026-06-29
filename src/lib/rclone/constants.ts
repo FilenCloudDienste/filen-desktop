@@ -8,6 +8,23 @@ import pathModule from "path"
 export const RCLONE_VERSION = "1.74.3"
 
 /**
+ * VFS cache policy applied uniformly across ALL rclone roles (drive, s3, webdav). Each role runs its own process with
+ * its own cache dir, so these are PER-ROLE limits.
+ *
+ * - VFS_CACHE_MAX_SIZE_GI: hard absolute cap on the on-disk VFS cache per role (the drive's optional user-set size,
+ *   once wired to the UI, overrides its own cap). rclone never evicts dirty (not-yet-uploaded) or open files to meet it,
+ *   so pending writes are never dropped.
+ * - VFS_CACHE_MIN_FREE_SPACE_GI: a disk floor - rclone evicts LRU to keep at least this much free on the volume.
+ * - VFS_CACHE_MAX_AGE: cache entries unused for longer than this are evicted.
+ * - VFS_DIR_CACHE_TIME: how long a directory listing is cached before re-fetch. Filen has no ChangeNotify (poll-interval
+ *   is inherently 0), so this is the ONLY freshness lever - kept short so external/remote changes surface quickly.
+ */
+export const VFS_CACHE_MAX_SIZE_GI = 32
+export const VFS_CACHE_MIN_FREE_SPACE_GI = 16
+export const VFS_CACHE_MAX_AGE = "720h"
+export const VFS_DIR_CACHE_TIME = "15s"
+
+/**
  * The role a single rclone process fulfills. Each role runs as its own process with its own cache directory and rc port.
  */
 export type RcloneRole = "drive" | "s3" | "webdav"
