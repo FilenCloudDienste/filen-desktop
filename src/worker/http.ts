@@ -70,7 +70,7 @@ export class HTTP {
 			let start = 0
 			let end = totalLength - 1
 
-			if (range) {
+			if (range && totalLength > 0) {
 				const parsedRange = parseByteRange(range, totalLength)
 
 				if (!parsedRange) {
