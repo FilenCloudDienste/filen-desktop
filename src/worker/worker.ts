@@ -42,6 +42,13 @@ export class Worker {
 				metadataCache: true
 			})
 
+			// The realtime socket emits "error" on transient drops - notably the TLS connection closing when the machine
+			// sleeps/wakes. Node treats an emitted "error" with no listener as fatal and would crash the worker, so attach
+			// one. The SDK already auto-reconnects with backoff on close (and we don't consume socketEvent here), so just log.
+			this.sdk.socket.on("error", err => {
+				this.logger.log("warn", err, "sdk.socket")
+			})
+
 			return this.sdk
 		} finally {
 			this.sdkMutex.release()
