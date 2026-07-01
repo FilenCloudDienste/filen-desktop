@@ -2,7 +2,7 @@ import net from "net"
 import crypto from "crypto"
 import pathModule from "path"
 import fs from "fs-extra"
-import selfsigned from "selfsigned"
+import { generate } from "selfsigned"
 import writeFileAtomic from "write-file-atomic"
 
 /**
@@ -55,15 +55,19 @@ export function buildAltNames(hostname: string): CertAltName[] {
  *
  * @export
  * @param {string} hostname
- * @returns {{ cert: string; key: string }}
+ * @returns {Promise<{ cert: string; key: string }>}
  */
-export function generateServerCert(hostname: string): { cert: string; key: string } {
+export async function generateServerCert(hostname: string): Promise<{ cert: string; key: string }> {
 	const h = (hostname ?? "").trim()
 	const commonName = h.length === 0 || h === "0.0.0.0" || h === "::" ? "localhost" : h
-	const pems = selfsigned.generate([{ name: "commonName", value: commonName }], {
+	// selfsigned 5.x replaced the `days` option with explicit notBefore/notAfter dates; keep the 397-day validity.
+	const notBeforeDate = new Date()
+	const notAfterDate = new Date(notBeforeDate.getTime() + 397 * 24 * 60 * 60 * 1000)
+	const pems = await generate([{ name: "commonName", value: commonName }], {
 		keySize: 2048,
 		algorithm: "sha256",
-		days: 397,
+		notBeforeDate,
+		notAfterDate,
 		extensions: [
 			{
 				name: "basicConstraints",
@@ -227,7 +231,7 @@ export async function ensureServerCert(certPath: string, keyPath: string, hostna
 		// Fall through and regenerate on any read/parse problem.
 	}
 
-	const generated = generateServerCert(hostname)
+	const generated = await generateServerCert(hostname)
 
 	await Promise.all([fs.ensureDir(pathModule.dirname(certPath)), fs.ensureDir(pathModule.dirname(keyPath))])
 
