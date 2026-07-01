@@ -315,11 +315,12 @@ export class NetworkDrive {
 				tryInstallDependencies
 			} = this.options
 
-			// 1) FUSE layer: detect, optionally install, then require it (throws if still absent).
+			// 1) FUSE layer: detect, optionally install (or upgrade FUSE-T), then require it (throws if still absent).
 			await ensureDriveDependencies({
 				winfspMsiPath,
 				fuseTPkgPath,
-				tryInstall: !!tryInstallDependencies
+				tryInstall: !!tryInstallDependencies,
+				logger: this.logger
 			})
 
 			// 2) + 3) Validate the mount point and recover any stale mount before mounting.

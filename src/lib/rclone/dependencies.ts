@@ -328,6 +328,86 @@ export async function isFUSETInstalledOnMacOS(): Promise<boolean> {
 }
 
 /**
+ * The installed FUSE-T version (e.g. "1.2.7") read from its `pkgutil` receipt, or null when FUSE-T has no discoverable
+ * receipt (e.g. a raw-dylib install) or is absent. Used to decide whether the bundled FUSE-T is newer. macOS only.
+ *
+ * @export
+ * @async
+ * @returns {Promise<string | null>}
+ */
+export async function installedFuseTVersion(): Promise<string | null> {
+	if (process.platform !== "darwin") {
+		return null
+	}
+
+	const pkgs = await runProbe("pkgutil", ["--pkgs"])
+
+	if (pkgs.code !== 0) {
+		return null
+	}
+
+	const fuseTPkgId = pkgs.stdout
+		.split(/\r?\n/)
+		.map(line => line.trim())
+		.find(line => /fuse-t/i.test(line))
+
+	if (!fuseTPkgId) {
+		return null
+	}
+
+	const info = await runProbe("pkgutil", ["--pkg-info", fuseTPkgId])
+
+	if (info.code !== 0) {
+		return null
+	}
+
+	const match = info.stdout.match(/^version:\s*(.+)$/im)
+
+	return match && match[1] ? match[1].trim() : null
+}
+
+/**
+ * Compare two dotted version strings numerically (e.g. "1.2.6" vs "1.2.7"), returning a negative, zero or positive number.
+ * Each component's leading integer is used (a non-numeric part like "1.2.0b" parses as 0) and missing trailing components
+ * count as 0, so this only decides same-line ordering - good enough to gate a same-product upgrade.
+ *
+ * @param {string} a
+ * @param {string} b
+ * @returns {number}
+ */
+function compareDottedVersions(a: string, b: string): number {
+	const pa = a.split(".")
+	const pb = b.split(".")
+	const len = Math.max(pa.length, pb.length)
+
+	for (let i = 0; i < len; i++) {
+		const na = parseInt(pa[i] ?? "0", 10)
+		const nb = parseInt(pb[i] ?? "0", 10)
+		const va = Number.isNaN(na) ? 0 : na
+		const vb = Number.isNaN(nb) ? 0 : nb
+
+		if (va !== vb) {
+			return va < vb ? -1 : 1
+		}
+	}
+
+	return 0
+}
+
+/**
+ * Extract the bundled FUSE-T version from its installer filename ("fuse-t-macos-installer-1.2.7.pkg" -> "1.2.7"), or null
+ * when the filename doesn't match the expected shape.
+ *
+ * @param {string} pkgPath
+ * @returns {(string | null)}
+ */
+function parseBundledFuseTVersion(pkgPath: string): string | null {
+	const match = pathModule.basename(pkgPath).match(/^fuse-t-macos-installer-(.+)\.pkg$/i)
+
+	return match && match[1] ? match[1] : null
+}
+
+/**
  * Detect FUSE3 on Linux. rclone performs unprivileged mounts through the `fusermount3` setuid helper, so the presence of
  * THAT binary — not merely the libfuse3 shared object — is the real gate: a box that has `libfuse3` but no `fusermount3`
  * (e.g. the library pulled in transitively without the `fuse3` utils package) cannot actually mount, and accepting it
@@ -525,19 +605,21 @@ export function linuxFuse3InstallInstructions(): string {
  *
  * - **Windows:** if WinFSP is missing and `tryInstall` + `winfspMsiPath` are provided, install it; then require it.
  * - **macOS:** if NEITHER macFUSE NOR FUSE-T is present and `tryInstall` + `fuseTPkgPath` are provided, install FUSE-T;
- *   then require macFUSE-or-FUSE-T. macFUSE is never auto-installed (kext).
+ *   then require macFUSE-or-FUSE-T. macFUSE is never auto-installed (kext). When FUSE-T is the active layer (no macFUSE)
+ *   and the installed FUSE-T is older than the bundled `fuseTPkgPath`, upgrade it — best-effort, never blocking the mount.
  * - **Linux:** require FUSE3; if absent, throw an Error whose message includes {@link linuxFuse3InstallInstructions}.
  *   FUSE3 is never auto-installed.
  *
  * @export
  * @async
- * @param {{ winfspMsiPath?: string; fuseTPkgPath?: string; tryInstall: boolean }} options
+ * @param {{ winfspMsiPath?: string; fuseTPkgPath?: string; tryInstall: boolean; logger?: (level: string, message: string) => void }} options
  * @returns {Promise<void>}
  */
 export async function ensureDriveDependencies(options: {
 	winfspMsiPath?: string
 	fuseTPkgPath?: string
 	tryInstall: boolean
+	logger?: (level: string, message: string) => void
 }): Promise<void> {
 	if (process.platform === "win32") {
 		if (!(await isWinFSPInstalled()) && options.tryInstall && options.winfspMsiPath) {
@@ -552,10 +634,35 @@ export async function ensureDriveDependencies(options: {
 	}
 
 	if (process.platform === "darwin") {
-		const hasFuseLayer = (await isMacFUSEInstalled()) || (await isFUSETInstalledOnMacOS())
+		const hasMacFUSE = await isMacFUSEInstalled()
+		const fuseTInstalled = await isFUSETInstalledOnMacOS()
 
-		if (!hasFuseLayer && options.tryInstall && options.fuseTPkgPath) {
+		if (!hasMacFUSE && !fuseTInstalled && options.tryInstall && options.fuseTPkgPath) {
 			await installFuseT(options.fuseTPkgPath)
+		} else if (fuseTInstalled && !hasMacFUSE && options.tryInstall && options.fuseTPkgPath) {
+			// FUSE-T is the active FUSE layer (no macFUSE): upgrade it to the bundled version when the installed one is
+			// older. Best-effort — never blocks the mount. If either version can't be read, or the elevated install is
+			// declined/fails, we log and carry on with the existing (older, still-working) FUSE-T. macFUSE users are
+			// left untouched, and a re-mount simply re-attempts the upgrade next time.
+			const bundledVersion = parseBundledFuseTVersion(options.fuseTPkgPath)
+			const currentVersion = await installedFuseTVersion()
+
+			if (bundledVersion && currentVersion && compareDottedVersions(currentVersion, bundledVersion) < 0) {
+				options.logger?.("info", `FUSE-T ${currentVersion} is older than bundled ${bundledVersion}, upgrading`)
+
+				try {
+					await installFuseT(options.fuseTPkgPath)
+
+					options.logger?.("info", `FUSE-T upgraded to ${bundledVersion}`)
+				} catch (e) {
+					options.logger?.(
+						"warn",
+						`FUSE-T upgrade to ${bundledVersion} failed, keeping ${currentVersion}: ${
+							e instanceof Error ? e.message : String(e)
+						}`
+					)
+				}
+			}
 		}
 
 		if (!(await isMacFUSEInstalled()) && !(await isFUSETInstalledOnMacOS())) {
