@@ -99,13 +99,13 @@
 			"assets/**/*",
 			"dist/**/*",
 			"bin/**/*",
-			"!bin/rclone/**",
 			"!bin/deps/**",
 			"build/installer.nsh",
 			"public/**/*"
 		],
 		"asarUnpack": [
-			"**/*.node"
+			"**/*.node",
+			"bin/rclone/**"
 		],
 		"publish": [
 			{
@@ -169,13 +169,6 @@
 			],
 			"extraResources": [
 				{
-					"from": "bin/rclone",
-					"to": "rclone",
-					"filter": [
-						"*.zip"
-					]
-				},
-				{
 					"from": "bin/deps",
 					"to": "deps",
 					"filter": [
@@ -203,15 +196,6 @@
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
 			"icon": "build/icons/png/",
-			"extraResources": [
-				{
-					"from": "bin/rclone",
-					"to": "rclone",
-					"filter": [
-						"*.zip"
-					]
-				}
-			],
 			"description": "Filen Desktop Client",
 			"synopsis": "Filen Desktop Client",
 			"target": [
@@ -283,13 +267,6 @@
 			],
 			"icon": "build/icons/mac/icon.icns",
 			"extraResources": [
-				{
-					"from": "bin/rclone",
-					"to": "rclone",
-					"filter": [
-						"*.zip"
-					]
-				},
 				{
 					"from": "bin/deps",
 					"to": "deps",

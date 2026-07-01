@@ -13,6 +13,7 @@ import fs from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
 import { fileURLToPath } from "node:url"
+import extract from "extract-zip"
 
 // KEEP IN SYNC with RCLONE_VERSION in src/lib/rclone/constants.ts.
 const RCLONE_VERSION = "1.74.3"
@@ -304,7 +305,8 @@ async function fetchWinFSP() {
 
 async function main() {
 	const os = rcloneOs(process.platform)
-	const zipNames = ARCHES.map(arch => `rclone-v${RCLONE_VERSION}-${os}-${arch}.zip`)
+	const binaryFileName = process.platform === "win32" ? "rclone.exe" : "rclone"
+	const rawExt = process.platform === "win32" ? ".exe" : ""
 
 	console.log(`[rclone-fetch] version v${RCLONE_VERSION}, platform ${process.platform} (os=${os}), arches=${ARCHES.join(", ")}`)
 	console.log(`[rclone-fetch] target dir: ${BIN_DIR}`)
@@ -317,52 +319,65 @@ async function main() {
 
 	const sums = parseSums(await fetchText(sumsUrl))
 
-	for (const zipName of zipNames) {
+	for (const arch of ARCHES) {
+		const zipName = `rclone-v${RCLONE_VERSION}-${os}-${arch}.zip`
 		const expected = sums.get(zipName)
 
 		if (!expected) {
 			throw new Error(`No SHA256 entry for ${zipName} in SHA256SUMS (wrong version or filename?)`)
 		}
 
-		const destPath = path.join(BIN_DIR, zipName)
 		const url = `${BASE_URL}/v${RCLONE_VERSION}/${zipName}`
-
-		// Idempotent: if a matching, intact zip is already present, skip re-downloading.
-		if (fs.existsSync(destPath)) {
-			const actual = await sha256File(destPath)
-
-			if (actual === expected) {
-				console.log(`[rclone-fetch] OK (cached)   ${zipName} sha256=${expected}`)
-
-				continue
-			}
-
-			console.log(`[rclone-fetch] stale         ${zipName} (have ${actual}); re-downloading`)
-		}
+		const rawName = `rclone-${os}-${arch}${rawExt}`
+		const rawPath = path.join(BIN_DIR, rawName)
+		const tmpZip = path.join(BIN_DIR, `${zipName}.part`)
 
 		console.log(`[rclone-fetch] downloading   ${url}`)
-
-		const tmpPath = `${destPath}.part`
 
 		let actual
 
 		try {
-			actual = await downloadToFile(url, tmpPath)
+			actual = await downloadToFile(url, tmpZip)
 		} catch (e) {
-			await fs.promises.rm(tmpPath, { force: true })
+			await fs.promises.rm(tmpZip, { force: true })
 
 			throw e
 		}
 
 		if (actual !== expected) {
-			await fs.promises.rm(tmpPath, { force: true })
+			await fs.promises.rm(tmpZip, { force: true })
 
 			throw new Error(`SHA256 mismatch for ${zipName}: expected ${expected}, got ${actual}. Deleted the bad download.`)
 		}
 
-		await fs.promises.rename(tmpPath, destPath)
+		// Ship rclone RAW (not zipped): extract just the binary from the verified zip, then discard the zip. Raw binaries
+		// are code-signed in the build (macOS: build/afterPack.js; Windows: electron-builder signs app.asar.unpacked) and
+		// copied to userData at runtime - no fragile runtime unzip (see src/lib/rclone/binary.ts).
+		const extractDir = path.join(BIN_DIR, `.rclone-extract-${os}-${arch}`)
 
-		console.log(`[rclone-fetch] OK (verified) ${zipName} sha256=${expected}`)
+		await fs.promises.rm(extractDir, { recursive: true, force: true })
+
+		try {
+			await extract(tmpZip, { dir: extractDir })
+
+			const extractedBinary = path.join(extractDir, `rclone-v${RCLONE_VERSION}-${os}-${arch}`, binaryFileName)
+
+			if (!fs.existsSync(extractedBinary)) {
+				throw new Error(`rclone binary not found inside ${zipName} at the expected path`)
+			}
+
+			await fs.promises.rm(rawPath, { force: true })
+			await fs.promises.rename(extractedBinary, rawPath)
+
+			if (process.platform !== "win32") {
+				await fs.promises.chmod(rawPath, 0o755)
+			}
+		} finally {
+			await fs.promises.rm(extractDir, { recursive: true, force: true })
+			await fs.promises.rm(tmpZip, { force: true })
+		}
+
+		console.log(`[rclone-fetch] OK (verified + extracted) ${rawName} <- ${zipName} sha256=${expected}`)
 	}
 
 	// macOS also bundles the FUSE-T installer so a fresh machine can auto-install the FUSE layer.
@@ -375,7 +390,7 @@ async function main() {
 		await fetchWinFSP()
 	}
 
-	console.log(`[rclone-fetch] done: ${zipNames.length} zip(s) ready in ${BIN_DIR}`)
+	console.log(`[rclone-fetch] done: ${ARCHES.length} raw rclone binary/binaries ready in ${BIN_DIR}`)
 }
 
 main().catch(err => {

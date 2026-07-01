@@ -18,7 +18,7 @@ import { WebdavServer } from "./webdav"
  *
  * Every filesystem location and external resource arrives explicitly so the manager never imports Electron and stays
  * unit-testable (spec §4): `userDataPath` is the Electron `userData` dir (all rclone state lives under it), `logsPath` is the
- * logs dir (per-role log files), `zipDir` overrides where the bundled rclone release zips are found, and `winfspMsiPath` /
+ * logs dir (per-role log files), `bundledDir` overrides where the bundled raw rclone binaries are found, and `winfspMsiPath` /
  * `fuseTPkgPath` point at the bundled FUSE-layer installers handed to the network-drive role.
  *
  * @export
@@ -28,7 +28,7 @@ import { WebdavServer } from "./webdav"
 export interface RcloneManagerOptions {
 	userDataPath: string
 	logsPath: string
-	zipDir?: string
+	bundledDir?: string
 	winfspMsiPath?: string
 	fuseTPkgPath?: string
 	logger?: (level: string, message: string) => void
@@ -57,7 +57,7 @@ export interface RcloneManagerOptions {
 export class RcloneManager {
 	private readonly userDataPath: string
 	private readonly logsPath: string
-	private readonly zipDir?: string
+	private readonly bundledDir?: string
 	private readonly winfspMsiPath?: string
 	private readonly fuseTPkgPath?: string
 	private readonly logger?: (level: string, message: string) => void
@@ -101,7 +101,7 @@ export class RcloneManager {
 	public constructor(options: RcloneManagerOptions) {
 		this.userDataPath = options.userDataPath
 		this.logsPath = options.logsPath
-		this.zipDir = options.zipDir
+		this.bundledDir = options.bundledDir
 		this.winfspMsiPath = options.winfspMsiPath
 		this.fuseTPkgPath = options.fuseTPkgPath
 		this.logger = options.logger
@@ -195,7 +195,7 @@ export class RcloneManager {
 	private ensureBinary(): Promise<string> {
 		if (!this.binaryPromise) {
 			this.binaryPromise = ensureRcloneBinary(this.userDataPath, {
-				zipDir: this.zipDir
+				bundledDir: this.bundledDir
 			}).catch((e: unknown) => {
 				this.binaryPromise = null
 

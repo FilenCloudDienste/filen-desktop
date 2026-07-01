@@ -68,18 +68,20 @@ export function rcloneOsArch(platform: NodeJS.Platform, arch: string): { os: str
 }
 
 /**
- * Build the official rclone release zip name for a platform/arch, e.g. "rclone-v1.74.3-osx-arm64.zip".
+ * Build the RAW bundled rclone binary filename for a platform/arch, e.g. "rclone-osx-arm64" or "rclone-windows-amd64.exe".
+ * build/rclone/fetch.mjs extracts the binary from rclone's release zip and ships it under this name (both arches per OS);
+ * binary.ts copies the matching one into userData at runtime.
  *
  * @export
  * @param {NodeJS.Platform} platform
  * @param {string} arch
- * @param {string} [version=RCLONE_VERSION]
  * @returns {string}
  */
-export function rcloneZipName(platform: NodeJS.Platform, arch: string, version: string = RCLONE_VERSION): string {
+export function rcloneBundledBinaryName(platform: NodeJS.Platform, arch: string): string {
 	const mapped = rcloneOsArch(platform, arch)
+	const ext = platform === "win32" ? ".exe" : ""
 
-	return `rclone-v${version}-${mapped.os}-${mapped.arch}.zip`
+	return `rclone-${mapped.os}-${mapped.arch}${ext}`
 }
 
 /**
