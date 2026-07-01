@@ -38,7 +38,7 @@ export class Worker {
 
 			this.sdk = new FilenSDK({
 				...desktopConfig.sdkConfig,
-				connectToSocket: true,
+				connectToSocket: false,
 				metadataCache: true
 			})
 
