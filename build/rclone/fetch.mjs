@@ -50,6 +50,48 @@ const BIN_DIR = path.join(REPO_ROOT, "bin", "rclone")
 const DEPS_DIR = path.join(REPO_ROOT, "bin", "deps")
 
 /**
+ * Sleep for `ms` milliseconds.
+ *
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
+function sleep(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+/**
+ * Run `fn`, retrying up to `attempts` times with linear backoff on failure. For NETWORK operations only: a CI runner
+ * occasionally gets a flaky/stalled download (this is exactly what failed one platform's build while the others' clean
+ * downloads succeeded), and a single hiccup must not fail the whole build. Deliberately does NOT wrap SHA verification —
+ * a hash mismatch is a real corruption/wrong-version error the caller throws AFTER the (retried) download succeeds.
+ *
+ * @template T
+ * @param {string} label
+ * @param {() => Promise<T>} fn
+ * @param {number} [attempts=4]
+ * @returns {Promise<T>}
+ */
+async function withRetries(label, fn, attempts = 4) {
+	let lastError
+
+	for (let attempt = 1; attempt <= attempts; attempt++) {
+		try {
+			return await fn()
+		} catch (e) {
+			lastError = e
+
+			console.warn(`[rclone-fetch] ${label}: attempt ${attempt}/${attempts} failed: ${e instanceof Error ? e.message : String(e)}`)
+
+			if (attempt < attempts) {
+				await sleep(attempt * 3000)
+			}
+		}
+	}
+
+	throw lastError
+}
+
+/**
  * Map the current Node platform to rclone's OS token used in its official release zip names.
  * Mirrors rcloneOsArch() in src/lib/rclone/constants.ts (win32->windows, darwin->osx, linux->linux).
  *
@@ -232,7 +274,7 @@ async function fetchFuseT() {
 	let actual
 
 	try {
-		actual = await downloadToFile(FUSE_T_URL, tmpPath)
+		actual = await withRetries(`download ${fileName}`, () => downloadToFile(FUSE_T_URL, tmpPath))
 	} catch (e) {
 		await fs.promises.rm(tmpPath, { force: true })
 
@@ -285,7 +327,7 @@ async function fetchWinFSP() {
 	let actual
 
 	try {
-		actual = await downloadToFile(WINFSP_URL, tmpPath)
+		actual = await withRetries(`download ${fileName}`, () => downloadToFile(WINFSP_URL, tmpPath))
 	} catch (e) {
 		await fs.promises.rm(tmpPath, { force: true })
 
@@ -317,7 +359,7 @@ async function main() {
 
 	console.log(`[rclone-fetch] fetching checksums: ${sumsUrl}`)
 
-	const sums = parseSums(await fetchText(sumsUrl))
+	const sums = parseSums(await withRetries(`fetch ${sumsUrl}`, () => fetchText(sumsUrl)))
 
 	for (const arch of ARCHES) {
 		const zipName = `rclone-v${RCLONE_VERSION}-${os}-${arch}.zip`
@@ -337,7 +379,7 @@ async function main() {
 		let actual
 
 		try {
-			actual = await downloadToFile(url, tmpZip)
+			actual = await withRetries(`download ${zipName}`, () => downloadToFile(url, tmpZip))
 		} catch (e) {
 			await fs.promises.rm(tmpZip, { force: true })
 
