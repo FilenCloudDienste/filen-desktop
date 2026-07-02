@@ -74,6 +74,16 @@ exports.default = async function afterPack(context) {
 	// Identity present => a real signed release build. Shipping it without the rclone binaries produces an app whose
 	// network drive / S3 / WebDAV never start (the exact class of bug the raw-binary change fixed), so fail loudly.
 	if (binaries.length === 0) {
+		// Diagnostic: dump the real state so we can tell "dir missing" vs "empty" vs "unexpected names" vs "packed but not
+		// asar-unpacked" — narrows down whether the fetch didn't produce binaries, they didn't persist, or asarUnpack missed.
+		const unpackedBinDir = path.dirname(rcloneDir)
+
+		console.error(`[afterPack] rcloneDir=${rcloneDir}`)
+		console.error(`[afterPack]   exists=${fs.existsSync(rcloneDir)} contents=${fs.existsSync(rcloneDir) ? JSON.stringify(fs.readdirSync(rcloneDir)) : "(dir missing)"}`)
+		console.error(
+			`[afterPack]   app.asar.unpacked/bin contents=${fs.existsSync(unpackedBinDir) ? JSON.stringify(fs.readdirSync(unpackedBinDir)) : "(dir missing)"}`
+		)
+
 		throw new Error(
 			`[afterPack] Developer ID identity present but no rclone binaries found in ${rcloneDir}. ` +
 				"The rclone fetch step (build/rclone/fetch.mjs) must run before packaging - refusing to ship a build whose network drive cannot start."

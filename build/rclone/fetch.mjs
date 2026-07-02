@@ -424,6 +424,17 @@ async function main() {
 		console.log(`[rclone-fetch] OK (verified + extracted) ${rawName} <- ${zipName} sha256=${expected}`)
 	}
 
+	// Defensive: the loop above must have produced one raw binary per arch. If any is missing here, fail loudly at the
+	// fetch step instead of letting the build package an incomplete/empty bin/rclone (which today only the macOS afterPack
+	// guard would catch — Windows/Linux would ship it silently).
+	for (const arch of ARCHES) {
+		const rawPath = path.join(BIN_DIR, `rclone-${os}-${arch}${rawExt}`)
+
+		if (!fs.existsSync(rawPath)) {
+			throw new Error(`rclone binary missing after fetch loop: ${rawPath} (expected ${ARCHES.length} binaries for os=${os})`)
+		}
+	}
+
 	// macOS also bundles the FUSE-T installer so a fresh machine can auto-install the FUSE layer.
 	if (process.platform === "darwin") {
 		await fetchFuseT()
@@ -435,9 +446,29 @@ async function main() {
 	}
 
 	console.log(`[rclone-fetch] done: ${ARCHES.length} raw rclone binary/binaries ready in ${BIN_DIR}`)
+	console.log(`[rclone-fetch] BIN_DIR (${BIN_DIR}) contents: ${JSON.stringify(fs.readdirSync(BIN_DIR))}`)
+	console.log(
+		`[rclone-fetch] DEPS_DIR (${DEPS_DIR}) contents: ${fs.existsSync(DEPS_DIR) ? JSON.stringify(fs.readdirSync(DEPS_DIR)) : "(missing)"}`
+	)
 }
 
+// Diagnostics: surface an unexpected early exit / swallowed failure. If the process ever exits BEFORE the "done" line,
+// the exit-code line is the last thing printed and tells us it drained the event loop (code 0) vs crashed (non-zero).
+process.on("exit", code => {
+	console.log(`[rclone-fetch] process exiting with code ${code}`)
+})
+
+process.on("unhandledRejection", err => {
+	console.error(`[rclone-fetch] UNHANDLED REJECTION: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+	process.exit(1)
+})
+
+process.on("uncaughtException", err => {
+	console.error(`[rclone-fetch] UNCAUGHT EXCEPTION: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+	process.exit(1)
+})
+
 main().catch(err => {
-	console.error(`[rclone-fetch] FAILED: ${err instanceof Error ? err.message : String(err)}`)
+	console.error(`[rclone-fetch] FAILED: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
 	process.exit(1)
 })
