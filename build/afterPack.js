@@ -4,32 +4,59 @@ const fs = require("fs")
 const path = require("path")
 
 /**
- * Apple notarization requires every Mach-O to be Developer-ID-signed + hardened-runtime + secure-timestamp. The bundled
- * rclone binaries (raw, under `app.asar.unpacked/bin/rclone`) are third-party - rclone ships them ad-hoc (arm64) or
- * unsigned (x64) - so we sign them here, after the app is packed but BEFORE it is code-signed/sealed.
+ * Runs after electron-builder packs each platform/arch, before signing/sealing. Two responsibilities:
  *
- * macOS-only: on Windows electron-builder's own `app.asar.unpacked` signing walk covers rclone.exe, and Linux needs no
- * signing. A no-op on unsigned local dev builds (no Developer ID identity present). But a SIGNED build (Developer ID
- * identity present = a real release) with no rclone binaries is a broken "network drive never starts" artifact, so that
- * case throws hard rather than shipping silently.
+ * 1. PRESENCE (ALL platforms): verify the bundled raw rclone binaries actually landed in `app.asar.unpacked/bin/rclone`.
+ *    If the rclone fetch step was skipped/failed (e.g. an aborted download or a hung extraction), the app builds green
+ *    but its network drive / S3 / WebDAV never start - the class of prod bug the raw-binary change fixed. Throw instead
+ *    of shipping it. This is the cross-platform sanity check (Windows/Linux have no other guard).
+ * 2. SIGNING (macOS only): Apple notarization requires every Mach-O to be Developer-ID-signed + hardened-runtime +
+ *    secure-timestamp. rclone ships ad-hoc (arm64) / unsigned (x64), so sign the osx binaries here. On Windows,
+ *    electron-builder's own `app.asar.unpacked` walk signs rclone-windows-*.exe; Linux needs no signing. Signing is
+ *    skipped (with a log) on unsigned local builds with no Developer ID identity - but the presence check still runs.
  *
  * @param {import("electron-builder").AfterPackContext} context
  * @returns {Promise<void>}
  */
 exports.default = async function afterPack(context) {
-	if (context.electronPlatformName !== "darwin") {
-		return
+	const platform = context.electronPlatformName // "darwin" | "mas" | "win32" | "linux"
+	const isMac = platform === "darwin" || platform === "mas"
+	const osToken = isMac ? "osx" : platform === "win32" ? "windows" : "linux"
+	const ext = platform === "win32" ? ".exe" : ""
+
+	// fetch.mjs bundles BOTH arches of the current OS (the runtime picks by process.arch), so both must be present.
+	const expected = [`rclone-${osToken}-amd64${ext}`, `rclone-${osToken}-arm64${ext}`]
+
+	// The unpacked resources dir differs by platform: inside the .app bundle on macOS, directly under appOutDir elsewhere.
+	const resourcesDir = isMac
+		? path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`, "Contents", "Resources")
+		: path.join(context.appOutDir, "resources")
+	const rcloneDir = path.join(resourcesDir, "app.asar.unpacked", "bin", "rclone")
+
+	const present = fs.existsSync(rcloneDir) ? fs.readdirSync(rcloneDir) : []
+	const missing = expected.filter(name => !present.includes(name))
+
+	if (missing.length > 0) {
+		// Diagnostic: dump the real state so we can tell "dir missing" vs "empty" vs "unexpected names" vs "packed but not
+		// asar-unpacked" - narrows down whether the fetch didn't produce binaries, they didn't persist, or asarUnpack missed.
+		const unpackedBinDir = path.dirname(rcloneDir)
+
+		console.error(`[afterPack] rcloneDir=${rcloneDir}`)
+		console.error(`[afterPack]   exists=${fs.existsSync(rcloneDir)} contents=${JSON.stringify(present)}`)
+		console.error(
+			`[afterPack]   app.asar.unpacked/bin contents=${fs.existsSync(unpackedBinDir) ? JSON.stringify(fs.readdirSync(unpackedBinDir)) : "(dir missing)"}`
+		)
+
+		throw new Error(
+			`[afterPack] missing bundled rclone binaries for ${platform}: ${missing.join(", ")} (in ${rcloneDir}). ` +
+				"The rclone fetch step (build/rclone/fetch.mjs) must run before packaging - refusing to ship a build whose network drive cannot start."
+		)
 	}
 
-	const rcloneDir = path.join(
-		context.appOutDir,
-		`${context.packager.appInfo.productFilename}.app`,
-		"Contents",
-		"Resources",
-		"app.asar.unpacked",
-		"bin",
-		"rclone"
-	)
+	// Signing is macOS-only from here on.
+	if (!isMac) {
+		return
+	}
 
 	// electron-builder imports the CSC cert into a keychain during signing, which runs AFTER afterPack. Force that setup
 	// now (accessing `.value`) so the Developer ID identity is resolvable here.
@@ -40,7 +67,7 @@ exports.default = async function afterPack(context) {
 
 		keychainFile = info && info.keychainFile ? info.keychainFile : null
 	} catch {
-		// No code-signing info (unsigned build) - the identity lookup below finds nothing and we skip.
+		// No code-signing info (unsigned build) - the identity lookup below finds nothing and we skip signing.
 	}
 
 	const findArgs = ["find-identity", "-v", "-p", "codesigning"]
@@ -59,38 +86,14 @@ exports.default = async function afterPack(context) {
 		// `security find-identity` failed - treat as no identity.
 	}
 
-	// Only the macOS rclone binaries are signable Mach-Os here (fetch.mjs bundles just the current platform's binaries).
-	// An exact match also excludes any stray debris (e.g. a leftover release zip) that must never be handed to codesign.
-	const binaries = fs.existsSync(rcloneDir)
-		? fs.readdirSync(rcloneDir).filter(name => /^rclone-osx-(amd64|arm64)$/.test(name))
-		: []
-
 	if (!identity) {
 		console.log("[afterPack] no Developer ID Application identity found - skipping rclone signing (unsigned/dev build)")
 
 		return
 	}
 
-	// Identity present => a real signed release build. Shipping it without the rclone binaries produces an app whose
-	// network drive / S3 / WebDAV never start (the exact class of bug the raw-binary change fixed), so fail loudly.
-	if (binaries.length === 0) {
-		// Diagnostic: dump the real state so we can tell "dir missing" vs "empty" vs "unexpected names" vs "packed but not
-		// asar-unpacked" — narrows down whether the fetch didn't produce binaries, they didn't persist, or asarUnpack missed.
-		const unpackedBinDir = path.dirname(rcloneDir)
-
-		console.error(`[afterPack] rcloneDir=${rcloneDir}`)
-		console.error(`[afterPack]   exists=${fs.existsSync(rcloneDir)} contents=${fs.existsSync(rcloneDir) ? JSON.stringify(fs.readdirSync(rcloneDir)) : "(dir missing)"}`)
-		console.error(
-			`[afterPack]   app.asar.unpacked/bin contents=${fs.existsSync(unpackedBinDir) ? JSON.stringify(fs.readdirSync(unpackedBinDir)) : "(dir missing)"}`
-		)
-
-		throw new Error(
-			`[afterPack] Developer ID identity present but no rclone binaries found in ${rcloneDir}. ` +
-				"The rclone fetch step (build/rclone/fetch.mjs) must run before packaging - refusing to ship a build whose network drive cannot start."
-		)
-	}
-
-	for (const binary of binaries) {
+	// Presence already verified above, so every `expected` binary exists.
+	for (const binary of expected) {
 		const binaryPath = path.join(rcloneDir, binary)
 		const args = ["--force", "--options", "runtime", "--timestamp", "--sign", identity]
 
