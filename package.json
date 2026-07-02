@@ -51,7 +51,7 @@
 		"@types/write-file-atomic": "^4.0.3",
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
-		"electron": "^42.5.0",
+		"electron": "^43.0.0",
 		"electron-builder": "^26.15.5",
 		"eslint": "^9.39.4",
 		"globals": "^17.7.0",
@@ -240,6 +240,7 @@
 		},
 		"mac": {
 			"notarize": true,
+			"minimumSystemVersion": "12.0",
 			"hardenedRuntime": true,
 			"gatekeeperAssess": false,
 			"entitlements": "build/entitlements.mac.plist",
