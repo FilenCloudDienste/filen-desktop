@@ -9,7 +9,9 @@ const path = require("path")
  * unsigned (x64) - so we sign them here, after the app is packed but BEFORE it is code-signed/sealed.
  *
  * macOS-only: on Windows electron-builder's own `app.asar.unpacked` signing walk covers rclone.exe, and Linux needs no
- * signing. A no-op on unsigned local dev builds (no Developer ID identity present).
+ * signing. A no-op on unsigned local dev builds (no Developer ID identity present). But a SIGNED build (Developer ID
+ * identity present = a real release) with no rclone binaries is a broken "network drive never starts" artifact, so that
+ * case throws hard rather than shipping silently.
  *
  * @param {import("electron-builder").AfterPackContext} context
  * @returns {Promise<void>}
@@ -28,16 +30,6 @@ exports.default = async function afterPack(context) {
 		"bin",
 		"rclone"
 	)
-
-	if (!fs.existsSync(rcloneDir)) {
-		return
-	}
-
-	const binaries = fs.readdirSync(rcloneDir).filter(name => name.startsWith("rclone-"))
-
-	if (binaries.length === 0) {
-		return
-	}
 
 	// electron-builder imports the CSC cert into a keychain during signing, which runs AFTER afterPack. Force that setup
 	// now (accessing `.value`) so the Developer ID identity is resolvable here.
@@ -67,10 +59,25 @@ exports.default = async function afterPack(context) {
 		// `security find-identity` failed - treat as no identity.
 	}
 
+	// Only the macOS rclone binaries are signable Mach-Os here (fetch.mjs bundles just the current platform's binaries).
+	// An exact match also excludes any stray debris (e.g. a leftover release zip) that must never be handed to codesign.
+	const binaries = fs.existsSync(rcloneDir)
+		? fs.readdirSync(rcloneDir).filter(name => /^rclone-osx-(amd64|arm64)$/.test(name))
+		: []
+
 	if (!identity) {
-		console.log("[afterPack] no Developer ID Application identity found - skipping rclone signing (unsigned build)")
+		console.log("[afterPack] no Developer ID Application identity found - skipping rclone signing (unsigned/dev build)")
 
 		return
+	}
+
+	// Identity present => a real signed release build. Shipping it without the rclone binaries produces an app whose
+	// network drive / S3 / WebDAV never start (the exact class of bug the raw-binary change fixed), so fail loudly.
+	if (binaries.length === 0) {
+		throw new Error(
+			`[afterPack] Developer ID identity present but no rclone binaries found in ${rcloneDir}. ` +
+				"The rclone fetch step (build/rclone/fetch.mjs) must run before packaging - refusing to ship a build whose network drive cannot start."
+		)
 	}
 
 	for (const binary of binaries) {
