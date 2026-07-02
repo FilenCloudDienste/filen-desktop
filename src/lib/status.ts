@@ -60,7 +60,9 @@ export class Status {
 						label: "Exit",
 						type: "normal",
 						click: () => {
-							app?.exit(0)
+							// Graceful quit (before-quit -> will-quit flushes + clean-unmounts rclone), NOT a hard app.exit -
+							// the tray "Exit" is the primary explicit quit on Windows/Linux and must go through teardown.
+							app.quit()
 						}
 					}
 				])

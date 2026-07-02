@@ -203,8 +203,11 @@ export class IPC {
 
 			this.didCallRestart = true
 
+			// Graceful quit so rclone is flushed + clean-unmounted BEFORE the relaunched instance starts. A hard app.exit
+			// here leaves the old rclone for the watchdog's ~10s reap, which then collides with the new instance mounting
+			// the same mountpoint. app.relaunch() fires once this process actually exits (after will-quit teardown).
 			app.relaunch()
-			app.exit(0)
+			app.quit()
 		})
 
 		ipcMain.handle("setConfig", async (_, config: FilenDesktopConfig): Promise<void> => {

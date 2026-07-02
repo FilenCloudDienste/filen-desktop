@@ -142,9 +142,13 @@ export class FilenDesktop {
 			this.initializeSDK()
 
 			app.on("window-all-closed", () => {
+				// Only reached on Windows/Linux when the last real window actually closes (macOS hides to tray, and an
+				// explicit quit - Dock "Quit"/Cmd+Q - skips this event entirely, going straight to before-quit -> will-quit).
+				// Route through the graceful quit so rclone is flushed + clean-unmounted, instead of a hard app.exit that
+				// would orphan it mid-write. app.quit() is a no-op if a quit is already in flight.
 				this.shouldExitOnQuit = true
 
-				app.exit(0)
+				app.quit()
 			})
 
 			// An explicit quit - macOS Cmd+Q, Windows/Linux Ctrl+Q or the app-menu Quit, the macOS Dock "Quit" item - flips
@@ -155,6 +159,11 @@ export class FilenDesktop {
 			})
 
 			app.on("second-instance", () => {
+				// Never resurrect the window while we're quitting - a launch racing the teardown must not bring the app back.
+				if (this.shouldExitOnQuit) {
+					return
+				}
+
 				if (this.driveWindow) {
 					if (this.driveWindow.isMinimized()) {
 						this.driveWindow.restore()
@@ -291,6 +300,13 @@ export class FilenDesktop {
 	}
 
 	public showOrOpenDriveWindow(): void {
+		// Guard against reactivation while quitting: a Dock click, tray "Open" or second-instance during teardown must
+		// not recreate the window - that would re-init the app in a process about to exit and can leave a stray
+		// window/tray behind (the duplicate-instance symptom). This is the single chokepoint for showing/creating it.
+		if (this.shouldExitOnQuit) {
+			return
+		}
+
 		if (BrowserWindow.getAllWindows().length === 0) {
 			this.createMainWindow().catch(err => {
 				this.logger.log("error", err)

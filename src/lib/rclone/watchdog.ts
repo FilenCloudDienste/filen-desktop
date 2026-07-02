@@ -10,7 +10,7 @@ import { type RcloneRole } from "./constants"
  *
  * @type {number}
  */
-const MONITOR_VERSION = 2
+const MONITOR_VERSION = 3
 
 /**
  * Crash-safety monitor for a single rclone process.
@@ -78,9 +78,10 @@ export class RcloneWatchdog {
 	 * Build the POSIX (`sh`) monitor script for the current platform.
 	 *
 	 * Polls the Electron PID with `kill -0` (no signal sent, just an existence probe); once it is gone it
-	 * `kill -9`s the rclone PID and, when a mountpoint arg was passed (drive role only), runs the
-	 * platform-appropriate force-unmount. The unmount line is baked in per `process.platform` rather than
-	 * branched on `uname` inside the script.
+	 * SIGTERMs the rclone PID (graceful: rclone flushes its VFS write-back cache and clean-unmounts itself),
+	 * escalates to SIGKILL if it is still alive after a short grace, and - when a mountpoint arg was passed
+	 * (drive role only) - runs the platform-appropriate force-unmount as a backstop. The unmount line is baked
+	 * in per `process.platform` rather than branched on `uname` inside the script.
 	 *
 	 * @private
 	 * @returns {string}
@@ -98,9 +99,10 @@ export class RcloneWatchdog {
 
 # Filen Desktop rclone crash-safety watchdog (role: ${this.role}).
 # Args: <electronPid> <rclonePid> [mountPoint]
-# Polls the Electron main PID; once it disappears, force-kills the SPECIFIC
-# rclone PID it was handed (never by name) and, when a mountpoint is given,
-# force-unmounts it. Exits on its own afterwards.
+# Polls the Electron main PID; once it disappears, signals the SPECIFIC rclone
+# PID it was handed (never by name) - SIGTERM to let it flush write-back +
+# clean-unmount, then SIGKILL if still alive - and, when a mountpoint is given,
+# force-unmounts it as a backstop. Exits on its own afterwards.
 
 ELECTRON_PID="$1"
 RCLONE_PID="$2"
@@ -112,6 +114,18 @@ fi
 
 while kill -0 "$ELECTRON_PID" 2>/dev/null; do
 	sleep 10
+done
+
+# Graceful first: SIGTERM lets rclone flush its VFS write-back cache and clean-unmount itself. Escalate to SIGKILL
+# only if it is still alive after a short grace. This helper only ever runs on a crash / hard exit (a normal quit
+# reaps it before it can fire), so the SIGTERM is what gives a crash the same write-back flush a clean quit gets.
+kill -TERM "$RCLONE_PID" 2>/dev/null || true
+
+i=0
+while [ "$i" -lt 10 ]; do
+	kill -0 "$RCLONE_PID" 2>/dev/null || break
+	sleep 1
+	i=$((i + 1))
 done
 
 kill -9 "$RCLONE_PID" 2>/dev/null || true

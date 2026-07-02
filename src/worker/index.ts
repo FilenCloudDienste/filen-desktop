@@ -17,35 +17,38 @@ export class Worker {
 	public active: boolean = false
 	private readonly startMutex = new Semaphore(1)
 	private readonly stopMutex = new Semaphore(1)
-	private didQuitApp = false
 
 	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
 
 		app.on("will-quit", async e => {
-			if (this.isQuittingApp || this.didQuitApp) {
+			if (this.isQuittingApp) {
 				return
 			}
 
+			// Set synchronously (before any await) so a re-entrant will-quit is a no-op.
 			this.isQuittingApp = true
 
+			e.preventDefault()
+
+			// Hard ceiling: the process WILL exit even if teardown misbehaves. killAll() is already self-bounded (each
+			// role runs a core/quit -> SIGTERM -> SIGKILL ladder, all roles in parallel), so this only bites if rclone is
+			// genuinely stuck flushing/unmounting; the crash-safety watchdog then reaps + unmounts whatever is left.
+			const failsafe = setTimeout(() => app.exit(0), 15000)
+
 			try {
-				e.preventDefault()
-
-				setTimeout(() => {
-					app.exit(0)
-				}, 60000)
-
+				// Flush write-back + clean-unmount rclone before we go. We deliberately do NOT await worker.stop(): the
+				// worker is an in-process worker_threads thread that is torn down with this process on app.exit(0), so
+				// awaiting it buys nothing for cleanup and its untimed invoke("stop") is what could hang the quit. Sync
+				// and the HTTP server are resumable/stateless, so stopping the thread hard is safe.
 				await this.desktop.rclone.killAll()
-				await this.stop()
-				await new Promise<void>(resolve => setTimeout(resolve, 250))
 			} catch {
-				// Noop
-			} finally {
-				this.didQuitApp = true
-
-				app.exit(0)
+				// Best-effort - the watchdog is the backstop.
 			}
+
+			clearTimeout(failsafe)
+
+			app.exit(0)
 		})
 	}
 
