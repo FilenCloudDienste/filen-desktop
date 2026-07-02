@@ -342,7 +342,7 @@ export class RcloneManager {
 	 * Build a fresh {@link NetworkDrive} from the CURRENT stored config, the resolved paths and a freshly picked rc port.
 	 *
 	 * Requires the binary and a written config first (throws otherwise). Maps `networkDriveConfig` onto the role options
-	 * (`cacheSizeInGi` → `cacheSizeGi`, the drive's OWN persistent cache dir) and passes the bundled FUSE-layer installers with
+	 * (the drive's OWN persistent cache dir, read-only flag, etc.) and passes the bundled FUSE-layer installers with
 	 * `tryInstallDependencies: true` so the drive auto-installs WinFSP / FUSE-T when missing (spec §8).
 	 *
 	 * @private
@@ -364,7 +364,6 @@ export class RcloneManager {
 			scriptDir: this.scriptDir,
 			logFilePath: rcloneLogPath(this.logsPath, "drive"),
 			readOnly: nd.readOnly,
-			cacheSizeGi: nd.cacheSizeInGi,
 			tryInstallDependencies: true,
 			winfspMsiPath: this.winfspMsiPath,
 			fuseTPkgPath: this.fuseTPkgPath,

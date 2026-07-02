@@ -42,7 +42,6 @@ export interface NetworkDriveOptions {
 	scriptDir: string
 	logFilePath?: string
 	readOnly?: boolean
-	cacheSizeGi?: number
 	userAgent?: string
 	tryInstallDependencies?: boolean
 	winfspMsiPath?: string
@@ -99,7 +98,7 @@ export interface NetworkDriveStats {
  * @returns {Promise<string[]>}
  */
 export async function buildMountArgs(options: NetworkDriveOptions): Promise<string[]> {
-	const { configPath, mountPoint, cachePath, rcPort, logFilePath, readOnly, cacheSizeGi, userAgent } = options
+	const { configPath, mountPoint, cachePath, rcPort, logFilePath, readOnly, userAgent } = options
 
 	const args: string[] = ["mount", "Filen:", mountPoint, "--config", configPath, "--vfs-cache-mode", "full"]
 
@@ -109,8 +108,10 @@ export async function buildMountArgs(options: NetworkDriveOptions): Promise<stri
 
 	args.push("--cache-dir", cachePath)
 
-	// Default per-role cap; an explicit user-set cacheSizeGi (once wired to the UI) overrides it.
-	args.push("--vfs-cache-max-size", `${typeof cacheSizeGi === "number" ? cacheSizeGi : VFS_CACHE_MAX_SIZE_GI}Gi`)
+	// Uniform per-role cap (matches serve s3 / serve webdav). Deliberately NOT config-driven: the network-drive cache size
+	// has no UI, and the shared desktop config ships a stale smaller default that would otherwise silently cap the drive
+	// below this policy. A future per-drive size setting would re-introduce an override here.
+	args.push("--vfs-cache-max-size", `${VFS_CACHE_MAX_SIZE_GI}Gi`)
 
 	args.push(
 		"--vfs-cache-min-free-space",
