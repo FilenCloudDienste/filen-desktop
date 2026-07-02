@@ -346,24 +346,37 @@ export async function installedFuseTVersion(): Promise<string | null> {
 		return null
 	}
 
-	const fuseTPkgId = pkgs.stdout
+	// FUSE-T's receipt ids embed the version (e.g. "org.fuse-t.core.1.2.7", "org.fuse-t.fskit.1.2.7") and the installer
+	// never `pkgutil --forget`s the old receipt on upgrade, so after any bump the old and new receipts coexist. `pkgutil
+	// --pkgs` output is NOT version-sorted, so we must read EVERY matching receipt and take the MAX version — taking the
+	// first match would report a stale (older) version forever and re-trigger the upgrade on every drive start.
+	const fuseTPkgIds = pkgs.stdout
 		.split(/\r?\n/)
 		.map(line => line.trim())
-		.find(line => /fuse-t/i.test(line))
+		.filter(line => /fuse-t/i.test(line))
 
-	if (!fuseTPkgId) {
+	if (fuseTPkgIds.length === 0) {
 		return null
 	}
 
-	const info = await runProbe("pkgutil", ["--pkg-info", fuseTPkgId])
+	let latest: string | null = null
 
-	if (info.code !== 0) {
-		return null
+	for (const pkgId of fuseTPkgIds) {
+		const info = await runProbe("pkgutil", ["--pkg-info", pkgId])
+
+		if (info.code !== 0) {
+			continue
+		}
+
+		const match = info.stdout.match(/^version:\s*(.+)$/im)
+		const version = match && match[1] ? match[1].trim() : null
+
+		if (version && (latest === null || compareDottedVersions(version, latest) > 0)) {
+			latest = version
+		}
 	}
 
-	const match = info.stdout.match(/^version:\s*(.+)$/im)
-
-	return match && match[1] ? match[1].trim() : null
+	return latest
 }
 
 /**
@@ -662,6 +675,13 @@ export async function ensureDriveDependencies(options: {
 						}`
 					)
 				}
+			} else if (!bundledVersion || !currentVersion) {
+				// Can't compare versions (unparseable bundled filename, or an installed FUSE-T with no readable receipt) —
+				// skip the upgrade rather than guess. Logged so a future silent no-op (e.g. a renamed bundled pkg) is visible.
+				options.logger?.(
+					"info",
+					`Skipping FUSE-T upgrade check (bundled=${bundledVersion ?? "unknown"}, installed=${currentVersion ?? "unknown"})`
+				)
 			}
 		}
 
