@@ -289,10 +289,14 @@ export async function isMacFUSEInstalled(): Promise<boolean> {
 }
 
 /**
- * Detect FUSE-T on macOS. Primary: `/usr/local/lib/libfuse-t.dylib` exists — the exact file rclone dlopens at runtime.
- * Secondary: a `pkgutil` receipt whose id contains `fuse-t` (the id is discovered dynamically because it varies across
- * releases). The old code additionally required `libfuse-t.a` (a static lib unused at runtime), causing false negatives;
- * that requirement is dropped. Returns false on any non-macOS platform.
+ * Detect FUSE-T on macOS by the ONE artifact that actually matters at mount time: `/usr/local/lib/libfuse-t.dylib` — the
+ * symlink FUSE-T's pkg postinstall creates and the exact path rclone's cgofuse dlopens (confirmed in rclone's embedded
+ * FUSE-T notes). `fs.pathExists` follows the symlink, so a dangling link (its versioned target removed) correctly reads
+ * as absent.
+ *
+ * Deliberately does NOT fall back to a `pkgutil` receipt: a receipt outlives an uninstall (files removed, receipt left
+ * behind), so trusting one made us report FUSE-T as present and skip the auto-install while the mount was actually broken
+ * ("cgofuse: cannot find FUSE"). Returns false on any non-macOS platform.
  *
  * @export
  * @async
@@ -303,33 +307,14 @@ export async function isFUSETInstalledOnMacOS(): Promise<boolean> {
 		return false
 	}
 
-	if (await fs.pathExists("/usr/local/lib/libfuse-t.dylib")) {
-		return true
-	}
-
-	const pkgs = await runProbe("pkgutil", ["--pkgs"])
-
-	if (pkgs.code === 0) {
-		const fuseTPkgId = pkgs.stdout
-			.split(/\r?\n/)
-			.map(line => line.trim())
-			.find(line => /fuse-t/i.test(line))
-
-		if (fuseTPkgId) {
-			const info = await runProbe("pkgutil", ["--pkg-info", fuseTPkgId])
-
-			if (info.code === 0) {
-				return true
-			}
-		}
-	}
-
-	return false
+	return fs.pathExists("/usr/local/lib/libfuse-t.dylib")
 }
 
 /**
- * The installed FUSE-T version (e.g. "1.2.7") read from its `pkgutil` receipt, or null when FUSE-T has no discoverable
- * receipt (e.g. a raw-dylib install) or is absent. Used to decide whether the bundled FUSE-T is newer. macOS only.
+ * The installed FUSE-T version (e.g. "1.2.7"), read from the target of the `/usr/local/lib/libfuse-t.dylib` symlink that
+ * FUSE-T's postinstall creates (`libfuse-t.dylib -> libfuse-t-<version>.dylib`). This reflects the ACTUAL installed
+ * library, unlike a `pkgutil` receipt which can be stale after an uninstall/upgrade (and which the presence check no
+ * longer trusts either). Returns null when the symlink is absent or its target doesn't encode a version. macOS only.
  *
  * @export
  * @async
@@ -340,43 +325,15 @@ export async function installedFuseTVersion(): Promise<string | null> {
 		return null
 	}
 
-	const pkgs = await runProbe("pkgutil", ["--pkgs"])
+	try {
+		const target = await fs.readlink("/usr/local/lib/libfuse-t.dylib")
+		const match = pathModule.basename(target).match(/^libfuse-t-([\d.]+)\.dylib$/)
 
-	if (pkgs.code !== 0) {
+		return match && match[1] ? match[1] : null
+	} catch {
+		// No symlink (FUSE-T not installed), or it isn't a symlink — either way there's no version to report.
 		return null
 	}
-
-	// FUSE-T's receipt ids embed the version (e.g. "org.fuse-t.core.1.2.7", "org.fuse-t.fskit.1.2.7") and the installer
-	// never `pkgutil --forget`s the old receipt on upgrade, so after any bump the old and new receipts coexist. `pkgutil
-	// --pkgs` output is NOT version-sorted, so we must read EVERY matching receipt and take the MAX version — taking the
-	// first match would report a stale (older) version forever and re-trigger the upgrade on every drive start.
-	const fuseTPkgIds = pkgs.stdout
-		.split(/\r?\n/)
-		.map(line => line.trim())
-		.filter(line => /fuse-t/i.test(line))
-
-	if (fuseTPkgIds.length === 0) {
-		return null
-	}
-
-	let latest: string | null = null
-
-	for (const pkgId of fuseTPkgIds) {
-		const info = await runProbe("pkgutil", ["--pkg-info", pkgId])
-
-		if (info.code !== 0) {
-			continue
-		}
-
-		const match = info.stdout.match(/^version:\s*(.+)$/im)
-		const version = match && match[1] ? match[1].trim() : null
-
-		if (version && (latest === null || compareDottedVersions(version, latest) > 0)) {
-			latest = version
-		}
-	}
-
-	return latest
 }
 
 /**
