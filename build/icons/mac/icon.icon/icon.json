@@ -4,9 +4,23 @@
   },
   "groups" : [
     {
+      "blur-material-specializations" : [
+        {
+          "value" : 0.5
+        },
+        {
+          "appearance" : "dark",
+          "value" : 0.5
+        }
+      ],
       "layers" : [
         {
           "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "extended-gray:0.00000,1.00000"
+              }
+            },
             {
               "appearance" : "dark",
               "value" : {
@@ -20,10 +34,23 @@
               }
             }
           ],
+          "glass-specializations" : [
+            {
+              "value" : false
+            },
+            {
+              "appearance" : "dark",
+              "value" : true
+            },
+            {
+              "appearance" : "tinted",
+              "value" : true
+            }
+          ],
           "image-name" : "Logo_black 4.svg",
           "name" : "Logo_black 4",
           "position" : {
-            "scale" : 1.64,
+            "scale" : 1.52,
             "translation-in-points" : [
               0,
               0
@@ -31,14 +58,27 @@
           }
         }
       ],
+      "lighting" : "combined",
       "shadow" : {
         "kind" : "neutral",
         "opacity" : 0.5
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
-      }
+      "specular" : true,
+      "translucency-specializations" : [
+        {
+          "value" : {
+            "enabled" : true,
+            "value" : 0.5
+          }
+        },
+        {
+          "appearance" : "dark",
+          "value" : {
+            "enabled" : true,
+            "value" : 0.5
+          }
+        }
+      ]
     }
   ],
   "supported-platforms" : {
