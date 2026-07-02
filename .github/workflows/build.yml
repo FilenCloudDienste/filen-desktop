@@ -173,7 +173,7 @@ jobs:
 
     buildMac:
         name: Build macOS artifacts and attach to release
-        runs-on: macos-latest
+        runs-on: macos-15
         permissions:
             contents: write
         env:
@@ -205,6 +205,16 @@ jobs:
               run: npm ci
             - name: Fetch rclone binaries
               run: node build/rclone/fetch.mjs
+            - name: Select Xcode 26 (Icon Composer .icon needs actool >= 26)
+              run: |
+                  XCODE="$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1 || true)"
+                  if [ -z "$XCODE" ]; then
+                    echo "::error::No Xcode 26 found on this runner — actool >= 26 is required to compile build/icons/mac/icon.icon"
+                    exit 1
+                  fi
+                  echo "Selecting $XCODE"
+                  sudo xcode-select -s "$XCODE/Contents/Developer"
+                  xcodebuild -version
             - name: Build
               run: npm run build:mac
             - name: Generate SHA256 hashes
