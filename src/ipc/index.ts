@@ -212,7 +212,13 @@ export class IPC {
 				...config,
 				sdkConfig: {
 					...config.sdkConfig,
-					connectToSocket: true,
+					// The main process does not consume realtime FS events (no socketEvent listener, no sdk.fs() usage — the
+					// renderer runs its own SDK/socket for UI realtime), so it must NOT open the SDK's FS socket. That socket
+					// emits "error" on transient TLS drops (notably macOS sleep/wake); the SDK attaches no "error" listener and
+					// its FS socket is private (unguardable from here), so an unhandled "error" would crash the main process.
+					// The worker already runs with connectToSocket: false for the same reason. Do NOT set this true without
+					// first handling that "error" event.
+					connectToSocket: false,
 					metadataCache: true,
 					password: "redacted"
 				},

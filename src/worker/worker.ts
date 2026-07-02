@@ -36,17 +36,16 @@ export class Worker {
 		try {
 			const desktopConfig = await this.waitForConfig()
 
+			// connectToSocket: false — the worker does not consume realtime FS events (it polls / uses cloud() directly), so
+			// it must not open the SDK's FS socket. That socket emits "error" on transient TLS drops (notably macOS
+			// sleep/wake) with no SDK-attached listener, and it is private (unguardable from here), so an unhandled "error"
+			// would crash the worker. Disabling it removes the crash at the source. Do NOT set this true without first
+			// handling that "error" event. (An earlier fix attached a listener to `sdk.socket`, but that top-level socket is
+			// never connected — the FS socket is the one that emits — so it never actually guarded anything.)
 			this.sdk = new FilenSDK({
 				...desktopConfig.sdkConfig,
 				connectToSocket: false,
 				metadataCache: true
-			})
-
-			// The realtime socket emits "error" on transient drops - notably the TLS connection closing when the machine
-			// sleeps/wakes. Node treats an emitted "error" with no listener as fatal and would crash the worker, so attach
-			// one. The SDK already auto-reconnects with backoff on close (and we don't consume socketEvent here), so just log.
-			this.sdk.socket.on("error", err => {
-				this.logger.log("warn", err, "sdk.socket")
 			})
 
 			return this.sdk
