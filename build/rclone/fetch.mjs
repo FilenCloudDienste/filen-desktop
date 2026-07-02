@@ -12,9 +12,12 @@ import https from "node:https"
 import fs from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 import { pipeline } from "node:stream/promises"
 import { fileURLToPath } from "node:url"
-import extract from "extract-zip"
+
+const execFileAsync = promisify(execFile)
 
 // KEEP IN SYNC with RCLONE_VERSION in src/lib/rclone/constants.ts.
 const RCLONE_VERSION = "1.74.3"
@@ -90,6 +93,31 @@ async function withRetries(label, fn, attempts = 4) {
 	}
 
 	throw lastError
+}
+
+/**
+ * Extract `zipPath` into `destDir` using the platform's NATIVE unzip tool - unzip on macOS/Linux, bsdtar (tar.exe) on
+ * Windows. Replaces the extract-zip library: on the macOS CI runner extract-zip's promise silently never settled
+ * mid-extraction, draining the event loop so the process exited 0 with the binary un-extracted (green step, empty
+ * bin/rclone). Native unzip is battle-tested, and running it as a child process with a timeout turns any hang into a
+ * loud rejection (which withRetries can re-attempt) instead of a silent exit.
+ *
+ * @param {string} zipPath
+ * @param {string} destDir
+ * @returns {Promise<void>}
+ */
+async function extractZip(zipPath, destDir) {
+	await fs.promises.mkdir(destDir, { recursive: true })
+
+	if (process.platform === "win32") {
+		// bsdtar (tar.exe) ships with Windows 10+ and extracts .zip archives.
+		await execFileAsync("tar", ["-xf", zipPath, "-C", destDir], { timeout: 120000, maxBuffer: 64 * 1024 * 1024 })
+
+		return
+	}
+
+	// unzip ships with macOS and the GitHub ubuntu runners. -o = overwrite without prompting, -q = quiet.
+	await execFileAsync("unzip", ["-o", "-q", zipPath, "-d", destDir], { timeout: 120000, maxBuffer: 64 * 1024 * 1024 })
 }
 
 /**
@@ -402,7 +430,7 @@ async function main() {
 		try {
 			console.log(`[rclone-fetch] extracting    ${zipName}`)
 
-			await extract(tmpZip, { dir: extractDir })
+			await extractZip(tmpZip, extractDir)
 
 			const extractedBinary = path.join(extractDir, `rclone-v${RCLONE_VERSION}-${os}-${arch}`, binaryFileName)
 
