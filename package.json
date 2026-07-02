@@ -2,6 +2,7 @@
 	"name": "@filen/desktop",
 	"version": "3.0.49",
 	"buildNumber": 349,
+	"desktopName": "Filen.desktop",
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
 	"main": "dist/index.js",
@@ -193,6 +194,7 @@
 		},
 		"linux": {
 			"executableName": "Filen",
+			"syncDesktopName": true,
 			"maintainer": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"vendor": "Filen Cloud Dienste UG (haftungsbeschränkt)",
 			"category": "Utility",
