@@ -269,7 +269,7 @@
 					"url": "https://cdn.filen.io/@filen/desktop/release/latest/"
 				}
 			],
-			"icon": "build/icons/mac/icon.icns",
+			"icon": "build/icons/mac/icon.icon",
 			"extraResources": [
 				{
 					"from": "bin/deps",

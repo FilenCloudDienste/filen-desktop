@@ -58,6 +58,19 @@ exports.default = async function afterPack(context) {
 		return
 	}
 
+	// The macOS icon (mac.icon = build/icons/mac/icon.icon) must compile into BOTH the modern asset catalog (Assets.car,
+	// read by macOS 26 via CFBundleIconName) and the legacy icon.icns (read by older macOS via CFBundleIconFile).
+	// electron-builder derives both from the .icon using Xcode's icon tooling, so a missing one means that tooling
+	// (Xcode 26+) wasn't available and the app would silently ship the default Electron icon - fail loudly instead.
+	for (const iconFile of ["Assets.car", "icon.icns"]) {
+		if (!fs.existsSync(path.join(resourcesDir, iconFile))) {
+			throw new Error(
+				`[afterPack] ${iconFile} not found in ${resourcesDir} - the macOS icon (build/icons/mac/icon.icon) did not compile. ` +
+					"Install Xcode 26+ on the build machine (electron-builder needs it to process the .icon)."
+			)
+		}
+	}
+
 	// electron-builder imports the CSC cert into a keychain during signing, which runs AFTER afterPack. Force that setup
 	// now (accessing `.value`) so the Developer ID identity is resolvable here.
 	let keychainFile = null

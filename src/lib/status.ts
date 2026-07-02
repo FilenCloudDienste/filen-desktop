@@ -88,9 +88,9 @@ export class Status {
 			}
 		}
 
-		if (process.platform === "darwin") {
-			app?.dock?.setIcon(getAppIcon())
-		}
+		// macOS: no app.dock.setIcon() here — the dock/Finder icon comes from the app bundle (mac.icon = the Icon Composer
+		// .icon, which macOS 26 themes per the user's appearance). A runtime setIcon() would override that with a flat image
+		// and lose the light/dark/tinted/clear appearances.
 
 		if (process.platform === "darwin" || (process.platform === "linux" && this.desktop.isUnityRunning)) {
 			app?.setBadgeCount(this.trayState.notificationCount)
