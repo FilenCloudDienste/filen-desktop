@@ -12,6 +12,7 @@ import https from "node:https"
 import fs from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
+import { pipeline } from "node:stream/promises"
 import { fileURLToPath } from "node:url"
 import extract from "extract-zip"
 
@@ -181,22 +182,21 @@ async function fetchText(url) {
  * @param {string} destPath
  * @returns {Promise<string>}
  */
-function downloadToFile(url, destPath) {
-	return new Promise((resolve, reject) => {
-		httpsGet(url)
-			.then(res => {
-				const hash = crypto.createHash("sha256")
-				const out = fs.createWriteStream(destPath)
+async function downloadToFile(url, destPath) {
+	const res = await httpsGet(url)
 
-				res.on("data", chunk => hash.update(chunk))
-				res.on("error", reject)
-				out.on("error", reject)
-				out.on("finish", () => resolve(hash.digest("hex")))
+	// Use stream.pipeline, NOT a manual res.pipe() + "finish"/"error" listeners: pipeline REJECTS on a premature close /
+	// aborted connection (ERR_STREAM_PREMATURE_CLOSE). A manual pipe leaves the promise unsettled when the readable emits
+	// "close"/"aborted" WITHOUT "error" or "end" - which drains the event loop and makes the process exit 0 mid-download
+	// with no error at all (observed on the macOS CI runner aborting the large rclone zip transfer, while the tiny
+	// SHA256SUMS fetch succeeded). Rejecting instead lets withRetries re-attempt, and a persistent failure throws loudly.
+	await pipeline(res, fs.createWriteStream(destPath))
 
-				res.pipe(out)
-			})
-			.catch(reject)
-	})
+	const { size } = await fs.promises.stat(destPath)
+
+	console.log(`[rclone-fetch] downloaded    ${(size / 1048576).toFixed(1)} MiB -> ${path.basename(destPath)}`)
+
+	return sha256File(destPath)
 }
 
 /**
@@ -400,6 +400,8 @@ async function main() {
 		await fs.promises.rm(extractDir, { recursive: true, force: true })
 
 		try {
+			console.log(`[rclone-fetch] extracting    ${zipName}`)
+
 			await extract(tmpZip, { dir: extractDir })
 
 			const extractedBinary = path.join(extractDir, `rclone-v${RCLONE_VERSION}-${os}-${arch}`, binaryFileName)
