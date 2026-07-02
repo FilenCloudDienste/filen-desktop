@@ -60,6 +60,7 @@ jobs:
               if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v3
               with:
+                  tag_name: ${{ github.event.release.tag_name }}
                   files: |
                       prod/Filen_win.exe
                       prod/Filen_win.exe.sha256.txt
@@ -135,6 +136,7 @@ jobs:
               if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v3
               with:
+                  tag_name: ${{ github.event.release.tag_name }}
                   files: |
                       prod/Filen_linux_aarch64.rpm
                       prod/Filen_linux_amd64.deb
@@ -218,6 +220,7 @@ jobs:
               if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v3
               with:
+                  tag_name: ${{ github.event.release.tag_name }}
                   files: |
                       prod/Filen_mac_x64.dmg
                       prod/Filen_mac_x64.dmg.sha256.txt
