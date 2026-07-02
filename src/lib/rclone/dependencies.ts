@@ -257,10 +257,15 @@ export async function isWinFSPInstalled(): Promise<boolean> {
 }
 
 /**
- * Detect macFUSE on macOS. True if ANY of the well-known dylibs/bundle exist
- * (`/usr/local/lib/libfuse.2.dylib` for v4+, `/usr/local/lib/libosxfuse.2.dylib` for older, or
- * `/Library/Filesystems/macfuse.fs`), or a `pkgutil` receipt matches `io.macfuse` / `com.github.osxfuse`. Returns false on
- * any non-macOS platform.
+ * Detect macFUSE on macOS by the libraries rclone's cgofuse actually dlopens — `/usr/local/lib/libfuse.2.dylib` (macFUSE
+ * v4+) or `/usr/local/lib/libosxfuse.2.dylib` (older osxfuse) — the exact paths, in the exact order, cgofuse tries before
+ * falling back to FUSE-T (see cgofuse host_cgo.go). `fs.pathExists` follows the symlink, so a dangling link reads as absent.
+ *
+ * Deliberately does NOT consult a `pkgutil` receipt: a receipt outlives an uninstall (files removed, receipt left behind),
+ * so trusting one would falsely report macFUSE present, skip the FUSE-T auto-install, pass the require-check, and then fail
+ * the mount with "cgofuse: cannot find FUSE" (the exact class of bug the FUSE-T detection had). The `/Library/Filesystems/
+ * macfuse.fs` kext bundle is likewise not consulted — cgofuse loads the dylib, not the kext, and a macFUSE whose dylib
+ * isn't at these paths is not loadable by cgofuse anyway. Returns false on any non-macOS platform.
  *
  * @export
  * @async
@@ -271,18 +276,10 @@ export async function isMacFUSEInstalled(): Promise<boolean> {
 		return false
 	}
 
-	const knownPaths = ["/usr/local/lib/libfuse.2.dylib", "/usr/local/lib/libosxfuse.2.dylib", "/Library/Filesystems/macfuse.fs"]
-
-	for (const candidate of knownPaths) {
-		if (await fs.pathExists(candidate)) {
+	for (const dylib of ["/usr/local/lib/libfuse.2.dylib", "/usr/local/lib/libosxfuse.2.dylib"]) {
+		if (await fs.pathExists(dylib)) {
 			return true
 		}
-	}
-
-	const pkgs = await runProbe("pkgutil", ["--pkgs"])
-
-	if (pkgs.code === 0 && /io\.macfuse|com\.github\.osxfuse/i.test(pkgs.stdout)) {
-		return true
 	}
 
 	return false
