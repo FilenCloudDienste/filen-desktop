@@ -262,8 +262,9 @@ exit /B 0
 	}
 
 	/**
-	 * A single arming attempt: write (if needed) the monitor script and spawn the `detached`, `unref()`'d helper. It is
-	 * `unref()`'d so it neither keeps the Electron event loop alive nor dies with a normal shutdown, and handed `process.pid`
+	 * A single arming attempt: write (if needed) the monitor script and spawn the `unref()`'d helper - a `detached` process
+	 * group on POSIX, a hidden non-`detached` background console on Windows (see the spawn note on why). It is `unref()`'d
+	 * so it neither keeps the Electron event loop alive nor dies with a normal shutdown, and handed `process.pid`
 	 * (the Electron PID to watch), `targetRclonePid` (the exact rclone PID to kill — never a name) and, for the drive role,
 	 * `mountPoint`. Resolves once the helper reports `"spawn"`; rejects if it emits `"error"` before spawning.
 	 *
@@ -290,7 +291,10 @@ exit /B 0
 			// `cmd.exe /c`. On POSIX the chmod'd `#!/bin/sh` script is spawned directly.
 			const helper = isWindows
 				? spawn("cmd.exe", ["/c", scriptPath, ...args], {
-						detached: true,
+						// NOT detached: DETACHED_PROCESS makes Win32 ignore CREATE_NO_WINDOW (what windowsHide sets), so a
+						// detached cmd.exe pops a VISIBLE console that lingers the whole session. Without it, windowsHide
+						// hides the console; the helper still outlives us (Windows doesn't reap children with their parent),
+						// so it can still kill rclone + self-exit on a crash. unref() below keeps it off our event loop.
 						stdio: "ignore",
 						windowsHide: true
 					})
