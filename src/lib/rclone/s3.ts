@@ -230,10 +230,12 @@ export async function buildS3Args(options: S3Options): Promise<string[]> {
 		"5m",
 		"--contimeout",
 		"1m",
+		// rc interface on loopback (stats, core/quit). Auth is REQUIRED - RcloneProcess injects an ephemeral
+		// RCLONE_RC_USER/RCLONE_RC_PASS into the child env - NOT --rc-no-auth. An unauthenticated caller (a web page the user
+		// opens, or any other local process) must never reach the rc API, which can write arbitrary files via operations/copyurl.
 		"--rc",
 		"--rc-addr",
-		`127.0.0.1:${rcPort}`,
-		"--rc-no-auth"
+		`127.0.0.1:${rcPort}`
 	)
 
 	if (logFilePath) {

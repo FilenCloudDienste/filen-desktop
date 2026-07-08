@@ -1,4 +1,5 @@
 import axios, { type AxiosRequestConfig } from "axios"
+import crypto from "crypto"
 
 /**
  * Shape of the rclone rc `core/stats` response. Every field is optional because the payload mirrors rclone's raw JSON,
@@ -48,6 +49,27 @@ export interface RcVfsStats {
 	}
 	fs?: string
 	inUse?: number
+}
+
+/**
+ * Mint an ephemeral HTTP Basic-auth credential pair for a single rclone process' rc interface.
+ *
+ * The rc server is bound to a FIXED loopback port and exposes the FULL rc API — including `operations/copyurl`, which
+ * writes attacker-chosen bytes to any local path. Without auth, any web page the user opens (a CORS-simple cross-origin
+ * POST needs no preflight and does not need to read the response) or any other local process can drive it → arbitrary
+ * file write → code execution. So every rclone process is launched with a fresh, unguessable secret instead of the old
+ * `--rc-no-auth`: {@link RcloneProcess} injects this pair as `RCLONE_RC_USER`/`RCLONE_RC_PASS` and the {@link RcClient}
+ * presents it, so rclone answers 401 to everyone else. 24 random bytes (192 bits) is far beyond brute force, and the
+ * pair is per-process and never persisted.
+ *
+ * @export
+ * @returns {{ user: string; pass: string }}
+ */
+export function generateRcCredentials(): { user: string; pass: string } {
+	return {
+		user: `filen-${crypto.randomBytes(8).toString("hex")}`,
+		pass: crypto.randomBytes(24).toString("hex")
+	}
 }
 
 /**

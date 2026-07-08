@@ -1,7 +1,7 @@
 import { spawn, spawnSync, type ChildProcess } from "child_process"
 import fs from "fs-extra"
 import { Semaphore } from "../../semaphore"
-import { RcClient } from "./rc"
+import { RcClient, generateRcCredentials } from "./rc"
 import { RcloneWatchdog } from "./watchdog"
 import { type RcloneRole } from "./constants"
 
@@ -138,6 +138,8 @@ export class RcloneProcess {
 	private readonly onUnmount?: () => Promise<void>
 	private readonly logger?: (level: string, message: string) => void
 	private readonly logFilePath?: string
+	private readonly rcUser: string
+	private readonly rcPass: string
 	private readonly watchdog: RcloneWatchdog
 	private readonly startMutex = new Semaphore(1)
 	private readonly stopMutex = new Semaphore(1)
@@ -160,10 +162,19 @@ export class RcloneProcess {
 		this.onUnmount = options.onUnmount
 		this.logger = options.logger
 		this.logFilePath = options.logFilePath
+
+		// rc auth: mint an ephemeral Basic-auth pair for THIS process' rc interface (or honor an explicit override). Both the
+		// rc server (via RCLONE_RC_USER/RCLONE_RC_PASS injected into the child env in start()) and this client use it, so the
+		// loopback rc API - which includes the arbitrary-write operations/copyurl - answers 401 to any caller that cannot
+		// present the secret. This is what replaces the old, unauthenticated --rc-no-auth.
+		const creds = options.rcUser && options.rcPass ? { user: options.rcUser, pass: options.rcPass } : generateRcCredentials()
+
+		this.rcUser = creds.user
+		this.rcPass = creds.pass
 		this.rc = new RcClient({
 			port: options.rcPort,
-			user: options.rcUser,
-			pass: options.rcPass
+			user: this.rcUser,
+			pass: this.rcPass
 		})
 		this.watchdog = new RcloneWatchdog({
 			scriptDir: options.scriptDir,
@@ -250,7 +261,15 @@ export class RcloneProcess {
 				const spawned = spawn(this.binaryPath, this.args, {
 					stdio: "ignore",
 					windowsHide: true,
-					detached: process.platform !== "win32"
+					detached: process.platform !== "win32",
+					// Authenticate the rc interface out-of-band: supplying the credentials via the environment (not argv) keeps the
+					// per-process secret out of the OS process list. Verified to fail CLOSED - rclone answers 401 to any rc caller
+					// lacking these - unlike serve-s3's RCLONE_AUTH_KEY (rclone#9044). RcClient presents the same pair.
+					env: {
+						...process.env,
+						RCLONE_RC_USER: this.rcUser,
+						RCLONE_RC_PASS: this.rcPass
+					}
 				})
 
 				this.child = spawned

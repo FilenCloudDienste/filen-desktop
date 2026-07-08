@@ -165,10 +165,12 @@ export async function buildMountArgs(options: NetworkDriveOptions): Promise<stri
 		"24",
 		"--transfers",
 		"8",
+		// rc interface on loopback (stats, vfs/list, core/quit). Auth is REQUIRED - RcloneProcess injects an ephemeral
+		// RCLONE_RC_USER/RCLONE_RC_PASS into the child env - NOT --rc-no-auth. An unauthenticated caller (a web page the user
+		// opens, or any other local process) must never reach the rc API, which can write arbitrary files via operations/copyurl.
 		"--rc",
 		"--rc-addr",
-		`127.0.0.1:${rcPort}`,
-		"--rc-no-auth"
+		`127.0.0.1:${rcPort}`
 	)
 
 	if (logFilePath) {

@@ -150,7 +150,10 @@ export async function buildWebdavArgs(options: WebdavOptions): Promise<string[]>
 		args.push("--cert", certPath, "--key", keyPath, "--min-tls-version", "tls1.2")
 	}
 
-	args.push("--rc", "--rc-addr", `127.0.0.1:${rcPort}`, "--rc-no-auth")
+	// rc interface on loopback (stats, core/quit). Auth is REQUIRED - RcloneProcess injects an ephemeral
+	// RCLONE_RC_USER/RCLONE_RC_PASS into the child env - NOT --rc-no-auth. An unauthenticated caller (a web page the user
+	// opens, or any other local process) must never reach the rc API, which can write arbitrary files via operations/copyurl.
+	args.push("--rc", "--rc-addr", `127.0.0.1:${rcPort}`)
 
 	if (logFilePath) {
 		args.push("--log-file", logFilePath, "--log-level", "INFO")
