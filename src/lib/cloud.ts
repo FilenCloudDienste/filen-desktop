@@ -565,6 +565,17 @@ export class Cloud {
 
 						const filePath = pathModule.join(to, item.path)
 
+						// Decrypted item names are user-supplied; item.path can contain separators or ".." that pathModule.join
+						// would otherwise resolve outside `to`. Keep every write strictly inside the chosen destination directory.
+						const resolvedTo = pathModule.resolve(to)
+						const resolvedFilePath = pathModule.resolve(filePath)
+
+						if (!resolvedFilePath.startsWith(resolvedTo + pathModule.sep)) {
+							resolve()
+
+							return
+						}
+
 						this.desktop.sdk
 							.cloud()
 							.downloadFileToLocal({
