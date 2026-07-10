@@ -319,7 +319,26 @@ export class IPC {
 		})
 
 		ipcMain.handle("openLocalPath", async (_, path): Promise<void> => {
-			const open = await shell.openPath(pathModule.normalize(path))
+			const normalized = pathModule.normalize(path)
+
+			// Reveal files in the OS file manager instead of launching them; only directories are opened directly. Both
+			// callers pass a directory (the sync local path / the network-drive mount point), so this is behavior-preserving
+			// for them while removing the ability to execute an arbitrary file through this IPC.
+			let isDirectory = false
+
+			try {
+				isDirectory = (await fs.stat(normalized)).isDirectory()
+			} catch {
+				isDirectory = false
+			}
+
+			if (!isDirectory) {
+				shell.showItemInFolder(normalized)
+
+				return
+			}
+
+			const open = await shell.openPath(normalized)
 
 			if (open.length > 0) {
 				throw new Error(open)

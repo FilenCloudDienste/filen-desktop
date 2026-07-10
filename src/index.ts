@@ -416,9 +416,21 @@ export class FilenDesktop {
 			}
 		})
 
-		// Open links in default external browser
+		// Open links in default external browser. Only hand safe web/mail schemes to the OS - anything else (file:, smb:,
+		// javascript:, custom OS protocol handlers, ...) is denied so a link in untrusted content (e.g. a chat message)
+		// cannot reach shell.openExternal with a dangerous scheme. Mirrors blockOffOriginNavigation's http/https policy.
 		this.driveWindow?.webContents.setWindowOpenHandler(({ url }) => {
-			shell.openExternal(url)
+			let protocol: string | null = null
+
+			try {
+				protocol = new URL(url).protocol
+			} catch {
+				protocol = null
+			}
+
+			if (protocol === "http:" || protocol === "https:" || protocol === "mailto:") {
+				shell.openExternal(url).catch(() => {})
+			}
 
 			return {
 				action: "deny"
