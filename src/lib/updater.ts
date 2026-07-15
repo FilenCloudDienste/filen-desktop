@@ -162,11 +162,28 @@ export class Updater {
 		}
 
 		if (process.platform === "darwin") {
-			autoUpdater.quitAndInstall(true, true)
+			// With autoInstallOnAppQuit=false, Squirrel.Mac staging (proxy download -> extraction -> signature
+			// verification) only STARTS inside quitAndInstall() and takes multiple seconds for a ~400 MB artifact.
+			// electron-updater quits and relaunches via ShipIt on its own once staging completes
+			// (autoRunAppAfterInstall), so a fixed exit timer here kills staging mid-flight and the update never
+			// installs. Exit only if the updater errors, with a generous failsafe so a silently hung Squirrel
+			// can't leave a windowless zombie process behind.
+			const failsafe = setTimeout(() => {
+				this.desktop.logger.log("error", "Update did not install within 10 minutes, exiting")
 
-			setTimeout(() => {
-				app.exit(0)
-			}, 1500)
+				app.exit(1)
+			}, 600000)
+
+			autoUpdater.once("error", err => {
+				clearTimeout(failsafe)
+
+				this.desktop.logger.log("error", err, "updater.installUpdate.quitAndInstall")
+				this.desktop.logger.log("error", err)
+
+				app.exit(1)
+			})
+
+			autoUpdater.quitAndInstall(true, true)
 		} else {
 			autoUpdater.quitAndInstall(false, true)
 
