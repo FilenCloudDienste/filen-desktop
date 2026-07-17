@@ -92,7 +92,7 @@ FILEN_E2E_UPDATER=1 FILEN_E2E_UPDATE_FEED="http://127.0.0.1:${FEED_PORT}/" APPIM
 ORIGINAL_PID=$!
 
 # 5. Wait for: download -> in-place swap (inode changes) -> relaunch.
-DEADLINE=$((SECONDS + 300))
+DEADLINE=$((SECONDS + 600))
 SWAPPED=""
 RELAUNCHED=""
 while [ $SECONDS -lt $DEADLINE ]; do

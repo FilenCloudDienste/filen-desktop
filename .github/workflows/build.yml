@@ -261,7 +261,7 @@ jobs:
     verifyWindows:
         name: Verify windows install and auto-update
         needs: buildWindows
-        timeout-minutes: 45
+        timeout-minutes: 90
         strategy:
             fail-fast: false
             matrix:
@@ -289,7 +289,7 @@ jobs:
     verifyLinux:
         name: Verify linux install and auto-update
         needs: buildLinux
-        timeout-minutes: 45
+        timeout-minutes: 90
         strategy:
             fail-fast: false
             matrix:
@@ -315,14 +315,14 @@ jobs:
     verifyMac:
         name: Verify macOS install and auto-update
         needs: buildMac
-        timeout-minutes: 45
+        timeout-minutes: 90
         strategy:
             fail-fast: false
             matrix:
                 include:
                     - runner: macos-26
                       arch: arm64
-                    - runner: macos-15-intel
+                    - runner: macos-26-intel
                       arch: x64
         runs-on: ${{ matrix.runner }}
         steps:

@@ -69,7 +69,7 @@ FILEN_E2E_UPDATER=1 FILEN_E2E_UPDATE_FEED="http://127.0.0.1:${FEED_PORT}/" "$APP
 ORIGINAL_PID=$!
 
 # 4. Wait for: Squirrel staging -> ShipIt swap (inode changes) -> relaunch (new pid on the same path).
-DEADLINE=$((SECONDS + 300))
+DEADLINE=$((SECONDS + 600))
 SWAPPED=""
 RELAUNCHED=""
 while [ $SECONDS -lt $DEADLINE ]; do

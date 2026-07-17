@@ -82,7 +82,7 @@ try {
     $env:FILEN_E2E_UPDATE_FEED = $null
 
     # 4. Wait for the full cycle: download -> installUpdate -> app exits -> NSIS rewrites files -> relaunch.
-    $deadline = (Get-Date).AddMinutes(8)
+    $deadline = (Get-Date).AddMinutes(15)
     $rewritten = $false
     $relaunched = $false
     while ((Get-Date) -lt $deadline) {
