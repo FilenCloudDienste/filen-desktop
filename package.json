@@ -20,7 +20,7 @@
 		"dev:yalc": "npm run yalc && cross-env NODE_ENV=development electron ./src/index.dev.js --no-sandbox",
 		"yalc": "npm run build && yalc push",
 		"build:mac": "npm run build && electron-builder -m --publish never && node build/inject-min-darwin.js",
-		"build:win": "npm run build && cross-env ELECTRON_BUILDER_7Z_FILTER=BCJ2 electron-builder -w --publish never",
+		"build:win": "npm run build && cross-env ELECTRON_BUILDER_7Z_FILTER=BCJ electron-builder -w --publish never",
 		"build:linux": "npm run build && electron-builder -l --publish never",
 		"build:hashes": "tsx ./build/hashes.js",
 		"install:filen": "npm install @filen/web@latest @filen/sdk@latest @filen/sync@latest",
