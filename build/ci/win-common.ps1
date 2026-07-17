@@ -179,6 +179,10 @@ function Assert-Installation([string]$Source, [string]$Arch, [scriptblock]$OnFai
         if (Test-Path $refDir) { Remove-Item -Recurse -Force $refDir }
         Expand-Archive -Path "prod\Filen_win_$Arch.zip" -DestinationPath $refDir
     }
+    # $env:TEMP on GitHub runners is the 8.3 short form (C:\Users\RUNNERA~1\...) while Get-ChildItem
+    # returns long paths - the Substring-based relative computation below needs the canonical long
+    # form or every relative path keeps a garbage prefix and nothing matches.
+    $refDir = (Get-Item $refDir).FullName
 
     $missing = 0
     foreach ($ref in (Get-ChildItem -Recurse -File $refDir)) {
