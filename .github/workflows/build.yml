@@ -25,6 +25,38 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
+    # PowerShell parse errors in the verify scripts are only caught at runtime on Windows runners
+    # (two such bugs shipped before this existed); ubuntu runners have pwsh preinstalled, so fail
+    # fast here instead of 20 minutes into a build.
+    lintCiScripts:
+        name: Lint CI verify scripts
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+            - name: Parse PowerShell scripts
+              shell: pwsh
+              run: |
+                  $failed = $false
+                  foreach ($f in Get-ChildItem build/ci/*.ps1) {
+                      $tokens = $null
+                      $parseErrors = $null
+                      [System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$tokens, [ref]$parseErrors) | Out-Null
+                      if ($parseErrors) {
+                          $failed = $true
+                          Write-Host "PARSE ERRORS in $($f.Name):"
+                          $parseErrors | ForEach-Object { Write-Host "  $_" }
+                      } else {
+                          Write-Host "PARSE OK: $($f.Name)"
+                      }
+                  }
+                  if ($failed) { exit 1 }
+            - name: Check shell and python scripts
+              run: |
+                  for f in build/ci/*.sh; do bash -n "$f" && echo "SYNTAX OK: $f"; done
+                  python3 -m py_compile build/ci/check-feed.py && echo "PY OK"
+
     buildWindows:
         name: Build windows artifacts and attach to release
         if: github.event_name == 'release' || inputs.windows

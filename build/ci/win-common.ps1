@@ -2,6 +2,9 @@
 
 function Get-PythonCommand {
     # windows-latest guarantees python on PATH; the windows-11-arm image may only expose the py launcher.
+    # Callers MUST wrap the call in @(...): PowerShell unrolls returned arrays, so a bare single-element
+    # return arrives as a string whose [0] is the character 'p' - which the caller would then execute.
+    # (Do NOT "fix" this with a unary comma here as well: comma + call-site @() nests the array instead.)
     if (Get-Command python -ErrorAction SilentlyContinue) { return @("python") }
     if (Get-Command py -ErrorAction SilentlyContinue) { return @("py", "-3") }
     throw "no python interpreter found on this runner"

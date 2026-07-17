@@ -50,7 +50,7 @@ foreach ($exe in @("Filen_win.exe", "Filen_win_x64.exe", "Filen_win_arm64.exe"))
     Copy-Item "prod\$exe" (Join-Path $feedDir $exe)
 }
 
-$python = Get-PythonCommand
+$python = @(Get-PythonCommand)
 $serverCmd = $python + @("-m", "http.server", "$FeedPort", "--bind", "127.0.0.1", "--directory", $feedDir)
 $server = Start-Process -FilePath $serverCmd[0] -ArgumentList $serverCmd[1..($serverCmd.Count - 1)] -PassThru -WindowStyle Hidden
 

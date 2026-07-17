@@ -31,7 +31,7 @@ function Fail([string]$Message) {
 
 # 1. Feed manifest sanity + client-selection contract.
 $expectedVersion = node -p "require('./package.json').version"
-$cmd = (Get-PythonCommand) + @(
+$cmd = @(Get-PythonCommand) + @(
     "build\ci\check-feed.py", "prod\latest.yml", "prod",
     "--expect", "Filen_win.exe", "--expect", "Filen_win_x64.exe", "--expect", "Filen_win_arm64.exe",
     "--first-url", "Filen_win.exe", "--expect-version", $expectedVersion, "--require-admin-rights"
