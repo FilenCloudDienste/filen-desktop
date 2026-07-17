@@ -246,6 +246,9 @@ export class Updater {
 
 		this.desktop.logger.log("info", "Installing update")
 
+		// These removals are load-bearing: the worker's will-quit interceptor (preventDefault + async
+		// cleanup) and the drive window's hide-to-tray close interceptor would otherwise block the
+		// update's quit sequence - the historical "updater cannot close the running app" bug.
 		app.removeAllListeners("window-all-closed")
 		app.removeAllListeners("will-quit")
 
@@ -253,6 +256,17 @@ export class Updater {
 		this.desktop.driveWindow?.removeAllListeners("show")
 		this.desktop.driveWindow?.removeAllListeners("minimize")
 		this.desktop.driveWindow?.removeAllListeners("maximize")
+
+		// Removing window-all-closed re-enables Electron's DEFAULT quit-when-all-windows-close, and the
+		// windows now stay alive through the install with their close interceptor gone - a user clicking
+		// the window's X mid-install (e.g. during macOS Squirrel staging) would quit the app and kill the
+		// install. A no-op listener suppresses that default without being able to block anything: close
+		// the window and the install simply finishes headless, then relaunches. Deliberately NOT a
+		// close-preventer - native quitAndInstall closes windows BEFORE emitting before-quit, so any
+		// close-blocking handler would stall the legitimate update quit itself.
+		app.on("window-all-closed", () => {
+			// Keep running headless until the installer/Squirrel quits the app.
+		})
 
 		// A dead worker's stop() can never settle (invoke against a gone thread) - without a bound, the
 		// install would silently never reach quitAndInstall.
