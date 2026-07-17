@@ -4,6 +4,19 @@ on:
     release:
         types: [published]
     workflow_dispatch:
+        inputs:
+            windows:
+                description: "Build + verify Windows"
+                type: boolean
+                default: true
+            linux:
+                description: "Build + verify Linux"
+                type: boolean
+                default: true
+            mac:
+                description: "Build + verify macOS"
+                type: boolean
+                default: true
 
 concurrency:
     group: "build"
@@ -12,6 +25,7 @@ concurrency:
 jobs:
     buildWindows:
         name: Build windows artifacts and attach to release
+        if: github.event_name == 'release' || inputs.windows
         runs-on: windows-latest
         permissions:
             contents: write
@@ -48,14 +62,14 @@ jobs:
                   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
                   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
                   AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+            - name: Generate update hashes
+              run: npm run build:hashes
             - name: Generate SHA256 hashes
               run: |
                   Get-ChildItem prod -File | ForEach-Object {
                     $hash = CertUtil -hashfile $_.FullName SHA256 | Select-String -Pattern "^[0-9a-fA-F]{64}$"
                     $hash -replace "\s+", "" | Out-File "$($_.FullName).sha256.txt"
                   }
-            - name: Generate update hashes
-              run: npm run build:hashes
             - name: Attach artifacts to release
               if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v3
@@ -94,6 +108,7 @@ jobs:
 
     buildLinux:
         name: Build linux artifacts and attach to release
+        if: github.event_name == 'release' || inputs.linux
         runs-on: ubuntu-latest
         permissions:
             contents: write
@@ -123,6 +138,8 @@ jobs:
               run: node build/rclone/fetch.mjs
             - name: Build
               run: npm run build:linux
+            - name: Generate update hashes
+              run: npm run build:hashes
             - name: Generate SHA256 hashes
               run: |
                   for file in prod/*; do
@@ -130,8 +147,6 @@ jobs:
                       sha256sum "$file" | awk '{print $1}' > "$file.sha256.txt"
                     fi
                   done
-            - name: Generate update hashes
-              run: npm run build:hashes
             - name: Attach artifacts to release
               if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v3
@@ -173,6 +188,7 @@ jobs:
 
     buildMac:
         name: Build macOS artifacts and attach to release
+        if: github.event_name == 'release' || inputs.mac
         runs-on: macos-26
         permissions:
             contents: write
@@ -211,6 +227,8 @@ jobs:
               run: node build/rclone/fetch.mjs
             - name: Build
               run: npm run build:mac
+            - name: Generate update hashes
+              run: npm run build:hashes
             - name: Generate SHA256 hashes
               run: |
                   for file in prod/*; do
@@ -218,8 +236,6 @@ jobs:
                       shasum -a 256 "$file" | awk '{print $1}' > "$file.sha256.txt"
                     fi
                   done
-            - name: Generate update hashes
-              run: npm run build:hashes
             - name: Attach artifacts to release
               if: success() && github.event_name == 'release'
               uses: softprops/action-gh-release@v3

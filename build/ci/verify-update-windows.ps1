@@ -24,6 +24,24 @@ function Fail([string]$Message) {
         Write-Host "--- desktop.log tail ---"
         Get-Content $LogFile -Tail 40
     }
+    Write-Host "--- diagnostics ---"
+    if (Test-Path $InstallDir) {
+        $files = Get-ChildItem -Recurse -File $InstallDir -ErrorAction SilentlyContinue
+        Write-Host "${InstallDir}: $($files.Count) file(s)"
+    } else {
+        Write-Host "${InstallDir}: does not exist"
+    }
+    try {
+        $mp = Get-MpComputerStatus -ErrorAction Stop
+        Write-Host "Defender RealTimeProtectionEnabled: $($mp.RealTimeProtectionEnabled)"
+        $threats = Get-MpThreatDetection -ErrorAction SilentlyContinue | Sort-Object InitialDetectionTime -Descending | Select-Object -First 5
+        if ($threats) {
+            Write-Host "Recent Defender detections:"
+            $threats | ForEach-Object { Write-Host "  $($_.InitialDetectionTime) $($_.Resources -join ', ')" }
+        }
+    } catch {
+        Write-Host "Defender status unavailable: $_"
+    }
     exit 1
 }
 

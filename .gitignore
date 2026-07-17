@@ -15,4 +15,6 @@ tsconfig.tsbuildinfo
 docs/
 bin/rclone/
 bin/deps/
-build/*.msi__pycache__/
+build/*.msi
+__pycache__/
+*.pyc

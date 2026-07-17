@@ -20,6 +20,33 @@ $InstallDir = "C:\Program Files\Filen"
 
 function Fail([string]$Message) {
     Write-Host "FAIL: $Message" -ForegroundColor Red
+    Write-Host "--- diagnostics ---"
+    foreach ($dir in @($InstallDir, "C:\Program Files (x86)\Filen")) {
+        if (Test-Path $dir) {
+            $files = Get-ChildItem -Recurse -File $dir -ErrorAction SilentlyContinue
+            Write-Host "${dir}: $($files.Count) file(s)"
+            $files | Select-Object -First 15 | ForEach-Object { Write-Host "  $($_.FullName.Substring($dir.Length + 1)) ($($_.Length))" }
+        } else {
+            Write-Host "${dir}: does not exist"
+        }
+    }
+    try {
+        $mp = Get-MpComputerStatus -ErrorAction Stop
+        Write-Host "Defender RealTimeProtectionEnabled: $($mp.RealTimeProtectionEnabled)"
+    } catch {
+        Write-Host "Defender status unavailable: $_"
+    }
+    try {
+        $threats = Get-MpThreatDetection -ErrorAction Stop | Sort-Object InitialDetectionTime -Descending | Select-Object -First 5
+        if ($threats) {
+            Write-Host "Recent Defender detections:"
+            $threats | ForEach-Object { Write-Host "  $($_.InitialDetectionTime) $($_.Resources -join ', ')" }
+        } else {
+            Write-Host "No Defender detections recorded"
+        }
+    } catch {
+        Write-Host "Defender detection history unavailable: $_"
+    }
     exit 1
 }
 
@@ -81,9 +108,10 @@ function Assert-Installation([string]$Source) {
         Fail "[$Source] Filen.exe Authenticode signature is $($sig.Status), expected Valid"
     }
 
+    # rcedit pads the PE version resource to four parts, so 3.0.51 ships as ProductVersion 3.0.51.0.
     $expectedVersion = node -p "require('./package.json').version"
     $productVersion = (Get-Item $exe).VersionInfo.ProductVersion
-    if ($productVersion -ne $expectedVersion) {
+    if ($productVersion -ne $expectedVersion -and $productVersion -ne "$expectedVersion.0") {
         Fail "[$Source] installed ProductVersion is $productVersion, expected $expectedVersion"
     }
 

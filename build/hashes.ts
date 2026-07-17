@@ -12,11 +12,11 @@ export const artifacts = [
 	"Filen_win_arm64.exe",
 	"Filen_win_x64.exe",
 	"Filen_linux_arm64.AppImage",
-	"Filen_linux_amd64.deb",
-	"Filen_linux_x86_64.rpm",
 	"Filen_linux_x86_64.AppImage",
 	"Filen_linux_amd64.deb",
+	"Filen_linux_arm64.deb",
 	"Filen_linux_x86_64.rpm",
+	"Filen_linux_aarch64.rpm",
 	"Filen_mac_x64.zip",
 	"Filen_mac_arm64.zip",
 	"Filen_mac_x64.dmg",
@@ -76,6 +76,16 @@ export default async function main(): Promise<void> {
 				console.log("New", hash)
 
 				content.files[i].sha512 = hash
+
+				// Post-build steps can change artifact sizes too (notarize-dmg.js staples the .dmg AFTER
+				// electron-builder records the manifest), so the size must be re-synced alongside the hash -
+				// otherwise the published manifest lies about the file it points to.
+				const size = (await fs.stat(artifactPath)).size
+
+				console.log("Old size", content.files[i].size)
+				console.log("New size", size)
+
+				content.files[i].size = size
 
 				console.log(content.files[i].url, "writing...")
 
