@@ -355,7 +355,3 @@ jobs:
               run: bash build/ci/verify-install-macos.sh ${{ matrix.arch }}
             - name: Verify auto-update
               run: bash build/ci/verify-update-macos.sh ${{ matrix.arch }}
-
-    # The CDN feed clients actually poll is checked in .github/workflows/verify-cdn.yml, which runs
-    # AFTER this workflow completes - the release->CDN sync only starts once this workflow fully
-    # succeeds, so a CDN check inside this workflow would deadlock it (and block the sync).
