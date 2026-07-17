@@ -241,6 +241,12 @@ export class Updater {
 			throw new Error("No update available to install.")
 		}
 
+		// Idempotency: a second invocation (double IPC, retried bridge call) must not stack another
+		// error handler, another quitAndInstall, and another exit timer onto an install in flight.
+		if (this.desktop.isInstallingUpdate) {
+			return
+		}
+
 		this.desktop.shouldExitOnQuit = true
 		this.desktop.isInstallingUpdate = true
 
@@ -256,6 +262,15 @@ export class Updater {
 		this.desktop.driveWindow?.removeAllListeners("show")
 		this.desktop.driveWindow?.removeAllListeners("minimize")
 		this.desktop.driveWindow?.removeAllListeners("maximize")
+
+		// The windows-stay-alive design requires their close during the update quit to be unobstructed.
+		// filen-web has no beforeunload handler today, but if one is ever added (unsaved-changes guards
+		// are a common web-app addition), the renderer would prevent the unload and stall the macOS
+		// native quitAndInstall until the 30-minute failsafe. preventDefault on will-prevent-unload
+		// PERMITS the unload, keeping the invariant robust against future frontend changes.
+		this.desktop.driveWindow?.webContents.on("will-prevent-unload", e => {
+			e.preventDefault()
+		})
 
 		// Removing window-all-closed re-enables Electron's DEFAULT quit-when-all-windows-close, and the
 		// windows now stay alive through the install with their close interceptor gone - a user clicking
@@ -289,8 +304,12 @@ export class Updater {
 		// Linux polkit prompt, a failed Windows installer spawn. Without this the app lingers as a
 		// torn-down process that still holds the single-instance lock - the user cannot even restart it
 		// manually. Relaunching restores a working current-version app and the update can be retried.
+		let failsafe: ReturnType<typeof setTimeout> | undefined = undefined
+
 		const recover = (reason: string) => {
 			this.desktop.logger.log("error", `Update install failed (${reason}), relaunching the current version`)
+
+			clearTimeout(failsafe)
 
 			app.relaunch()
 			app.exit(1)
@@ -312,7 +331,7 @@ export class Updater {
 			// can't leave a windowless zombie process behind. 30 minutes: staging deep-verifies a >1 GB unpacked
 			// bundle in-process and legitimately takes many minutes on HDD-era Intel machines - a tighter cap
 			// would strand exactly the slowest cohort in a permanent install-kill loop.
-			setTimeout(() => {
+			failsafe = setTimeout(() => {
 				recover("staging did not complete within 30 minutes")
 			}, 1800000)
 
