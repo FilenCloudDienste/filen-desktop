@@ -66,9 +66,12 @@ function Get-Sha512Base64([string]$Path) {
 }
 
 function Get-FilenUninstallEntry {
+    # electron-builder writes DisplayName as "${productName} ${version}" (e.g. "Filen 3.0.51"), not
+    # the bare product name - match both shapes, but nothing like "FilenSomethingElse".
     foreach ($root in @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall")) {
         $entry = Get-ChildItem $root -ErrorAction SilentlyContinue | Where-Object {
-            (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DisplayName -eq "Filen"
+            $displayName = (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DisplayName
+            $displayName -eq "Filen" -or $displayName -like "Filen [0-9]*"
         } | Select-Object -First 1
         if ($entry) { return Get-ItemProperty $entry.PSPath }
     }
