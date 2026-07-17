@@ -1,7 +1,7 @@
 import { autoUpdater } from "electron-updater"
 import type FilenDesktop from ".."
 import { serializeError } from "../utils"
-import { app } from "electron"
+import { app, BrowserWindow } from "electron"
 import isDev from "../isDev"
 import fs from "fs-extra"
 
@@ -166,7 +166,7 @@ export class Updater {
 						}
 					}
 
-					this.installUpdate().catch(err => {
+					this.e2eInstall().catch(err => {
 						this.desktop.logger.log("error", err, "updater.e2e.installUpdate")
 						this.desktop.logger.log("error", err)
 					})
@@ -198,6 +198,42 @@ export class Updater {
 				this.desktop.logger.log("error", err)
 			})
 		}, 3600000)
+	}
+
+	private async e2eInstall(): Promise<void> {
+		// Drive the install through the SAME path a user's click takes - renderer window.desktopAPI ->
+		// preload ipcRenderer.invoke("installUpdate") -> ipcMain.handle -> installUpdate() - so CI
+		// covers the whole IPC bridge, not only the main-process method. A renamed channel or broken
+		// preload would otherwise strand real users' Update clicks while CI stays green. Falls back to
+		// the direct call if no window carries the bridge in time (e.g. only the launcher exists yet).
+		for (let attempt = 0; attempt < 20; attempt++) {
+			for (const window of BrowserWindow.getAllWindows()) {
+				if (window.isDestroyed()) {
+					continue
+				}
+
+				try {
+					const invoked = await window.webContents.executeJavaScript(
+						"typeof window.desktopAPI?.installUpdate === 'function' ? (window.desktopAPI.installUpdate(), true) : false",
+						true
+					)
+
+					if (invoked === true) {
+						this.desktop.logger.log("info", "Updater E2E: install invoked through the renderer IPC bridge")
+
+						return
+					}
+				} catch {
+					// Window not ready to execute yet - retry.
+				}
+			}
+
+			await new Promise<void>(resolve => setTimeout(resolve, 500))
+		}
+
+		this.desktop.logger.log("warn", "Updater E2E: no renderer bridge available, invoking installUpdate directly")
+
+		await this.installUpdate()
 	}
 
 	public async installUpdate(): Promise<void> {
