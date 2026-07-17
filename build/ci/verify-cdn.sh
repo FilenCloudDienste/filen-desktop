@@ -8,19 +8,27 @@
 # each manifest on the CDN must equal the release asset, and every files[] url it lists must be
 # HEAD-able on the CDN with the size the manifest promises.
 #
-# The release->CDN sync is external and may lag; retries for up to ~30 minutes before failing.
+# The release->CDN sync starts when the build workflow succeeds and this check starts at the same
+# moment (workflow_run trigger), so it retries for up to ~30 minutes while the sync runs.
 #
-# Usage: verify-cdn.sh <release-tag>   (requires gh + GH_TOKEN)
+# Usage: verify-cdn.sh [release-tag]   (requires gh + GH_TOKEN; defaults to the latest release,
+# which is what the CDN's /release/latest/ path mirrors)
 
 set -euo pipefail
 
-TAG="$1"
+TAG="${1:-}"
 CDN_BASE="https://cdn.filen.io/@filen/desktop/release/latest"
 MANIFESTS=(latest.yml latest-mac.yml latest-linux.yml latest-linux-arm64.yml)
 WORK="$(mktemp -d /tmp/filen-cdn.XXXXXX)"
 trap 'rm -rf "$WORK"' EXIT
 
-gh release download "$TAG" --pattern "latest*.yml" --dir "$WORK/release"
+if [ -n "$TAG" ]; then
+	gh release download "$TAG" --pattern "latest*.yml" --dir "$WORK/release"
+else
+	TAG="$(gh release view --json tagName --jq .tagName)"
+	echo "Comparing CDN against the latest release: $TAG"
+	gh release download "$TAG" --pattern "latest*.yml" --dir "$WORK/release"
+fi
 
 for manifest in "${MANIFESTS[@]}"; do
 	[ -f "$WORK/release/$manifest" ] || {
