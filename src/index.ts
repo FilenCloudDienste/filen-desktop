@@ -139,6 +139,13 @@ export class FilenDesktop {
 
 			await this.createLauncherWindow()
 
+			// CI update E2E (verify jobs in build.yml): initialize the updater immediately so the check does not
+			// depend on SDK/worker/login state on a fresh runner. Updater.initialize() is idempotent, so the
+			// regular post-window call below stays harmless.
+			if (process.env.FILEN_E2E_UPDATER === "1") {
+				this.updater.initialize()
+			}
+
 			this.initializeSDK()
 
 			app.on("window-all-closed", () => {

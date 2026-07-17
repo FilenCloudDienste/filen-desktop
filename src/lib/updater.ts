@@ -17,14 +17,44 @@ export class Updater {
 	public updateDownloaded: boolean = false
 	public updateAvailable: boolean = false
 	private interval: ReturnType<typeof setInterval> | undefined = undefined
+	private e2eAutoInstall: boolean = false
+	private initialized: boolean = false
 
 	public constructor(desktop: FilenDesktop) {
 		this.desktop = desktop
 	}
 
 	public initialize(): void {
-		if (isDev) {
+		// Idempotent: called from the regular post-window path and, in CI E2E mode, once more right after
+		// app-ready - a second call must not double-register the autoUpdater listeners.
+		if (isDev || this.initialized) {
 			return
+		}
+
+		this.initialized = true
+
+		// CI end-to-end update testing (verify jobs in .github/workflows/build.yml): FILEN_E2E_UPDATER=1 points the
+		// updater at a LOOPBACK feed from FILEN_E2E_UPDATE_FEED and installs a downloaded update without the user
+		// prompt. Only plain http to 127.0.0.1/localhost is honored, so this can never redirect a production client
+		// to a remote feed - an attacker who can set env vars and serve loopback HTTP on the victim's machine can
+		// already replace user-writable installs directly.
+		if (process.env.FILEN_E2E_UPDATER === "1" && process.env.FILEN_E2E_UPDATE_FEED) {
+			try {
+				const feed = new URL(process.env.FILEN_E2E_UPDATE_FEED)
+
+				if (feed.protocol === "http:" && (feed.hostname === "127.0.0.1" || feed.hostname === "localhost")) {
+					this.e2eAutoInstall = true
+
+					autoUpdater.setFeedURL({
+						provider: "generic",
+						url: feed.toString()
+					})
+
+					this.desktop.logger.log("info", `Updater E2E mode enabled, feed: ${feed.toString()}`)
+				}
+			} catch (e) {
+				this.desktop.logger.log("error", e, "updater.e2e.feed")
+			}
 		}
 
 		autoUpdater.on("checking-for-update", () => {
@@ -102,6 +132,15 @@ export class Updater {
 					info
 				}
 			})
+
+			if (this.e2eAutoInstall) {
+				setTimeout(() => {
+					this.installUpdate().catch(err => {
+						this.desktop.logger.log("error", err, "updater.e2e.installUpdate")
+						this.desktop.logger.log("error", err)
+					})
+				}, 2000)
+			}
 		})
 
 		autoUpdater.on("update-cancelled", () => {
