@@ -1,11 +1,17 @@
 # Auto-update end-to-end check on a real runner of the target arch.
 #
-# Installs the candidate build, then serves the candidate's UNIVERSAL installer back to it from a
-# loopback feed that claims version 9.9.9 (electron-updater only compares the manifest version, so
-# the same artifact can play the "next release"). The app runs with FILEN_E2E_UPDATER=1, which makes
-# the updater use the loopback feed and confirm the install without a user click (see
-# src/lib/updater.ts). Success means the real production pipeline ran end to end on this arch:
-# check -> download -> sha512 verify -> elevate.exe -> silent NSIS reinstall -> relaunch.
+# Installs the candidate build (universal installer - what deployed clients ran), then serves the
+# REAL latest.yml back to it with only the version rewritten to 9.9.9, from a loopback feed. The app
+# runs with FILEN_E2E_UPDATER=1 (loopback feed + auto-confirmed install, one-shot via
+# FILEN_E2E_ONCE_FILE - see src/lib/updater.ts). Because the feed carries the production manifest
+# shape, the app's own findFile/arch selection picks the same installer real 6.8.x clients get
+# (the arch-specific exe); the universal is covered by verify-install. Success means the production
+# pipeline ran end to end: check -> arch selection -> download -> sha512 verify -> elevate.exe ->
+# silent NSIS reinstall (--updated --force-run) -> auto-relaunch.
+#
+# Swap detection: NSIS may preserve payload mtimes, so a canary file planted in the install dir is
+# the primary signal - the update's uninstall-then-reinstall removes it. Relaunch: a new Filen
+# process appears after the canary vanishes.
 #
 # Usage: verify-update-windows.ps1 -Arch x64|arm64   (artifacts expected in .\prod)
 
@@ -18,100 +24,93 @@ $InstallDir = "C:\Program Files\Filen"
 $FeedPort = 8123
 $LogFile = Join-Path $env:APPDATA "@filen\logs\desktop.log"
 
+. "$PSScriptRoot\win-common.ps1"
+
 function Fail([string]$Message) {
     Write-Host "FAIL: $Message" -ForegroundColor Red
     if (Test-Path $LogFile) {
-        Write-Host "--- desktop.log tail ---"
-        Get-Content $LogFile -Tail 40
+        Write-Host "--- desktop.log updater lines ---"
+        Select-String -Path $LogFile -Pattern "updater|Update|Installing" | Select-Object -Last 40 | ForEach-Object { Write-Host $_.Line }
     }
-    Write-Host "--- diagnostics ---"
-    if (Test-Path $InstallDir) {
-        $files = Get-ChildItem -Recurse -File $InstallDir -ErrorAction SilentlyContinue
-        Write-Host "${InstallDir}: $($files.Count) file(s)"
-    } else {
-        Write-Host "${InstallDir}: does not exist"
-    }
-    try {
-        $mp = Get-MpComputerStatus -ErrorAction Stop
-        Write-Host "Defender RealTimeProtectionEnabled: $($mp.RealTimeProtectionEnabled)"
-        $threats = Get-MpThreatDetection -ErrorAction SilentlyContinue | Sort-Object InitialDetectionTime -Descending | Select-Object -First 5
-        if ($threats) {
-            Write-Host "Recent Defender detections:"
-            $threats | ForEach-Object { Write-Host "  $($_.InitialDetectionTime) $($_.Resources -join ', ')" }
-        }
-    } catch {
-        Write-Host "Defender status unavailable: $_"
-    }
+    Write-Diagnostics
     exit 1
 }
 
-function Get-Sha512Base64([string]$Path) {
-    $sha = [System.Security.Cryptography.SHA512]::Create()
-    $stream = [System.IO.File]::OpenRead($Path)
-    try {
-        $hash = $sha.ComputeHash($stream)
-    } finally {
-        $stream.Close()
-    }
-    return [Convert]::ToBase64String($hash)
-}
-
-# 1. Ensure the candidate build is installed.
+# 1. Ensure the candidate build is installed (universal - the fleet's installer).
 if (-not (Test-Path (Join-Path $InstallDir "Filen.exe"))) {
-    Write-Host "Installing candidate build first..."
-    $p = Start-Process -FilePath "prod\Filen_win_$Arch.exe" -ArgumentList "/S" -PassThru -Wait
-    if ($p.ExitCode -ne 0) {
-        Fail "candidate install exited with code $($p.ExitCode)"
-    }
+    Invoke-SilentInstall "prod\Filen_win.exe" ${function:Fail}
 }
 
-# 2. Build the loopback feed: universal installer under its production name + a manifest claiming 9.9.9.
+# 2. Loopback feed: the REAL manifest with version rewritten to 9.9.9, plus every exe it lists.
 $feedDir = Join-Path $env:TEMP "filen-update-feed"
 if (Test-Path $feedDir) { Remove-Item -Recurse -Force $feedDir }
 New-Item -ItemType Directory -Path $feedDir | Out-Null
-Copy-Item "prod\Filen_win.exe" (Join-Path $feedDir "Filen.exe.download")
-Move-Item (Join-Path $feedDir "Filen.exe.download") (Join-Path $feedDir "Filen_win.exe")
-$sha = Get-Sha512Base64 (Join-Path $feedDir "Filen_win.exe")
-$size = (Get-Item (Join-Path $feedDir "Filen_win.exe")).Length
-@"
-version: 9.9.9
-files:
-  - url: Filen_win.exe
-    sha512: $sha
-    size: $size
-    isAdminRightsRequired: true
-path: Filen_win.exe
-sha512: $sha
-releaseDate: '2026-01-01T00:00:00.000Z'
-"@ | Out-File -FilePath (Join-Path $feedDir "latest.yml") -Encoding ascii
+(Get-Content "prod\latest.yml" -Raw) -replace "(?m)^version:.*$", "version: 9.9.9" | Out-File -FilePath (Join-Path $feedDir "latest.yml") -Encoding ascii
+foreach ($exe in @("Filen_win.exe", "Filen_win_x64.exe", "Filen_win_arm64.exe")) {
+    Copy-Item "prod\$exe" (Join-Path $feedDir $exe)
+}
 
-$server = Start-Process -FilePath "python" -ArgumentList "-m", "http.server", "$FeedPort", "--bind", "127.0.0.1", "--directory", $feedDir -PassThru -WindowStyle Hidden
+$python = Get-PythonCommand
+$serverCmd = $python + @("-m", "http.server", "$FeedPort", "--bind", "127.0.0.1", "--directory", $feedDir)
+$server = Start-Process -FilePath $serverCmd[0] -ArgumentList $serverCmd[1..($serverCmd.Count - 1)] -PassThru -WindowStyle Hidden
 
 try {
+    # Feed readiness - a dead server must fail here, not as a misleading timeout later.
+    $ready = $false
+    foreach ($i in 1..10) {
+        try {
+            $null = Invoke-WebRequest -Uri "http://127.0.0.1:$FeedPort/latest.yml" -UseBasicParsing -TimeoutSec 3
+            $ready = $true
+            break
+        } catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    if (-not $ready) { Fail "loopback feed server did not become ready on port $FeedPort" }
+
     if (Test-Path $LogFile) { Remove-Item -Force $LogFile }
     $exePath = Join-Path $InstallDir "Filen.exe"
-    $beforeWrite = (Get-Item $exePath).LastWriteTimeUtc
+    $canary = Join-Path $InstallDir "resources\e2e-canary"
+    Set-Content -Path $canary -Value "e2e"
+    $onceFile = Join-Path $env:TEMP "filen-e2e-once"
+    if (Test-Path $onceFile) { Remove-Item -Force $onceFile }
 
     # 3. Launch the installed app in E2E updater mode.
     $env:FILEN_E2E_UPDATER = "1"
     $env:FILEN_E2E_UPDATE_FEED = "http://127.0.0.1:$FeedPort/"
+    $env:FILEN_E2E_ONCE_FILE = $onceFile
+    $launchTime = Get-Date
     $app = Start-Process -FilePath $exePath -PassThru
     $env:FILEN_E2E_UPDATER = $null
     $env:FILEN_E2E_UPDATE_FEED = $null
+    $env:FILEN_E2E_ONCE_FILE = $null
 
-    # 4. Wait for the full cycle: download -> installUpdate -> app exits -> NSIS rewrites files -> relaunch.
+    # E2E engagement must be provable early - otherwise a rejected feed override silently checks the
+    # production CDN and burns the whole timeout.
+    $engaged = $false
+    foreach ($i in 1..12) {
+        Start-Sleep -Seconds 5
+        if ((Test-Path $LogFile) -and (Select-String -Path $LogFile -Pattern "Updater E2E mode enabled" -Quiet)) {
+            $engaged = $true
+            break
+        }
+    }
+    if (-not $engaged) { Fail "E2E feed override did not engage within 60s" }
+
+    # 4. Wait for the full cycle: download -> installUpdate -> app exits -> NSIS reinstall (canary
+    #    removed by uninstallOldVersion) -> --force-run relaunch.
     $deadline = (Get-Date).AddMinutes(15)
-    $rewritten = $false
+    $reinstalled = $false
     $relaunched = $false
     while ((Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 5
-        if (-not $rewritten) {
-            if ((Test-Path $exePath) -and ((Get-Item $exePath).LastWriteTimeUtc -gt $beforeWrite)) {
-                $rewritten = $true
-                Write-Host "Filen.exe was rewritten by the update installer"
+        if (-not $reinstalled) {
+            if ((-not (Test-Path $canary)) -and (Test-Path $exePath)) {
+                $reinstalled = $true
+                Write-Host "Canary removed - update installer reinstalled the app"
             }
         } else {
-            $running = Get-Process -Name "Filen" -ErrorAction SilentlyContinue
+            $running = Get-Process -Name "Filen" -ErrorAction SilentlyContinue | Where-Object { $_.StartTime -gt $launchTime -and $_.Id -ne $app.Id }
             if ($running) {
                 $relaunched = $true
                 Write-Host "App relaunched after update (pid $($running[0].Id))"
@@ -120,33 +119,31 @@ try {
         }
     }
 
-    if (-not $rewritten) { Fail "update installer never rewrote $exePath within the timeout" }
+    if (-not $reinstalled) { Fail "update installer never reinstalled the app (canary still present) within the timeout" }
     if (-not $relaunched) { Fail "app did not relaunch after the update installer ran" }
 
     $log = Get-Content $LogFile -Raw
     if ($log -notmatch "Update downloaded") { Fail "desktop.log has no 'Update downloaded' entry" }
     if ($log -notmatch "Installing update") { Fail "desktop.log has no 'Installing update' entry" }
+    # 6.8.x findFile arch-prefers, so the arch-specific installer must be the one downloaded.
+    if ($log -notmatch [regex]::Escape("Filen_win_$Arch.exe")) {
+        Fail "desktop.log never mentions Filen_win_$Arch.exe - the updater selected a different installer than real $Arch clients would"
+    }
 
-    # 5. Post-update completeness: the updated tree must contain every payload file.
+    # 5. Post-update: wait for installer processes to finish, then re-assert the full installation
+    #    (arch, signature, completeness) - an update that lays down a wrong-arch or truncated payload
+    #    must fail here.
     Get-Process -Name "Filen" -ErrorAction SilentlyContinue | Stop-Process -Force
+    foreach ($i in 1..24) {
+        $busy = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "Filen_win*" -or $_.Name -eq "elevate" }
+        if (-not $busy) { break }
+        Start-Sleep -Seconds 5
+    }
     Start-Sleep -Seconds 2
-    $refDir = Join-Path $env:TEMP "filen-ref-$Arch"
-    if (-not (Test-Path (Join-Path $refDir "Filen.exe"))) {
-        if (Test-Path $refDir) { Remove-Item -Recurse -Force $refDir }
-        Expand-Archive -Path "prod\Filen_win_$Arch.zip" -DestinationPath $refDir
-    }
-    $missing = 0
-    foreach ($ref in (Get-ChildItem -Recurse -File $refDir)) {
-        $relative = $ref.FullName.Substring($refDir.Length + 1)
-        if (-not (Test-Path (Join-Path $InstallDir $relative))) {
-            Write-Host "MISSING AFTER UPDATE: $relative"
-            $missing++
-        }
-    }
-    if ($missing -gt 0) { Fail "$missing payload file(s) missing after the auto-update reinstall" }
+    Assert-Installation "post-update" $Arch ${function:Fail}
 
     Write-Host "verify-update-windows PASSED for $Arch"
 } finally {
-    Get-Process -Name "Filen" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq "Filen" -or $_.Name -like "Filen_win*" -or $_.Name -eq "elevate" } | Stop-Process -Force -ErrorAction SilentlyContinue
     if ($server -and -not $server.HasExited) { Stop-Process -Id $server.Id -Force }
 }

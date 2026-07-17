@@ -2,6 +2,22 @@
 
 RequestExecutionLevel admin
 
+!macro customInit
+  ; electron-builder's multiUser.nsh only upgrades the default install dir to $PROGRAMFILES64 under
+  ; "!ifdef APP_64", and the arm64-only installer defines APP_ARM64 instead - so on Windows-on-ARM the
+  ; x86 NSIS stub's $PROGRAMFILES ("C:\Program Files (x86)") wins and fresh installs land in the wrong
+  ; root. Correct exactly that default: only when the machine is native ARM64 AND $INSTDIR still equals
+  ; the wrong default (which preserves /D= overrides and registry-recorded install locations, and lets
+  ; an existing (x86) install migrate cleanly on its next update since the old copy is uninstalled via
+  ; the registry path first). No-op for the x64 and universal installers, whose APP_64 branch already
+  ; picked $PROGRAMFILES64. Upstream bug, still present in electron-builder master.
+  ${If} ${IsNativeARM64}
+    ${If} $INSTDIR == "$PROGRAMFILES\${APP_FILENAME}"
+      StrCpy $INSTDIR "$PROGRAMFILES64\${APP_FILENAME}"
+    ${EndIf}
+  ${EndIf}
+!macroend
+
 !macro customInstall
   UserInfo::GetAccountType
   Pop $0

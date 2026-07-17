@@ -18,8 +18,10 @@ on:
                 type: boolean
                 default: true
 
+# Keyed by event + ref so a workflow_dispatch cannot cancel a release run's verify jobs mid-flight
+# (a cancelled verify is not a red verify - it would leave a release with no verdict at all).
 concurrency:
-    group: "build"
+    group: "build-${{ github.event_name }}-${{ github.ref }}"
     cancel-in-progress: true
 
 jobs:
@@ -353,3 +355,22 @@ jobs:
               run: bash build/ci/verify-install-macos.sh ${{ matrix.arch }}
             - name: Verify auto-update
               run: bash build/ci/verify-update-macos.sh ${{ matrix.arch }}
+
+    # Clients never see the built artifacts - they poll cdn.filen.io. On releases, assert the CDN
+    # serves exactly the manifests attached to the release and every artifact they point at.
+    verifyCdn:
+        name: Verify CDN feed matches the release
+        if: github.event_name == 'release'
+        needs: [buildWindows, buildLinux, buildMac]
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        permissions:
+            contents: read
+        env:
+            GH_TOKEN: ${{ github.token }}
+            RELEASE_TAG: ${{ github.event.release.tag_name }}
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v7
+            - name: Compare CDN manifests and artifacts against the release
+              run: bash build/ci/verify-cdn.sh "$RELEASE_TAG"

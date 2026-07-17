@@ -3,6 +3,7 @@ import type FilenDesktop from ".."
 import { serializeError } from "../utils"
 import { BrowserWindow, app } from "electron"
 import isDev from "../isDev"
+import fs from "fs-extra"
 
 autoUpdater.allowDowngrade = false
 autoUpdater.autoDownload = true
@@ -32,6 +33,16 @@ export class Updater {
 		}
 
 		this.initialized = true
+
+		// Route electron-updater's internal log stream (native Squirrel handoff, proxy server, file selection,
+		// download/verify steps) into desktop.log - without this, the information needed to diagnose update
+		// failures in the field is discarded.
+		autoUpdater.logger = {
+			info: (message: unknown) => this.desktop.logger.log("info", `updater: ${message}`),
+			warn: (message: unknown) => this.desktop.logger.log("warn", `updater: ${message}`),
+			error: (message: unknown) => this.desktop.logger.log("error", `updater: ${message}`),
+			debug: (message: unknown) => this.desktop.logger.log("info", `updater: ${message}`)
+		}
 
 		// CI end-to-end update testing (verify jobs in .github/workflows/build.yml): FILEN_E2E_UPDATER=1 points the
 		// updater at a LOOPBACK feed from FILEN_E2E_UPDATE_FEED and installs a downloaded update without the user
@@ -134,7 +145,27 @@ export class Updater {
 			})
 
 			if (this.e2eAutoInstall) {
+				// One-shot guard: the relaunched post-update instance inherits the E2E env on Windows and
+				// Linux, so without a marker it would immediately re-install in an endless loop. The marker
+				// file is created before the first install; the relaunched instance sees it, still logs its
+				// E2E lines (CI uses those as relaunch-liveness evidence), but does not install again.
+				const onceFile = process.env.FILEN_E2E_ONCE_FILE
+
+				if (onceFile && fs.existsSync(onceFile)) {
+					this.desktop.logger.log("info", "Updater E2E: install already performed, skipping auto-install")
+
+					return
+				}
+
 				setTimeout(() => {
+					if (onceFile) {
+						try {
+							fs.writeFileSync(onceFile, String(Date.now()))
+						} catch (e) {
+							this.desktop.logger.log("error", e, "updater.e2e.onceFile")
+						}
+					}
+
 					this.installUpdate().catch(err => {
 						this.desktop.logger.log("error", err, "updater.e2e.installUpdate")
 						this.desktop.logger.log("error", err)
@@ -175,6 +206,7 @@ export class Updater {
 		}
 
 		this.desktop.shouldExitOnQuit = true
+		this.desktop.isInstallingUpdate = true
 
 		this.desktop.logger.log("info", "Installing update")
 
@@ -186,7 +218,12 @@ export class Updater {
 		this.desktop.driveWindow?.removeAllListeners("minimize")
 		this.desktop.driveWindow?.removeAllListeners("maximize")
 
-		await this.desktop.worker.stop().catch(err => {
+		// A dead worker's stop() can never settle (invoke against a gone thread) - without a bound, the
+		// install would silently never reach quitAndInstall.
+		await Promise.race([
+			this.desktop.worker.stop(),
+			new Promise<void>(resolve => setTimeout(resolve, 15000))
+		]).catch(err => {
 			this.desktop.logger.log("error", err, "updater.installUpdate")
 			this.desktop.logger.log("error", err)
 		})
@@ -206,12 +243,14 @@ export class Updater {
 			// electron-updater quits and relaunches via ShipIt on its own once staging completes
 			// (autoRunAppAfterInstall), so a fixed exit timer here kills staging mid-flight and the update never
 			// installs. Exit only if the updater errors, with a generous failsafe so a silently hung Squirrel
-			// can't leave a windowless zombie process behind.
+			// can't leave a windowless zombie process behind. 30 minutes: staging deep-verifies a >1 GB unpacked
+			// bundle in-process and legitimately takes many minutes on HDD-era Intel machines - a tighter cap
+			// would strand exactly the slowest cohort in a permanent install-kill loop.
 			const failsafe = setTimeout(() => {
-				this.desktop.logger.log("error", "Update did not install within 10 minutes, exiting")
+				this.desktop.logger.log("error", "Update did not install within 30 minutes, exiting")
 
 				app.exit(1)
-			}, 600000)
+			}, 1800000)
 
 			autoUpdater.once("error", err => {
 				clearTimeout(failsafe)
@@ -223,14 +262,18 @@ export class Updater {
 			})
 
 			autoUpdater.quitAndInstall(true, true)
+		} else if (process.platform === "win32") {
+			// isSilent=true: the assisted (oneClick:false) installer honors --force-run ONLY in silent mode -
+			// non-silent, the wizard parks on the Finish page and the app never relaunches until the user
+			// clicks. Silent + --force-run reinstalls in the background and auto-relaunches, which is the
+			// right UX for a tray app and what the CI update E2E asserts.
+			autoUpdater.quitAndInstall(true, true)
+
+			setTimeout(() => {
+				app.exit(0)
+			}, 1000)
 		} else {
 			autoUpdater.quitAndInstall(false, true)
-
-			if (process.platform === "win32") {
-				setTimeout(() => {
-					app.exit(0)
-				}, 1000)
-			}
 		}
 	}
 }

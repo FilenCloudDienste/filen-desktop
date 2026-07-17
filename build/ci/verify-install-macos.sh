@@ -63,21 +63,59 @@ assert_app() {
 		exit 1
 	}
 
-	echo "OK [$source]: $LIPO_ARCH v$version, codesign + Gatekeeper + designated requirement pass"
+	grep -q "^url: https://cdn.filen.io/@filen/desktop/release/latest/" "$app/Contents/Resources/app-update.yml" || {
+		echo "FAIL [$source]: app-update.yml does not point at the production CDN feed"
+		exit 1
+	}
+
+	if grep -q "^channel:" "$app/Contents/Resources/app-update.yml"; then
+		echo "FAIL [$source]: app-update.yml carries an unexpected channel key (would change the requested manifest filename)"
+		exit 1
+	fi
+
+	xcrun stapler validate "$app" || {
+		echo "FAIL [$source]: notarization ticket is not stapled to the app"
+		exit 1
+	}
+
+	echo "OK [$source]: $LIPO_ARCH v$version, codesign + Gatekeeper + staple + designated requirement pass"
 }
 
-# 1. Feed manifest sanity (deployed clients trust latest-mac.yml blindly; minimumSystemVersion
-#    keeps Big Sur clients off Electron 43+ builds).
-python3 build/ci/check-feed.py prod/latest-mac.yml prod --require-minimum-system-version
+# 1. Feed manifest sanity: exact file set, version, and the minimumSystemVersion VALUE (electron-
+#    updater compares it against os.release() and fails OPEN on a bad value, so "present" is not
+#    enough - a product-style "12.0" here would offer Electron 43 to Big Sur and brick it).
+python3 build/ci/check-feed.py prod/latest-mac.yml prod \
+	--expect Filen_mac_x64.zip --expect Filen_mac_arm64.zip \
+	--expect Filen_mac_x64.dmg --expect Filen_mac_arm64.dmg \
+	--expect-version "$EXPECTED_VERSION" \
+	--minimum-system-version 21.0.0
 
 # 2. The zip - this exact archive is what Squirrel.Mac stages during auto-update.
 ditto -x -k "prod/Filen_mac_${ARCH}.zip" "$WORK/zip"
 assert_app "$WORK/zip/Filen.app" "Filen_mac_${ARCH}.zip"
 
-# 3. The dmg - the website download.
+# 3. The dmg - the website download. The dmg FILE itself must be notarized/stapled (notarize-dmg.js
+#    soft-skips without Apple creds, and an unstapled dmg trips Gatekeeper on user machines even
+#    when the app inside is fine).
+xcrun stapler validate "prod/Filen_mac_${ARCH}.dmg" || {
+	echo "FAIL: notarization ticket is not stapled to the dmg (notarize-dmg.js skipped or failed)"
+	exit 1
+}
+
 hdiutil attach -nobrowse -readonly -mountpoint "$WORK/dmg-mount" "prod/Filen_mac_${ARCH}.dmg" >/dev/null
 ditto "$WORK/dmg-mount/Filen.app" "$WORK/dmg-app/Filen.app"
-hdiutil detach "$WORK/dmg-mount" >/dev/null
+
+# Transient "Resource busy" (Spotlight scanning the fresh mount) is a classic CI flake - retry, then force.
+detached=""
+for _ in 1 2 3; do
+	if hdiutil detach "$WORK/dmg-mount" >/dev/null 2>&1; then
+		detached=1
+		break
+	fi
+	sleep 2
+done
+[ -n "$detached" ] || hdiutil detach -force "$WORK/dmg-mount" >/dev/null 2>&1 || true
+
 assert_app "$WORK/dmg-app/Filen.app" "Filen_mac_${ARCH}.dmg"
 
 echo "verify-install-macos PASSED for $ARCH"

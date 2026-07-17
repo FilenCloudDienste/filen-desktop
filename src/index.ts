@@ -56,6 +56,7 @@ export class FilenDesktop {
 	public status: Status
 	public options: Options
 	public shouldExitOnQuit: boolean = false
+	public isInstallingUpdate: boolean = false
 
 	/**
 	 * Creates an instance of FilenDesktop.
@@ -486,8 +487,17 @@ export class FilenDesktop {
 }
 
 if (IS_ELECTRON) {
-	new FilenDesktop().initialize().catch(err => {
+	const desktop = new FilenDesktop()
+
+	desktop.initialize().catch(err => {
 		console.error(err)
+
+		// An in-flight update install intentionally tears down windows and the worker, which can reject
+		// still-awaiting startup steps and land here. Exiting now would kill Squirrel.Mac staging (or the
+		// installer handoff) mid-flight - the updater owns process exit in this state.
+		if (desktop.isInstallingUpdate) {
+			return
+		}
 
 		dialog.showErrorBox("Could not launch Filen", err instanceof Error ? err.message : "Unknown error")
 
