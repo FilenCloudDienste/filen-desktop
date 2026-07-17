@@ -1,7 +1,7 @@
 import { autoUpdater } from "electron-updater"
 import type FilenDesktop from ".."
 import { serializeError } from "../utils"
-import { BrowserWindow, app } from "electron"
+import { app } from "electron"
 import isDev from "../isDev"
 import fs from "fs-extra"
 
@@ -228,14 +228,30 @@ export class Updater {
 			this.desktop.logger.log("error", err)
 		})
 
-		try {
-			for (const window of BrowserWindow.getAllWindows()) {
-				window.destroy()
-			}
-		} catch (e) {
-			this.desktop.logger.log("error", e, "updater.installUpdate.destroyWindows")
-			this.desktop.logger.log("error", e)
+		// The frontend shows a blocking "installing update" overlay from the moment the user confirms
+		// (filen-web desktopUpdate.tsx) and awaits this IPC - keep the windows ALIVE so that overlay stays
+		// visible through the entire install: Squirrel staging on macOS, the installer handoff on Windows,
+		// the package-manager run (including its polkit prompt) on Linux. Each platform's mechanism quits
+		// the app itself when it is ready to swap, which closes the window naturally. Destroying the
+		// windows here (the old behavior) made the app vanish seconds before anything happened.
+
+		// Unified failure recovery for every platform: a rejected macOS Squirrel staging, a cancelled
+		// Linux polkit prompt, a failed Windows installer spawn. Without this the app lingers as a
+		// torn-down process that still holds the single-instance lock - the user cannot even restart it
+		// manually. Relaunching restores a working current-version app and the update can be retried.
+		const recover = (reason: string) => {
+			this.desktop.logger.log("error", `Update install failed (${reason}), relaunching the current version`)
+
+			app.relaunch()
+			app.exit(1)
 		}
+
+		autoUpdater.once("error", err => {
+			this.desktop.logger.log("error", err, "updater.installUpdate.quitAndInstall")
+			this.desktop.logger.log("error", err)
+
+			recover("updater error")
+		})
 
 		if (process.platform === "darwin") {
 			// With autoInstallOnAppQuit=false, Squirrel.Mac staging (proxy download -> extraction -> signature
@@ -246,20 +262,9 @@ export class Updater {
 			// can't leave a windowless zombie process behind. 30 minutes: staging deep-verifies a >1 GB unpacked
 			// bundle in-process and legitimately takes many minutes on HDD-era Intel machines - a tighter cap
 			// would strand exactly the slowest cohort in a permanent install-kill loop.
-			const failsafe = setTimeout(() => {
-				this.desktop.logger.log("error", "Update did not install within 30 minutes, exiting")
-
-				app.exit(1)
+			setTimeout(() => {
+				recover("staging did not complete within 30 minutes")
 			}, 1800000)
-
-			autoUpdater.once("error", err => {
-				clearTimeout(failsafe)
-
-				this.desktop.logger.log("error", err, "updater.installUpdate.quitAndInstall")
-				this.desktop.logger.log("error", err)
-
-				app.exit(1)
-			})
 
 			autoUpdater.quitAndInstall(true, true)
 		} else if (process.platform === "win32") {
@@ -273,7 +278,15 @@ export class Updater {
 				app.exit(0)
 			}, 1000)
 		} else {
+			// BaseUpdater runs install() synchronously (dpkg/dnf via pkexec, or the AppImage swap) before
+			// quitAndInstall returns and then quits itself - the timer only guards a stuck quit, mirroring
+			// the Windows branch. It is armed AFTER the synchronous install, so a long polkit prompt can
+			// never be cut short by it.
 			autoUpdater.quitAndInstall(false, true)
+
+			setTimeout(() => {
+				app.exit(0)
+			}, 1500)
 		}
 	}
 }
