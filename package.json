@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.52",
-	"buildNumber": 352,
+	"version": "3.0.53",
+	"buildNumber": 353,
 	"desktopName": "Filen.desktop",
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
@@ -65,7 +65,7 @@
 	},
 	"dependencies": {
 		"@filen/sdk": "^0.4.2",
-		"@filen/sync": "^0.3.6",
+		"@filen/sync": "^0.3.7",
 		"@filen/web": "^0.2.3",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
