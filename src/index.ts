@@ -172,13 +172,7 @@ export class FilenDesktop {
 					return
 				}
 
-				if (this.driveWindow) {
-					if (this.driveWindow.isMinimized()) {
-						this.driveWindow.restore()
-					}
-
-					this.driveWindow.focus()
-				}
+				this.showOrOpenDriveWindow()
 			})
 
 			app.setAppUserModelId("io.filen.desktop")
