@@ -51,7 +51,7 @@
 		"@types/write-file-atomic": "^4.0.3",
 		"cross-env": "^7.0.3",
 		"dotenv": "^16.4.5",
-		"electron": "^43.0.0",
+		"electron": "^43.8.12",
 		"electron-builder": "^26.15.5",
 		"eslint": "^9.39.4",
 		"globals": "^17.7.0",
