@@ -63,6 +63,9 @@ python3 build/ci/check-feed.py "prod/$YML" prod \
 	"${FORBID[@]}"
 
 # 2. deb - native install on this runner.
+# Refresh the image's baked-in apt index first: once Ubuntu supersedes a package the old pool file 404s
+# and `apt-get install -f` cannot pull the deb's dependencies (v3.0.54 arm64: libegl-mesa0).
+sudo apt-get update -qq
 sudo dpkg -i "prod/$DEB" || sudo apt-get install -f -y
 [ -x /opt/Filen/Filen ] || fail "deb: /opt/Filen/Filen missing or not executable after install"
 file /opt/Filen/Filen | grep -q "$FILE_ARCH" || fail "deb: Filen binary is not $FILE_ARCH: $(file /opt/Filen/Filen)"
