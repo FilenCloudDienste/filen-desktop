@@ -65,7 +65,7 @@
 	},
 	"dependencies": {
 		"@filen/sdk": "^0.4.2",
-		"@filen/sync": "^0.3.7",
+		"@filen/sync": "^0.3.8",
 		"@filen/web": "^0.2.3",
 		"axios": "^0.28.1",
 		"cors": "^2.8.5",
