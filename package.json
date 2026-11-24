@@ -1,7 +1,7 @@
 {
 	"name": "@filen/desktop",
-	"version": "3.0.54",
-	"buildNumber": 354,
+	"version": "3.0.55",
+	"buildNumber": 355,
 	"desktopName": "Filen.desktop",
 	"description": "Filen Desktop Client",
 	"author": "Filen Cloud Dienste UG (haftungsbeschränkt) <support@filen.io>",
