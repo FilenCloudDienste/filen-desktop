@@ -131,6 +131,7 @@ export class FilenDesktop {
 			}
 
 			const options = await this.options.get()
+			this.minimizeToTray = options.minimizeToTray ?? false
 
 			await app.whenReady()
 
@@ -173,10 +174,7 @@ export class FilenDesktop {
 				}
 
 				if (this.driveWindow) {
-					if (this.driveWindow.isMinimized()) {
-						this.driveWindow.restore()
-					}
-
+					this.showOrOpenDriveWindow()
 					this.driveWindow.focus()
 				}
 			})
@@ -397,8 +395,8 @@ export class FilenDesktop {
 		})
 
 		this.driveWindow?.on("close", e => {
-			// An explicit quit, or an already-minimized window, closes normally.
-			if (this.shouldExitOnQuit || this.driveWindow?.isMinimized()) {
+			// Explicit quit always closes normally. Linux tray mode must also keep already-minimized windows alive.
+			if (this.shouldExitOnQuit || (process.platform !== "linux" && this.driveWindow?.isMinimized())) {
 				return
 			}
 
@@ -416,11 +414,14 @@ export class FilenDesktop {
 					app?.dock?.hide()
 				}
 			} else if (this.minimizeToTray) {
-				// Windows/Linux "minimize to tray" - unchanged. The renderer's window controls drive the hide-to-tray path;
-				// this minimize is the fallback for OS-level closes (Alt+F4, taskbar close) when tray mode is on.
 				e.preventDefault()
 
-				this.driveWindow?.minimize()
+				if (process.platform === "linux") {
+					// Hide the window without closing its renderer or stopping sync. Wayland compositors may not support minimize.
+					this.driveWindow?.hide()
+				} else {
+					this.driveWindow?.minimize()
+				}
 			}
 		})
 
